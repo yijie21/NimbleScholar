@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nimble Scholar</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">P</div>
+          <div>
+            <h1>Nimble Scholar</h1>
+            <p>Local tag library</p>
+          </div>
+        </div>
+
+        <button class="primary full" id="newPaperBtn">+ Add Paper</button>
+
+        <section class="side-section">
+          <div class="side-heading">Tags</div>
+          <button class="tag-filter active" data-tag="">All papers <span id="allCount">0</span></button>
+          <div id="tagFilters"></div>
+        </section>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div class="search-wrap">
+            <input id="searchInput" type="search" placeholder="Search papers, summaries, authors, DOI, tags">
+          </div>
+          <div class="toolbar">
+            <button id="captureBtn" title="Save a paper from URL">Capture URL</button>
+            <button id="updateFiguresBtn" title="Fetch figures from arXiv HTML for saved papers">Update Figures</button>
+            <button id="downloadPdfsBtn" title="Download PDFs for saved papers">Download PDFs</button>
+            <button id="bookmarkletBtn" title="Copy bookmarklet">Bookmarklet</button>
+            <a class="button" href="/api/export/bibtex" download="papers.bib">Export BibTeX</a>
+          </div>
+        </header>
+
+        <section class="library">
+          <div class="library-head">
+            <div>
+              <h2 id="viewTitle">All papers</h2>
+              <p id="resultMeta">0 papers</p>
+            </div>
+            <select id="sortSelect" aria-label="Sort papers">
+              <option value="updated">Recently updated</option>
+              <option value="year">Newest year</option>
+              <option value="title">Title A-Z</option>
+            </select>
+          </div>
+          <div id="paperList" class="paper-list"></div>
+          <div id="emptyState" class="empty-state">
+            <h3>No papers yet</h3>
+            <p>Add one manually or capture a URL from the web.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <section id="readerView" class="reader-view hidden" aria-hidden="true">
+      <header class="reader-toolbar">
+        <button id="readerBackBtn" type="button">Library</button>
+        <div class="reader-title">
+          <h2 id="readerTitle">PDF Reader</h2>
+          <p id="readerStatus">Ready</p>
+        </div>
+        <div class="reader-controls">
+          <button id="readerPrevBtn" type="button">Prev</button>
+          <input id="readerPageInput" type="number" min="1" value="1" aria-label="Page number">
+          <span id="readerPageCount">/ 1</span>
+          <button id="readerNextBtn" type="button">Next</button>
+          <button id="readerZoomOutBtn" type="button" title="Zoom out">-</button>
+          <button id="readerZoomInBtn" type="button" title="Zoom in">+</button>
+          <div class="reader-tool-group" aria-label="Annotation tools">
+            <button class="active" data-reader-tool="read" type="button">Read</button>
+            <button data-reader-tool="highlight" type="button">Highlight</button>
+            <button data-reader-tool="note" type="button">Note</button>
+          </div>
+        </div>
+      </header>
+      <div class="reader-body">
+        <main class="pdf-stage">
+          <div id="pdfPages" class="pdf-pages"></div>
+        </main>
+        <aside class="annotation-panel">
+          <div class="annotation-panel-head">
+            <h3>Annotations</h3>
+            <p id="annotationCount">0 saved</p>
+          </div>
+          <div id="annotationList" class="annotation-list"></div>
+        </aside>
+      </div>
+    </section>
+
+    <div id="selectionToolbar" class="selection-toolbar hidden" aria-hidden="true">
+      <button type="button" data-selection-action="highlight">Highlight</button>
+      <button type="button" data-selection-action="note">Note</button>
+      <button type="button" data-selection-action="copy">Copy</button>
+    </div>
+
+    <div id="annotationMenu" class="annotation-menu hidden" aria-hidden="true" role="dialog">
+      <p id="annotationMenuText">Delete this annotation?</p>
+      <div>
+        <button id="annotationMenuCancel" type="button">Cancel</button>
+        <button id="annotationMenuDelete" class="danger" type="button">Delete</button>
+      </div>
+    </div>
+
+    <dialog id="paperDialog">
+      <form id="paperForm" method="dialog">
+        <div class="dialog-head">
+          <h2 id="dialogTitle">Add Paper</h2>
+          <button type="button" class="icon" id="closeDialogBtn" aria-label="Close">x</button>
+        </div>
+        <input type="hidden" id="paperId">
+        <label>Title <input id="titleField" required></label>
+        <div class="two-col">
+          <label>Authors <input id="authorsField" placeholder="Jane Smith, Wei Chen"></label>
+          <label>Year <input id="yearField" inputmode="numeric" placeholder="2026"></label>
+        </div>
+        <div class="two-col">
+          <label>Venue <input id="venueField" placeholder="Nature, NeurIPS, arXiv"></label>
+          <label>DOI / arXiv ID <input id="doiField"></label>
+        </div>
+        <label>URL <input id="urlField" type="url"></label>
+        <label>PDF URL <input id="pdfUrlField" type="url"></label>
+        <label>Tags <input id="tagsField" placeholder="llm, reading-list, method"></label>
+        <label>One-sentence summary <input id="summaryField" maxlength="240" placeholder="Main feature or takeaway after reading"></label>
+        <div class="two-col">
+          <label>Teaser image URL <input id="teaserUrlField" type="url" placeholder="Shown first on the paper card"></label>
+          <label>Pipeline image URL <input id="pipelineUrlField" type="url" placeholder="Used if no teaser image"></label>
+        </div>
+        <label>Abstract <textarea id="abstractField" rows="5"></textarea></label>
+        <label>Notes <textarea id="notesField" rows="4"></textarea></label>
+        <div class="dialog-actions">
+          <button type="button" id="deleteBtn" class="danger">Delete</button>
+          <span></span>
+          <button type="button" id="cancelBtn">Cancel</button>
+          <button type="submit" class="primary">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="captureDialog">
+      <form id="captureForm" method="dialog">
+        <div class="dialog-head">
+          <h2>Capture URL</h2>
+          <button type="button" class="icon" id="closeCaptureBtn" aria-label="Close">x</button>
+        </div>
+        <label>Paper URL <input id="captureUrlField" type="url" required placeholder="https://arxiv.org/abs/..."></label>
+        <label>Tags <input id="captureTagsField" placeholder="to-read, survey"></label>
+        <div class="dialog-actions">
+          <span></span>
+          <span></span>
+          <button type="button" id="cancelCaptureBtn">Cancel</button>
+          <button type="submit" class="primary">Capture</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="imageDialog">
+      <div class="image-dialog-shell">
+        <div class="dialog-head image-dialog-head">
+          <h2 id="imageDialogTitle">Paper Image</h2>
+          <button type="button" class="icon" id="closeImageBtn" aria-label="Close">x</button>
+        </div>
+        <div class="image-preview-wrap">
+          <img id="imagePreview" alt="">
+        </div>
+      </div>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

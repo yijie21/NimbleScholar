@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Python (old prototype)
+__pycache__/
+*.pyc
+
+# Swift / Xcode build output
+.build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Brainstorm companion scratch
+.superpowers/
+
+# Local data & generated artifacts (not source)
+storage/
+*.sqlite3
+Nimble Scholar.app/

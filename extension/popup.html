@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Nimble Scholar Capture</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="mark">P</div>
+        <div>
+          <h1>Nimble Scholar</h1>
+          <p>Save current page</p>
+        </div>
+      </header>
+
+      <label>
+        Tags
+        <input id="tagsInput" placeholder="to-read, robotics">
+      </label>
+
+      <button id="saveBtn">Save Paper</button>
+      <p id="status" role="status"></p>
+
+      <details>
+        <summary>Settings</summary>
+        <label>
+          Default tags
+          <input id="defaultTagsInput" placeholder="to-read">
+        </label>
+        <button id="saveSettingsBtn" class="secondary">Save Settings</button>
+      </details>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

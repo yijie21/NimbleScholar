@@ -1,0 +1,9 @@
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <title>Deep Residual Learning for Image Recognition</title>
+    <summary>We present a residual learning framework.</summary>
+    <author><name>Kaiming He</name></author>
+    <author><name>Xiangyu Zhang</name></author>
+    <published>2015-12-10T00:00:00Z</published>
+  </entry>
+</feed>
