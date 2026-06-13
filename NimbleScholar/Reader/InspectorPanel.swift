@@ -1,0 +1,78 @@
+import SwiftUI
+import PDFKit
+import NimbleScholarCore
+
+struct InspectorPanel: View {
+    let pdfView: PDFView
+    @ObservedObject var vm: ReaderViewModel
+    @State private var tab = 0
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $tab) {
+                Text("Outline").tag(0)
+                Text("Annotations").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding(8)
+            Divider()
+            if tab == 0 { outline } else { annotationList }
+        }
+    }
+
+    private var outline: some View {
+        List {
+            if let root = pdfView.document?.outlineRoot, root.numberOfChildren > 0 {
+                ForEach(0..<root.numberOfChildren, id: \.self) { i in
+                    if let child = root.child(at: i) {
+                        Button(child.label ?? "—") {
+                            if let dest = child.destination { pdfView.go(to: dest) }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            } else {
+                Text("No outline").foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var annotationList: some View {
+        List {
+            if vm.annotations.isEmpty {
+                Text("No annotations").foregroundStyle(.secondary)
+            }
+            ForEach(vm.annotations) { a in
+                HStack {
+                    RoundedRectangle(cornerRadius: 3).fill(Color(hex: a.color)).frame(width: 12, height: 12)
+                    VStack(alignment: .leading) {
+                        Text(a.snippet.isEmpty ? a.kind : a.snippet).lineLimit(2).font(.caption)
+                        Text("Page \(a.page)").font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if let page = pdfView.document?.page(at: a.page - 1) { pdfView.go(to: page) }
+                }
+                .swipeActions {
+                    Button("Delete", role: .destructive) {
+                        if let id = a.id { try? vm.store.deleteAnnotation(id: id) }
+                        vm.refreshAnnotations()
+                    }
+                }
+            }
+        }
+    }
+}
+
+extension Color {
+    init(hex: String) {
+        let s = hex.dropFirst(hex.hasPrefix("#") ? 1 : 0)
+        var v: UInt64 = 0
+        Scanner(string: String(s)).scanHexInt64(&v)
+        self = Color(red: Double((v >> 16) & 0xff) / 255,
+                     green: Double((v >> 8) & 0xff) / 255,
+                     blue: Double(v & 0xff) / 255)
+    }
+}

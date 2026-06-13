@@ -1,0 +1,37 @@
+import SwiftUI
+import NimbleScholarCore
+
+struct PaperEditSheet: View {
+    @EnvironmentObject var vm: LibraryViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State var paper: Paper
+
+    init(paper: Paper) { _paper = State(initialValue: paper) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                TextField("Title", text: $paper.title)
+                TextField("Authors", text: $paper.authors)
+                TextField("Year", text: $paper.year)
+                TextField("Venue", text: $paper.venue)
+                TextField("DOI / arXiv ID", text: $paper.doi)
+                TextField("URL", text: $paper.url)
+                TextField("PDF URL", text: $paper.pdfURL)
+                TextField("Summary", text: $paper.summary)
+                TextField("Abstract", text: $paper.abstract, axis: .vertical).lineLimit(4...)
+            }
+            .formStyle(.grouped)
+            HStack {
+                if paper.id != nil {
+                    Button("Delete", role: .destructive) { vm.delete(paper); dismiss() }
+                }
+                Spacer()
+                Button("Cancel") { dismiss() }
+                Button("Save") { vm.save(paper); dismiss() }.keyboardShortcut(.defaultAction)
+            }
+            .padding()
+        }
+        .frame(width: 560, height: 580)
+    }
+}

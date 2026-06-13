@@ -3,7 +3,8 @@ import NimbleScholarCore
 
 /// App-wide singleton: owns the store, the PDF cache location, and the capture server.
 /// One instance for the whole app so the UI and the capture server share the same store.
-@MainActor
+/// Not @MainActor: the store (GRDB) is internally synchronized, so view models can read
+/// `AppEnvironment.shared.store` from their initializers without crossing actors.
 final class AppEnvironment: ObservableObject {
     static let shared = AppEnvironment()
 
