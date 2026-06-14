@@ -70,4 +70,15 @@ extension LibraryStoreTests {
         XCTAssertEqual(try store.paper(id: saved.id!)?.title, "Findable")
         XCTAssertNil(try store.paper(id: 999_999))
     }
+
+    func testAllTagsByPaper() throws {
+        let store = try makeStore()
+        let a = try store.create(Paper(title: "A"))
+        let b = try store.create(Paper(title: "B"))
+        try store.setTags(paperID: a.id!, tags: ["llm", "vision"])
+        try store.setTags(paperID: b.id!, tags: ["llm"])
+        let map = try store.allTagsByPaper()
+        XCTAssertEqual(map[a.id!], ["llm", "vision"])
+        XCTAssertEqual(map[b.id!], ["llm"])
+    }
 }

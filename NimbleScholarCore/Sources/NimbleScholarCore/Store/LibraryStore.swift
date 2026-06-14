@@ -167,6 +167,23 @@ public final class LibraryStore {
         }
     }
 
+    /// All paper→tags in a single query (avoids N+1 lookups when rendering the library).
+    public func allTagsByPaper() throws -> [Int64: [String]] {
+        try dbQueue.read { db in
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT pt.paper_id AS pid, t.name AS name
+                FROM paper_tags pt JOIN tags t ON t.id = pt.tag_id
+                ORDER BY t.name
+            """)
+            var map: [Int64: [String]] = [:]
+            for row in rows {
+                let pid: Int64 = row["pid"]
+                map[pid, default: []].append(row["name"])
+            }
+            return map
+        }
+    }
+
     public func tags(forPaper id: Int64) throws -> [String] {
         try dbQueue.read { db in
             try String.fetchAll(db, sql: """

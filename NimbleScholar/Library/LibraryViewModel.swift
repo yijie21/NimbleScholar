@@ -22,6 +22,7 @@ final class LibraryViewModel: ObservableObject {
 
     @Published var papers: [Paper] = []
     @Published var tagCounts: [TagCount] = []
+    @Published var tagsByPaper: [Int64: [String]] = [:]   // batched once per reload (no N+1)
     @Published var query = "" { didSet { reload() } }
     @Published var scope: LibraryScope = .all { didSet { reload() } }
     @Published var sort: SortMode = .updated {
@@ -62,6 +63,7 @@ final class LibraryViewModel: ObservableObject {
         }
         papers = (scope == .recent) ? Array(result.prefix(30)) : sorted(result)
         tagCounts = (try? store.tagCounts()) ?? []
+        tagsByPaper = (try? store.allTagsByPaper()) ?? [:]
     }
 
     private func sorted(_ list: [Paper]) -> [Paper] {
@@ -77,7 +79,7 @@ final class LibraryViewModel: ObservableObject {
 
     func tags(for paper: Paper) -> [String] {
         guard let id = paper.id else { return [] }
-        return (try? store.tags(forPaper: id)) ?? []
+        return tagsByPaper[id] ?? []
     }
     func addTag(_ tag: String, to paper: Paper) {
         guard let id = paper.id else { return }
