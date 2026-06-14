@@ -8,11 +8,17 @@ __pycache__/
 
 # Swift / Xcode build output
 .build/
+.build-xcode/
 DerivedData/
 *.xcuserstate
 xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
+
+# XcodeGen-generated (regenerate with scripts/mac_bootstrap.sh)
+NimbleScholar.xcodeproj/
+project.yml
+Generated/
 
 # Brainstorm companion scratch
 .superpowers/
