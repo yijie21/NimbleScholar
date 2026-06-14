@@ -21,6 +21,7 @@ enum LibraryViewMode: String, CaseIterable, Identifiable {
 }
 
 struct LibraryContentView: View {
+    @EnvironmentObject var env: AppEnvironment
     @StateObject private var vm = LibraryViewModel()
     @AppStorage("libraryViewMode") private var mode: LibraryViewMode = .threePane
     @State private var editing: Paper?
@@ -31,6 +32,16 @@ struct LibraryContentView: View {
             SidebarView().environmentObject(vm).frame(minWidth: 200)
         } detail: {
             detail
+        }
+        .safeAreaInset(edge: .top) {
+            if let e = env.startupError {
+                Text("⚠️ Running on a temporary in-memory library — nothing will be saved.\n\(e)")
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.red)
+            }
         }
         .task { vm.reload() }
         .sheet(item: $editing) { PaperEditSheet(paper: $0).environmentObject(vm) }

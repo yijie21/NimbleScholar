@@ -19,6 +19,11 @@ public final class LibraryStore {
         return try LibraryStore(dbQueue: try DatabaseQueue(path: dbURL.path))
     }
 
+    /// In-memory store (used as a fallback if on-disk setup fails).
+    public static func makeInMemory() throws -> LibraryStore {
+        try LibraryStore(dbQueue: DatabaseQueue())
+    }
+
     private var migrator: DatabaseMigrator {
         var m = DatabaseMigrator()
         m.registerMigration("v1") { db in

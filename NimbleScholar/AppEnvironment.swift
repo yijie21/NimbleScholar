@@ -12,15 +12,37 @@ final class AppEnvironment: ObservableObject {
     let downloader: PDFDownloader
     let figures = ArxivFigureService()
     var captureServer: CaptureServer?
+    /// Non-nil if on-disk store setup failed; shown as a banner + logged. Indicates
+    /// the app is running on an in-memory fallback store (nothing persists).
+    let startupError: String?
 
     /// Where data lives: ~/Library/Application Support/Nimble Scholar/
     /// (Sandboxed apps get the container-relative equivalent.)
     private init() {
-        self.store = try! LibraryStore.makeDefault()
-        let support = try! FileManager.default.url(
-            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        let cache = support.appendingPathComponent("Nimble Scholar/storage/pdfs", isDirectory: true)
-        self.downloader = PDFDownloader(cacheDir: cache)
+        var err: String?
+
+        // Try the on-disk store; if it fails, log the real error everywhere we can
+        // and fall back to in-memory so the app still launches for diagnosis.
+        let resolvedStore: LibraryStore
+        do {
+            resolvedStore = try LibraryStore.makeDefault()
+        } catch {
+            let msg = "LibraryStore.makeDefault failed: \(error)"
+            err = msg
+            NSLog("‼️ NimbleScholar: %@", msg)
+            print("‼️ NimbleScholar: \(msg)")
+            try? msg.write(toFile: "/tmp/nimblescholar-startup.log", atomically: true, encoding: .utf8)
+            resolvedStore = (try? LibraryStore.makeInMemory()) ?? { fatalError("in-memory store failed: \(error)") }()
+        }
+        self.store = resolvedStore
+        self.startupError = err
+
+        let support = (try? FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
+            ?? FileManager.default.temporaryDirectory
+        self.downloader = PDFDownloader(
+            cacheDir: support.appendingPathComponent("Nimble Scholar/storage/pdfs", isDirectory: true))
+
         startCaptureServer()
     }
 
@@ -41,6 +63,12 @@ final class AppEnvironment: ObservableObject {
         }
         let server = CaptureServer(port: 8765, handler: handler)
         self.captureServer = server
-        Task { try? await server.run() }
+        Task {
+            do { try await server.run() }
+            catch {
+                NSLog("‼️ NimbleScholar: capture server stopped: %@", "\(error)")
+                print("‼️ NimbleScholar: capture server stopped: \(error)")
+            }
+        }
     }
 }
