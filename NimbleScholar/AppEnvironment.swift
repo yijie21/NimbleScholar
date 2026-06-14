@@ -57,10 +57,17 @@ final class AppEnvironment: ObservableObject {
         return try MetadataService.parseGenericMeta(data)
     }
 
+    /// arXiv figure scrape (by id) used to enrich captured papers with a teaser image.
+    static func fetchArxivFigures(_ id: String) async throws -> FigureChooser.Result {
+        try await ArxivFigureService().figures(forID: id)
+    }
+
     private func startCaptureServer() {
-        let handler = CaptureHandler(store: store) { url in
-            try await AppEnvironment.resolveMetadata(for: url)
-        }
+        let handler = CaptureHandler(
+            store: store,
+            resolve: { url in try await AppEnvironment.resolveMetadata(for: url) },
+            fetchFigures: AppEnvironment.fetchArxivFigures
+        )
         // Port comes from Settings (@AppStorage "capturePort"); default 8781.
         // If it's taken, walk forward until we find a free one, and log which we bound.
         let saved = UserDefaults.standard.integer(forKey: "capturePort")

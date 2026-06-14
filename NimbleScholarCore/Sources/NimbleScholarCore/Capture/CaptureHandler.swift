@@ -2,12 +2,15 @@ import Foundation
 
 public final class CaptureHandler {
     public typealias Resolver = (String) async throws -> PaperMetadata
+    /// Optional arXiv figure fetcher (by arXiv id). Left nil in unit tests to stay offline.
+    public typealias FigureFetcher = (String) async throws -> FigureChooser.Result
 
     let store: LibraryStore
     let resolve: Resolver
+    let fetchFigures: FigureFetcher?
 
-    public init(store: LibraryStore, resolve: @escaping Resolver) {
-        self.store = store; self.resolve = resolve
+    public init(store: LibraryStore, resolve: @escaping Resolver, fetchFigures: FigureFetcher? = nil) {
+        self.store = store; self.resolve = resolve; self.fetchFigures = fetchFigures
     }
 
     @discardableResult
@@ -24,9 +27,21 @@ public final class CaptureHandler {
         p.pdfURL = payload.pdf_url?.nonEmpty
             ?? ArxivService.normalizedPDFURL(absOrID: payload.url)
             ?? meta.pdfURL
-        let saved = try store.create(p)
+        var saved = try store.create(p)
         if let tags = payload.tags {
             try store.setTags(paperID: saved.id!, tags: TagNormalizer.normalize(tags))
+        }
+
+        // Best-effort arXiv figure enrichment so cards show a teaser image.
+        if saved.teaserURL.isEmpty,
+           let id = ArxivService.extractID(from: payload.url),
+           let fetch = fetchFigures,
+           let figs = try? await fetch(id) {
+            saved.teaserURL = figs.teaser ?? ""
+            saved.pipelineURL = figs.pipeline ?? ""
+            if !(saved.teaserURL.isEmpty && saved.pipelineURL.isEmpty) {
+                saved = try store.update(saved)
+            }
         }
         return saved
     }

@@ -1,4 +1,5 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
+  <title>ArXiv Query: search_query=&amp;id_list=1512.03385&amp;start=0&amp;max_results=10</title>
   <entry>
     <title>Deep Residual Learning for Image Recognition</title>
     <summary>We present a residual learning framework.</summary>

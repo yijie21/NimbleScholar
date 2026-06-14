@@ -17,15 +17,18 @@ public enum MetadataService {
     public static func parseArxivAtom(_ data: Data) throws -> PaperMetadata {
         final class Delegate: NSObject, XMLParserDelegate {
             var element = ""
+            var inEntry = false               // only read fields inside <entry>, not the feed-level <title>
             var title = "", summary = "", published = ""
             var authors = [String]()
             var inAuthor = false, authorName = ""
             func parser(_ p: XMLParser, didStartElement e: String, namespaceURI: String?,
                         qualifiedName: String?, attributes a: [String: String]) {
                 element = e
-                if e == "author" { inAuthor = true; authorName = "" }
+                if e == "entry" { inEntry = true }
+                if e == "author", inEntry { inAuthor = true; authorName = "" }
             }
             func parser(_ p: XMLParser, foundCharacters s: String) {
+                guard inEntry else { return }
                 switch element {
                 case "title": title += s
                 case "summary": summary += s
@@ -35,10 +38,11 @@ public enum MetadataService {
                 }
             }
             func parser(_ p: XMLParser, didEndElement e: String, namespaceURI: String?, qualifiedName: String?) {
-                if e == "author" {
+                if e == "author", inAuthor {
                     authors.append(authorName.trimmingCharacters(in: .whitespacesAndNewlines))
                     inAuthor = false
                 }
+                if e == "entry" { inEntry = false }
                 element = ""
             }
         }

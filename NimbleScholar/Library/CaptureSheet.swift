@@ -33,9 +33,11 @@ struct CaptureSheet: View {
             var payload = CapturePayload()
             payload.url = urlValue
             payload.tags = tagsValue
-            let handler = CaptureHandler(store: AppEnvironment.shared.store) { u in
-                try await AppEnvironment.resolveMetadata(for: u)
-            }
+            let handler = CaptureHandler(
+                store: AppEnvironment.shared.store,
+                resolve: { u in try await AppEnvironment.resolveMetadata(for: u) },
+                fetchFigures: AppEnvironment.fetchArxivFigures
+            )
             _ = try? await handler.capture(payload)
             await MainActor.run {
                 vm.reload()
