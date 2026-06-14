@@ -60,7 +60,7 @@ struct LibraryContentView: View {
                     .background(Color.red)
             }
         }
-        .task { vm.reload() }
+        .task { vm.reload(); vm.backfillVisualsIfNeeded() }
         .sheet(item: $vm.editingPaper) { PaperEditSheet(paper: $0).environmentObject(vm) }
         .sheet(isPresented: $capturing) { CaptureSheet().environmentObject(vm) }
     }
@@ -102,7 +102,7 @@ struct LibraryContentView: View {
             ToolbarItem {
                 Menu {
                     Button("Download all PDFs") { Task { await vm.downloadAllPDFs() } }
-                    Button("Refresh arXiv figures") { Task { await vm.refreshAllFigures() } }
+                    Button("Load missing figures & thumbnails") { Task { await vm.backfillMissingVisuals() } }
                     Divider()
                     Button("Export BibTeX…") { exportBibTeX() }
                 } label: { Label("Actions", systemImage: "ellipsis.circle") }

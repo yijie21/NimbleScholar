@@ -10,7 +10,10 @@ final class AppEnvironment: ObservableObject {
 
     let store: LibraryStore
     let downloader: PDFDownloader
-    let figures = ArxivFigureService()
+    let figures: ArxivFigureService
+    /// URLSession used for ALL downloads (PDFs, figures, metadata). Routes through the
+    /// user's configured proxy when enabled in Settings (restart to apply changes).
+    let networkSession: URLSession
     var captureServer: CaptureServer?
     /// Non-nil if on-disk store setup failed; shown as a banner + logged. Indicates
     /// the app is running on an in-memory fallback store (nothing persists).
@@ -37,29 +40,50 @@ final class AppEnvironment: ObservableObject {
         self.store = resolvedStore
         self.startupError = err
 
+        let session = AppEnvironment.makeNetworkSession()
+        self.networkSession = session
+        self.figures = ArxivFigureService(session: session)
+
         let support = (try? FileManager.default.url(
             for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
             ?? FileManager.default.temporaryDirectory
         self.downloader = PDFDownloader(
+            session: session,
             cacheDir: support.appendingPathComponent("Nimble Scholar/storage/pdfs", isDirectory: true))
 
         startCaptureServer()
     }
 
+    /// Build the shared download session, honoring the proxy configured in Settings.
+    private static func makeNetworkSession() -> URLSession {
+        let d = UserDefaults.standard
+        let config = URLSessionConfiguration.default
+        let host = d.string(forKey: "proxyHost") ?? ""
+        let port = d.integer(forKey: "proxyPort")
+        if d.bool(forKey: "proxyEnabled"), !host.isEmpty, port > 0 {
+            config.connectionProxyDictionary = [
+                "HTTPEnable": 1, "HTTPProxy": host, "HTTPPort": port,
+                "HTTPSEnable": 1, "HTTPSProxy": host, "HTTPSPort": port,
+            ]
+        }
+        return URLSession(configuration: config)
+    }
+
     /// Resolve metadata for a URL: arXiv API first, generic <meta> fallback.
     static func resolveMetadata(for url: String) async throws -> PaperMetadata {
+        let session = AppEnvironment.shared.networkSession
         if let id = ArxivService.extractID(from: url) {
-            let (data, _) = try await URLSession.shared.data(from: ArxivService.apiURL(forID: id))
+            let (data, _) = try await session.data(from: ArxivService.apiURL(forID: id))
             return try MetadataService.parseArxivAtom(data)
         }
         guard let u = URL(string: url) else { return PaperMetadata() }
-        let (data, _) = try await URLSession.shared.data(from: u)
+        let (data, _) = try await session.data(from: u)
         return try MetadataService.parseGenericMeta(data)
     }
 
     /// arXiv figure scrape (by id) used to enrich captured papers with a teaser image.
     static func fetchArxivFigures(_ id: String) async throws -> FigureChooser.Result {
-        try await ArxivFigureService().figures(forID: id)
+        try await AppEnvironment.shared.figures.figures(forID: id)
     }
 
     private func startCaptureServer() {

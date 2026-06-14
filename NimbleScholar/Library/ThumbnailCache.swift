@@ -81,7 +81,7 @@ final class ThumbnailCache {
         // 1) Teaser / pipeline figure from the web.
         let remote = paper.teaserURL.isEmpty ? paper.pipelineURL : paper.teaserURL
         if !remote.isEmpty, let url = URL(string: remote),
-           let (data, _) = try? await URLSession.shared.data(from: url),
+           let (data, _) = try? await AppEnvironment.shared.networkSession.data(from: url),
            let img = NSImage(data: data) {
             return downscaled(img)
         }

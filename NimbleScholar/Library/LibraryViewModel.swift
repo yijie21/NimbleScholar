@@ -182,6 +182,33 @@ final class LibraryViewModel: ObservableObject {
         for p in papers { _ = await ensurePDF(for: p) }
     }
 
+    // MARK: - Background visual backfill
+
+    private var didBackfill = false
+
+    /// Run the visual backfill once per session (called after the first load).
+    func backfillVisualsIfNeeded() {
+        guard !didBackfill else { return }
+        didBackfill = true
+        Task { await backfillMissingVisuals() }
+    }
+
+    /// For every paper with no teaser image: re-fetch its arXiv figure, or (for non-arXiv
+    /// papers like CVF) ensure the PDF is cached so its first page renders as the thumbnail.
+    func backfillMissingVisuals() async {
+        let all = (try? store.allPapers()) ?? []
+        for p in all where p.teaserURL.isEmpty && p.pipelineURL.isEmpty {
+            if let id = ArxivService.extractID(from: p.url),
+               let figs = try? await AppEnvironment.fetchArxivFigures(id),
+               figs.teaser != nil || figs.pipeline != nil {
+                var x = p; x.teaserURL = figs.teaser ?? ""; x.pipelineURL = figs.pipeline ?? ""
+                _ = try? store.update(x)
+            } else if p.pdfPath.isEmpty || !FileManager.default.fileExists(atPath: p.pdfPath) {
+                _ = await ensurePDF(for: p)
+            }
+        }
+    }
+
     // MARK: - Multi-selection bulk actions
 
     private func selectedPapers() -> [Paper] { papers.filter { $0.id.map(multiSelection.contains) ?? false } }

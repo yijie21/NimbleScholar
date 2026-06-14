@@ -17,6 +17,9 @@ struct SettingsView: View {
 private struct GeneralSettings: View {
     @AppStorage("defaultCaptureTags") private var defaultTags = "to-read"
     @AppStorage("capturePort") private var capturePort = 8917
+    @AppStorage("proxyEnabled") private var proxyEnabled = false
+    @AppStorage("proxyHost") private var proxyHost = "127.0.0.1"
+    @AppStorage("proxyPort") private var proxyPort = 7892
 
     private var boundPort: String {
         (try? String(contentsOfFile: "/tmp/nimblescholar-port.txt", encoding: .utf8))?
@@ -34,6 +37,15 @@ private struct GeneralSettings: View {
                 TextField("Preferred port", value: $capturePort, format: .number)
                 LabeledContent("Currently listening on", value: boundPort)
                 Text("The browser extension finds the app automatically. Change the port only if it conflicts; restart the app to apply.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Downloads") {
+                Toggle("Route downloads through a proxy", isOn: $proxyEnabled)
+                if proxyEnabled {
+                    TextField("Proxy host", text: $proxyHost).autocorrectionDisabled()
+                    TextField("Proxy port", value: $proxyPort, format: .number)
+                }
+                Text("Used for paper PDFs, figures, and metadata (e.g. your local proxy for faster access). Restart the app to apply.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
