@@ -44,8 +44,37 @@ final class ThumbnailCache {
            let rep = NSBitmapImageRep(data: tiff),
            let png = rep.representation(using: .png, properties: [:]) {
             try? png.write(to: file)
+            trimDiskIfNeeded()
         }
         return produced
+    }
+
+    /// Render + cache in the background so the first scroll is instant.
+    func prewarm(_ papers: [Paper]) {
+        Task { for p in papers { _ = await image(for: p) } }
+    }
+
+    private let maxBytes: UInt64 = 200 * 1024 * 1024  // 200 MB
+
+    /// Keep the on-disk cache bounded by evicting the oldest files.
+    private func trimDiskIfNeeded() {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(
+            at: dir, includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey]) else { return }
+        var total: UInt64 = 0
+        var items: [(url: URL, date: Date, size: UInt64)] = []
+        for url in files {
+            let v = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+            let size = UInt64(v?.fileSize ?? 0)
+            items.append((url, v?.contentModificationDate ?? .distantPast, size))
+            total += size
+        }
+        guard total > maxBytes else { return }
+        for item in items.sorted(by: { $0.date < $1.date }) {   // oldest first
+            try? fm.removeItem(at: item.url)
+            total -= item.size
+            if total <= maxBytes { break }
+        }
     }
 
     private func produce(for paper: Paper) async -> NSImage? {

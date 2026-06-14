@@ -64,6 +64,7 @@ final class LibraryViewModel: ObservableObject {
         papers = (scope == .recent) ? Array(result.prefix(30)) : sorted(result)
         tagCounts = (try? store.tagCounts()) ?? []
         tagsByPaper = (try? store.allTagsByPaper()) ?? [:]
+        ThumbnailCache.shared.prewarm(papers)
     }
 
     private func sorted(_ list: [Paper]) -> [Paper] {
