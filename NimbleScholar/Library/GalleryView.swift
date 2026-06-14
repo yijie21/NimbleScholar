@@ -3,14 +3,15 @@ import NimbleScholarCore
 
 struct GalleryView: View {
     @EnvironmentObject var vm: LibraryViewModel
-    private let columns = [GridItem(.adaptive(minimum: 220), spacing: 18)]
+    // Fixed-width columns so every card is identical regardless of figure shape.
+    private let columns = [GridItem(.adaptive(minimum: 230, maximum: 230), spacing: 18)]
 
     var body: some View {
         if vm.papers.isEmpty {
             EmptyLibraryView()
         } else {
             ScrollView {
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
+                LazyVGrid(columns: columns, alignment: .center, spacing: 18) {
                     ForEach(vm.papers) { paper in
                         GalleryCard(paper: paper).environmentObject(vm)
                     }
@@ -33,17 +34,22 @@ private struct GalleryCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            PaperThumbnail(paper: paper)
-                .frame(maxWidth: .infinity)        // constrain width to the cell (no overflow)
+            // Fixed-size figure box: a fixed frame with the image as a *clipped overlay*,
+            // so a tall/wide/odd-aspect figure can never change the card's size.
+            Color.clear
+                .frame(maxWidth: .infinity)
                 .frame(height: 130)
-                .clipped()
+                .overlay(PaperThumbnail(paper: paper))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(alignment: .topTrailing) { PaperStatusBadge(paper: paper) }
             Text(paper.title).font(.subheadline).bold().lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
             Text(paper.authors).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(width: 230, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
         .background(RoundedRectangle(cornerRadius: 12).fill(Color(nsColor: .controlBackgroundColor)))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
