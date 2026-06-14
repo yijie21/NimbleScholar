@@ -68,7 +68,7 @@ public final class LibraryStore {
             }
         }
         m.registerMigration("v2-fts") { db in
-            try db.create(virtualTable: "papers_fts", options: [.ifNotExists], using: FTS5()) { t in
+            try db.create(virtualTable: "papers_fts", using: FTS5()) { t in
                 t.synchronize(withTable: "papers")
                 t.column("title"); t.column("authors"); t.column("abstract")
                 t.column("summary"); t.column("venue"); t.column("doi")
