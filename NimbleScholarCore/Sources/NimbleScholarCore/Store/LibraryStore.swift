@@ -79,6 +79,15 @@ public final class LibraryStore {
                 t.add(column: "read", .integer).notNull().defaults(to: 0)
             }
         }
+        m.registerMigration("v4-chat") { db in
+            try db.create(table: "chat_messages") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("paper_id", .integer).notNull().references("papers", onDelete: .cascade)
+                t.column("role", .text).notNull()
+                t.column("content", .text).notNull()
+                t.column("created_at", .integer).notNull()
+            }
+        }
         return m
     }
 
@@ -283,6 +292,34 @@ public final class LibraryStore {
 
     public func deleteAnnotation(id: Int64) throws {
         _ = try dbQueue.write { try AnnotationIndex.deleteOne($0, key: id) }
+    }
+
+    // MARK: - Chat history
+
+    /// A paper's saved AI-chat messages, oldest first.
+    public func chatMessages(forPaper id: Int64) throws -> [ChatMessage] {
+        try dbQueue.read { db in
+            try ChatMessage
+                .filter(sql: "paper_id = ?", arguments: [id])
+                .order(sql: "created_at ASC, id ASC")
+                .fetchAll(db)
+        }
+    }
+
+    /// Append a message; stamps `created_at` if unset and returns the saved row (with id).
+    @discardableResult
+    public func appendChatMessage(_ message: ChatMessage) throws -> ChatMessage {
+        var m = message
+        if m.createdAt == 0 { m.createdAt = Int64(Date().timeIntervalSince1970) }
+        try dbQueue.write { try m.insert($0) }
+        return m
+    }
+
+    /// Delete a paper's whole conversation.
+    public func clearChat(paperID: Int64) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM chat_messages WHERE paper_id = ?", arguments: [paperID])
+        }
     }
 
     // MARK: - Change observation
