@@ -11,10 +11,10 @@ struct PaperDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                PaperThumbnail(paper: paper)
+                PaperThumbnail(paper: paper, contentMode: .fit)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 240)
-                    .clipped()
+                    .frame(maxHeight: 340)
+                    .background(.quaternary.opacity(0.25))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 Text(paper.title).font(.title2).bold()
                 Text([paper.authors, paper.venue, paper.year].filter { !$0.isEmpty }.joined(separator: " · "))

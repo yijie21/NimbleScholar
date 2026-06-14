@@ -7,6 +7,8 @@ import NimbleScholarCore
 /// the first time. Fills its frame (caller sets size + clip).
 struct PaperThumbnail: View {
     let paper: Paper
+    /// `.fill` crops to fill the frame (uniform cards); `.fit` shows the whole image (detail pane).
+    var contentMode: ContentMode = .fill
     @State private var image: NSImage?
 
     private var cacheKey: String { "\(paper.id ?? 0)|\(paper.teaserURL)|\(paper.pipelineURL)|\(paper.pdfPath)" }
@@ -14,7 +16,7 @@ struct PaperThumbnail: View {
     var body: some View {
         ZStack {
             if let image {
-                Image(nsImage: image).resizable().scaledToFill()
+                Image(nsImage: image).resizable().aspectRatio(contentMode: contentMode)
             } else {
                 Placeholder()
             }
