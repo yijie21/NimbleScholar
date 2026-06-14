@@ -148,6 +148,21 @@ final class LibraryViewModel: ObservableObject {
         reload()
     }
 
+    /// Import a local PDF: copy it into the cache and create a paper from its filename.
+    func importPDF(at source: URL) {
+        let cache = AppEnvironment.shared.downloader.cacheDir
+        try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+        let dest = cache.appendingPathComponent(source.lastPathComponent)
+        if !FileManager.default.fileExists(atPath: dest.path) {
+            try? FileManager.default.copyItem(at: source, to: dest)
+        }
+        var p = Paper(title: source.deletingPathExtension().lastPathComponent)
+        p.pdfPath = dest.path
+        p.source = "local"
+        _ = try? store.create(p)
+        reload()
+    }
+
     // MARK: - Bulk actions
 
     /// Ensure a local PDF exists and persist its path (so thumbnails/reader find it).

@@ -69,6 +69,11 @@ struct LibraryContentView: View {
         .environmentObject(vm)
         .navigationTitle(vm.scopeTitle)
         .searchable(text: $vm.query, prompt: "Search papers, authors, DOI, tags")
+        .dropDestination(for: URL.self) { urls, _ in
+            let pdfs = urls.filter { $0.pathExtension.lowercased() == "pdf" }
+            for url in pdfs { vm.importPDF(at: url) }
+            return !pdfs.isEmpty
+        }
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Picker("View", selection: $mode) {
