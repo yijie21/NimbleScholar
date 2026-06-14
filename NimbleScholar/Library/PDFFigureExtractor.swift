@@ -31,7 +31,7 @@ enum PDFFigureExtractor {
                 if area > bestArea { bestArea = area; best = img }
             }
         }
-        return best.map(makeImage)
+        return best.map { makeImage($0) }
     }
 
     // MARK: - Per-page image selection
@@ -84,15 +84,12 @@ enum PDFFigureExtractor {
         var format = CGPDFDataFormat.raw
         guard let cfdata = CGPDFStreamCopyData(stream, &format) else { return nil }
 
-        switch format {
-        case .jpegEncoded, .jpeg2000:
-            guard let src = CGImageSourceCreateWithData(cfdata, nil) else { return nil }
-            return CGImageSourceCreateImageAtIndex(src, 0, nil)
-        case .raw:
+        if format == .raw {
             return rawImage(data: cfdata as Data, dict: dict, width: Int(width), height: Int(height))
-        @unknown default:
-            return nil
         }
+        // JPEG / JPEG2000 (any non-raw encoding): the stream bytes are a complete image file.
+        guard let src = CGImageSourceCreateWithData(cfdata, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(src, 0, nil)
     }
 
     /// Build a CGImage from a raw (uncompressed) 8-bit sample stream. Handles the common
