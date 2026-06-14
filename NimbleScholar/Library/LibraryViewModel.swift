@@ -33,6 +33,7 @@ final class LibraryViewModel: ObservableObject {
         }
     }
     @Published var selection: Paper.ID? = nil
+    @Published var multiSelection: Set<Int64> = []   // three-pane multi-selection
     @Published var editingPaper: Paper? = nil
 
     private let store = AppEnvironment.shared.store
@@ -176,6 +177,25 @@ final class LibraryViewModel: ObservableObject {
     }
     func downloadAllPDFs() async {
         for p in papers { _ = await ensurePDF(for: p) }
+    }
+
+    // MARK: - Multi-selection bulk actions
+
+    private func selectedPapers() -> [Paper] { papers.filter { $0.id.map(multiSelection.contains) ?? false } }
+
+    func bulkDelete() {
+        for p in selectedPapers() { if let id = p.id { try? store.deletePaper(id: id) } }
+        multiSelection.removeAll(); reload()
+    }
+    func bulkAddTag(_ tag: String) {
+        for p in selectedPapers() where p.id != nil {
+            let current = (try? store.tags(forPaper: p.id!)) ?? []
+            try? store.setTags(paperID: p.id!, tags: current + [tag])
+        }
+        reload()
+    }
+    func bulkDownloadPDFs() async {
+        for p in selectedPapers() { _ = await ensurePDF(for: p) }
     }
     func refreshAllFigures() async {
         for p in papers where p.teaserURL.isEmpty {

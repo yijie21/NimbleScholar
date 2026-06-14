@@ -35,7 +35,14 @@ struct LibraryContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @StateObject private var vm = LibraryViewModel()
     @AppStorage("libraryViewMode") private var mode: LibraryViewMode = .threePane
+    @Environment(\.openWindow) private var openWindow
     @State private var capturing = false
+
+    private func openSelectedReader() {
+        if vm.multiSelection.count == 1, let id = vm.multiSelection.first {
+            openWindow(id: "reader", value: id)
+        }
+    }
 
     var body: some View {
         NavigationSplitView {
@@ -74,6 +81,12 @@ struct LibraryContentView: View {
             for url in pdfs { vm.importPDF(at: url) }
             return !pdfs.isEmpty
         }
+        .onDeleteCommand { vm.bulkDelete() }
+        .background(
+            Button("") { openSelectedReader() }
+                .keyboardShortcut("o", modifiers: [.command])
+                .hidden()
+        )
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Picker("View", selection: $mode) {
