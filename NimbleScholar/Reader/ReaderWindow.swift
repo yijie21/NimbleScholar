@@ -21,7 +21,10 @@ struct ReaderWindow: View {
             }
             Group {
                 if let doc = vm.document {
-                    PDFKitView(document: doc, displayMode: $displayMode, vm: vm) { self.pdfView = $0 }
+                    PDFKitView(document: doc, displayMode: $displayMode, vm: vm) { pv in
+                        self.pdfView = pv
+                        AnnotationController(vm: vm).reconcile(pdfView: pv)
+                    }
                 } else {
                     ContentUnavailableView(vm.status, systemImage: "doc.richtext")
                 }

@@ -47,6 +47,39 @@ struct AnnotationController {
         vm.refreshAnnotations()
     }
 
+    /// Delete an annotation chosen from the inspector list: find the matching PDFAnnotation
+    /// on its page (nearest by normalized origin), remove it from the file, then drop the row.
+    func deleteIndexed(_ row: AnnotationIndex, pdfView: PDFView) {
+        if let page = pdfView.document?.page(at: row.page - 1) {
+            let pageRect = page.bounds(for: .mediaBox)
+            if pageRect.width > 0, pageRect.height > 0 {
+                let tx = CGFloat(row.x) * pageRect.width
+                let ty = CGFloat(row.y) * pageRect.height
+                let match = page.annotations.min {
+                    hypot($0.bounds.minX - tx, $0.bounds.minY - ty) < hypot($1.bounds.minX - tx, $1.bounds.minY - ty)
+                }
+                if let match { page.removeAnnotation(match); vm.scheduleSave() }
+            }
+        }
+        if let id = row.id { try? vm.store.deleteAnnotation(id: id) }
+        vm.refreshAnnotations()
+    }
+
+    /// Drop index rows whose page no longer has any annotation near them — the PDF file is the
+    /// source of truth, so this keeps the Annotations list honest after edits in other apps.
+    func reconcile(pdfView: PDFView) {
+        guard let pid = vm.paper.id, let doc = pdfView.document else { return }
+        for row in (try? vm.store.annotations(forPaper: pid)) ?? [] {
+            guard let page = doc.page(at: row.page - 1) else { continue }
+            let pageRect = page.bounds(for: .mediaBox)
+            guard pageRect.width > 0 else { continue }
+            let tx = CGFloat(row.x) * pageRect.width, ty = CGFloat(row.y) * pageRect.height
+            let near = page.annotations.contains { hypot($0.bounds.minX - tx, $0.bounds.minY - ty) < 8 }
+            if !near, let id = row.id { try? vm.store.deleteAnnotation(id: id) }
+        }
+        vm.refreshAnnotations()
+    }
+
     func addNote(text: String, at point: CGPoint, on page: PDFPage, pdfView: PDFView) {
         guard let pageIndex = pdfView.document?.index(for: page) else { return }
         let rect = CGRect(x: point.x, y: point.y, width: 22, height: 22)

@@ -57,8 +57,7 @@ struct InspectorPanel: View {
                 }
                 .swipeActions {
                     Button("Delete", role: .destructive) {
-                        if let id = a.id { try? vm.store.deleteAnnotation(id: id) }
-                        vm.refreshAnnotations()
+                        AnnotationController(vm: vm).deleteIndexed(a, pdfView: pdfView)
                     }
                 }
             }
