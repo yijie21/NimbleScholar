@@ -7,6 +7,8 @@ struct SettingsView: View {
                 .tabItem { Label("General", systemImage: "gearshape") }
             ReadingSettings()
                 .tabItem { Label("Reading", systemImage: "book") }
+            AISettings()
+                .tabItem { Label("AI", systemImage: "sparkles") }
         }
         .frame(width: 460)
     }
@@ -36,6 +38,34 @@ private struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+        .padding(.vertical, 6)
+    }
+}
+
+private struct AISettings: View {
+    @AppStorage("aiEnabled") private var enabled = false
+    @AppStorage("aiBaseURL") private var baseURL = "http://localhost:11434/v1"
+    @AppStorage("aiModel") private var model = "llama3"
+    @AppStorage("aiAPIKey") private var apiKey = ""
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Enable AI chat in the reader", isOn: $enabled)
+            }
+            Section("Endpoint") {
+                TextField("Base URL", text: $baseURL)
+                    .autocorrectionDisabled()
+                TextField("Model", text: $model)
+                SecureField("API key (blank for local servers)", text: $apiKey)
+            }
+            Section {
+                Text("Any OpenAI-compatible endpoint works — a local server (Ollama, LM Studio, llama.cpp, your codex) or the OpenAI cloud. The key is stored in app preferences.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 440)
         .padding(.vertical, 6)
     }
 }
