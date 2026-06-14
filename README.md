@@ -169,8 +169,10 @@ afterward). Keep a backup before big changes.
   capture server to accept the request.
 - **A figure is missing** → the app pulls the teaser/pipeline figure from the paper's HTML
   view (arXiv HTML → ar5iv fallback; CVF/publisher landing pages; `og:image` as a last
-  resort). A few papers expose no online figure at all and fall back to the PDF's first page.
-  Use **⋯ → "Load missing figures & PDFs"** or tap a paper's orange badge to retry.
+  resort). When a paper has no HTML view, it **extracts the figure from the PDF itself** —
+  the largest image on the first page (teaser), else the largest on later pages (pipeline).
+  Only vector-only figures with no HTML fall back to the PDF's first page. Use
+  **⋯ → "Re-fetch all figures"** or tap a paper's orange badge to retry.
 - **Downloads are slow** → enable the **proxy** in Settings → General → Downloads, or check
   whether a paper's badge stays orange (a real download failure) vs. spinning (in progress).
 - **Port conflict** → the app automatically tries the next free port; the extension probes

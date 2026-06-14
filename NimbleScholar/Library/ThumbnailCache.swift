@@ -87,12 +87,14 @@ final class ThumbnailCache {
                 return downscaled(img)
             }
         }
-        // 2) Fallback: render the cached PDF's first page (off the main thread).
+        // 2) No web figure: pull the teaser/pipeline image out of the PDF itself; only if the
+        //    PDF has no usable embedded figure (e.g. vector-only) do we render the first page.
         let path = paper.pdfPath
         if !path.isEmpty {
             return await Task.detached(priority: .utility) { () -> NSImage? in
-                guard FileManager.default.fileExists(atPath: path),
-                      let doc = PDFDocument(url: URL(fileURLWithPath: path)),
+                guard FileManager.default.fileExists(atPath: path) else { return nil }
+                if let figure = PDFFigureExtractor.extractFigure(fromPDFAt: path) { return figure }
+                guard let doc = PDFDocument(url: URL(fileURLWithPath: path)),
                       let page = doc.page(at: 0) else { return nil }
                 return page.thumbnail(of: NSSize(width: 480, height: 620), for: .mediaBox)
             }.value
