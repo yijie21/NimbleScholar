@@ -62,11 +62,10 @@ struct InlineSummaryField: View {
     }
 }
 
-/// Tag chips with remove buttons + an add field.
+/// Tag chips with remove buttons + an add field with existing-tag autocomplete.
 struct InlineTagEditor: View {
     @EnvironmentObject var vm: LibraryViewModel
     let paper: Paper
-    @State private var newTag = ""
 
     var body: some View {
         HStack(spacing: 6) {
@@ -80,13 +79,7 @@ struct InlineTagEditor: View {
                 .padding(.horizontal, 7).padding(.vertical, 2)
                 .background(Capsule().fill(.quaternary))
             }
-            TextField("+ tag", text: $newTag)
-                .textFieldStyle(.plain)
-                .font(.caption)
-                .frame(width: 60)
-                .onSubmit {
-                    if !newTag.isEmpty { vm.addTag(newTag, to: paper); newTag = "" }
-                }
+            TagInputField(paper: paper, fieldWidth: 90)
         }
     }
 }

@@ -90,6 +90,20 @@ final class LibraryViewModel: ObservableObject {
         guard let id = paper.id else { return [] }
         return tagsByPaper[id] ?? []
     }
+
+    /// All tag names ever used, most-used first (for pickers/autocomplete).
+    var allTagNames: [String] { tagCounts.map { $0.name } }
+
+    /// Existing tags not already on `paper`, optionally filtered by typed text
+    /// (case-insensitive substring), most-used first — powers tag autocomplete.
+    func tagSuggestions(for paper: Paper, matching text: String = "") -> [String] {
+        let applied = Set(tags(for: paper).map { $0.lowercased() })
+        let q = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return tagCounts
+            .map { $0.name }
+            .filter { !applied.contains($0.lowercased()) }
+            .filter { q.isEmpty || $0.lowercased().contains(q) }
+    }
     func addTag(_ tag: String, to paper: Paper) {
         guard let id = paper.id else { return }
         let current = (try? store.tags(forPaper: id)) ?? []

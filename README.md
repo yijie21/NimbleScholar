@@ -85,7 +85,9 @@ Save the page you're reading straight into Nimble Scholar.
   (punctuation-safe).
 - **Sort**: Recently updated / Newest year / Title A–Z (remembered across launches).
 - **Tags & summary**: edit inline on Rows cards, or in the detail pane. Add a one-sentence
-  takeaway to each paper.
+  takeaway to each paper. To reuse an existing tag, click the **tag menu** next to the
+  add-tag field, or just start typing and pick a match from the **autocomplete** chips — no
+  need to retype tag names.
 - **Right-click any paper** → Read · Edit… · Re-fetch Metadata · Mark Read/Unread · Open in
   Browser · Open PDF in Default App · Reveal Cached PDF in Finder · Copy BibTeX · Delete.
 - **Multi-select** (Three-pane): ⌘/shift-click several papers for a bulk bar (**Download** /

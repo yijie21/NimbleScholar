@@ -6,7 +6,6 @@ struct PaperDetailView: View {
     @EnvironmentObject var vm: LibraryViewModel
     @Environment(\.openWindow) private var openWindow
     let paper: Paper
-    @State private var newTag = ""
 
     var body: some View {
         ScrollView {
@@ -34,12 +33,7 @@ struct PaperDetailView: View {
                     Button("Delete", role: .destructive) { vm.delete(paper) }
                 }
                 FlowTags(tags: vm.tags(for: paper), onRemove: { vm.removeTag($0, from: paper) })
-                TextField("+ tag", text: $newTag)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 200)
-                    .onSubmit {
-                        if !newTag.isEmpty { vm.addTag(newTag, to: paper); newTag = "" }
-                    }
+                TagInputField(paper: paper)
                 if !paper.abstract.isEmpty {
                     Text(paper.abstract).font(.callout).foregroundStyle(.secondary)
                 }

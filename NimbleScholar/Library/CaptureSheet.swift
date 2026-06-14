@@ -14,8 +14,21 @@ struct CaptureSheet: View {
         VStack(spacing: 14) {
             Text("Capture URL").font(.headline)
             TextField("https://arxiv.org/abs/…", text: $url).textFieldStyle(.roundedBorder)
-            TextField("Tags (comma separated)", text: $tags).textFieldStyle(.roundedBorder)
-                .onAppear { if tags.isEmpty { tags = defaultTags } }
+            HStack(spacing: 6) {
+                TextField("Tags (comma separated)", text: $tags).textFieldStyle(.roundedBorder)
+                    .onAppear { if tags.isEmpty { tags = defaultTags } }
+                let available = vm.allTagNames.filter { !currentTags.contains($0.lowercased()) }
+                if !available.isEmpty {
+                    Menu {
+                        ForEach(available, id: \.self) { t in
+                            Button { append(t) } label: { Label(t, systemImage: "tag") }
+                        }
+                    } label: { Image(systemName: "tag") }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Add an existing tag")
+                }
+            }
             if let error {
                 Text(error).font(.caption).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -29,6 +42,19 @@ struct CaptureSheet: View {
         }
         .padding(20)
         .frame(width: 460)
+    }
+
+    /// Tags already in the comma field (lowercased) so the menu hides duplicates.
+    private var currentTags: Set<String> {
+        Set(tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
+    }
+
+    /// Append an existing tag to the comma-separated field.
+    private func append(_ tag: String) {
+        let trimmed = tags.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { tags = tag }
+        else if trimmed.hasSuffix(",") { tags = trimmed + " " + tag }
+        else { tags = trimmed + ", " + tag }
     }
 
     private func capture() {
