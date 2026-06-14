@@ -73,6 +73,9 @@ final class AppEnvironment: ObservableObject {
                     try? await server.waitUntilListening()
                     NSLog("‼️ NimbleScholar: capture server LISTENING on http://127.0.0.1:%u", UInt(port))
                     print("‼️ NimbleScholar: capture server LISTENING on http://127.0.0.1:\(port)")
+                    // Write the bound port so the launch script (and the user) can find it,
+                    // since a bundle launched via `open` doesn't print to the terminal.
+                    try? "\(port)".write(toFile: "/tmp/nimblescholar-port.txt", atomically: true, encoding: .utf8)
                 }
                 do {
                     try await server.run()   // serves until stopped; throws immediately on bind failure

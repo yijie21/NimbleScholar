@@ -129,14 +129,25 @@ if [[ "$ACTION" == "run" ]]; then
     build
   APP="$(/usr/bin/find .build-xcode/Build/Products/Debug -maxdepth 1 -name 'NimbleScholar.app' | head -1)"
   if [[ -n "$APP" ]]; then
-    # Kill any already-running instance. Otherwise `open` would just re-activate the
-    # OLD process (same bundle id) instead of launching the new build — and it would
-    # keep holding port 8765.
-    pkill -f "NimbleScholar.app/Contents/MacOS/NimbleScholar" 2>/dev/null || true
+    # Kill any already-running instance so (a) ports free up and (b) `open -n`
+    # launches THIS fresh build instead of re-activating an old one.
+    pkill -9 -f 'MacOS/NimbleScholar' 2>/dev/null || true
     sleep 1
-    echo "==> Launching the freshly built binary directly (bypassing LaunchServices)."
-    echo "    Logs print below; press Ctrl+C to quit the app."
-    exec "$APP/Contents/MacOS/NimbleScholar"
+    rm -f /tmp/nimblescholar-port.txt
+    echo "==> Launching $APP (new instance, real window)."
+    open -n "$APP"
+    echo "==> Waiting for the capture server to report its port…"
+    for _ in $(seq 1 15); do
+      [[ -f /tmp/nimblescholar-port.txt ]] && break
+      sleep 1
+    done
+    if [[ -f /tmp/nimblescholar-port.txt ]]; then
+      PORT="$(cat /tmp/nimblescholar-port.txt)"
+      echo "==> ✅ Capture server: http://127.0.0.1:${PORT}/api/capture"
+      echo "    Test it:  curl -s -X POST http://127.0.0.1:${PORT}/api/capture -H 'Content-Type: application/json' -d '{\"url\":\"https://arxiv.org/abs/1512.03385\",\"tags\":\"test\"}'"
+    else
+      echo "==> Could not read bound port — check Console.app (filter: NimbleScholar)."
+    fi
   else
     echo "!! Build produced no .app — see errors above."; exit 1
   fi
