@@ -18,6 +18,7 @@ struct PaperDetailView: View {
                 Text(paper.title).font(.title2).bold()
                 Text([paper.authors, paper.venue, paper.year].filter { !$0.isEmpty }.joined(separator: " · "))
                     .foregroundStyle(.secondary)
+                DetailSummaryField(paper: paper)
                 HStack {
                     Button {
                         if let id = paper.id { openWindow(id: "reader", value: id) }
@@ -41,6 +42,26 @@ struct PaperDetailView: View {
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+/// Editable one-sentence summary in the detail panel. Reloads its text when the selected
+/// paper changes; saves when you press Return (or commit a newline-wrapped line).
+private struct DetailSummaryField: View {
+    @EnvironmentObject var vm: LibraryViewModel
+    let paper: Paper
+    @State private var text = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Summary").font(.caption).foregroundStyle(.secondary)
+            TextField("One-sentence summary…", text: $text, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1...4)
+                .onSubmit { vm.saveSummary(text, for: paper) }
+        }
+        .onAppear { text = paper.summary }
+        .onChange(of: paper.id) { _, _ in text = paper.summary }
     }
 }
 
