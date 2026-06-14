@@ -61,7 +61,7 @@ struct LibraryContentView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { StatusBar() }
-        .task { vm.reload(); vm.backfillVisualsIfNeeded() }
+        .task { vm.reload() }
         .sheet(item: $vm.editingPaper) { PaperEditSheet(paper: $0).environmentObject(vm) }
         .sheet(isPresented: $capturing) { CaptureSheet().environmentObject(vm) }
     }
@@ -103,7 +103,7 @@ struct LibraryContentView: View {
             ToolbarItem {
                 Menu {
                     Button("Download all PDFs") { Task { await vm.downloadAllPDFs() } }
-                    Button("Load missing figures & thumbnails") { Task { await vm.backfillMissingVisuals() } }
+                    Button("Load missing figures & PDFs") { vm.retryAllIncomplete() }
                     Divider()
                     Button("Export BibTeX…") { exportBibTeX() }
                 } label: { Label("Actions", systemImage: "ellipsis.circle") }

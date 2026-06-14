@@ -11,11 +11,18 @@ final class ActivityCenter: ObservableObject {
     @Published private(set) var batchLabel = ""
     @Published private(set) var batchTotal = 0
     @Published private(set) var batchDone = 0
+    /// Per-paper work labels (e.g. "Downloading PDF…"), so each library item can show its own state.
+    @Published private(set) var itemLabels: [Int64: String] = [:]
 
     var isActive: Bool { ops > 0 || batchTotal > 0 }
 
     func begin(_ label: String) { ops += 1; detail = label }
     func end() { ops = max(0, ops - 1); if ops == 0 && batchTotal == 0 { detail = "" } }
+
+    // MARK: - Per-item state
+    func beginItem(_ id: Int64?, _ label: String) { if let id { itemLabels[id] = label } }
+    func endItem(_ id: Int64?) { if let id { itemLabels[id] = nil } }
+    func itemLabel(_ id: Int64?) -> String? { id.flatMap { itemLabels[$0] } }
 
     func beginBatch(_ label: String, total: Int) {
         batchLabel = label; batchTotal = max(total, 0); batchDone = 0

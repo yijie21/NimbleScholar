@@ -72,6 +72,7 @@ final class LibraryViewModel: ObservableObject {
         tagCounts = (try? store.tagCounts()) ?? []
         tagsByPaper = (try? store.allTagsByPaper()) ?? [:]
         ThumbnailCache.shared.prewarm(papers)
+        autoCompleteIncomplete()
     }
 
     private func sorted(_ list: [Paper]) -> [Paper] {
@@ -173,7 +174,8 @@ final class LibraryViewModel: ObservableObject {
     @discardableResult
     func ensurePDF(for paper: Paper) async -> URL? {
         ActivityCenter.shared.begin("Downloading PDF — \(paper.title)")
-        defer { ActivityCenter.shared.end() }
+        ActivityCenter.shared.beginItem(paper.id, "Downloading PDF…")
+        defer { ActivityCenter.shared.end(); ActivityCenter.shared.endItem(paper.id) }
         guard let url = try? await AppEnvironment.shared.downloader.ensureLocalPDF(for: paper) else { return nil }
         if paper.pdfPath != url.path {
             var p = paper; p.pdfPath = url.path; _ = try? store.update(p)
@@ -184,32 +186,75 @@ final class LibraryViewModel: ObservableObject {
         for p in papers { _ = await ensurePDF(for: p) }
     }
 
-    // MARK: - Background visual backfill
+    // MARK: - Auto-complete (figure + PDF) so every paper reaches "ready"
 
-    private var didBackfill = false
+    private var inflight = Set<Int64>()      // papers being processed right now
+    private var attempted = Set<Int64>()     // papers already auto-processed this session
+    private var autoCompleteRunning = false
 
-    /// Run the visual backfill once per session (called after the first load).
-    func backfillVisualsIfNeeded() {
-        guard !didBackfill else { return }
-        didBackfill = true
-        Task { await backfillMissingVisuals() }
+    /// True when the paper still needs work: no local PDF, or no figure yet for an arXiv paper.
+    private func needsCompletion(_ p: Paper) -> Bool {
+        if !p.hasLocalPDF { return true }
+        if !p.hasFigure, ArxivService.extractID(from: p.url) != nil { return true }
+        return false
     }
 
-    /// For every paper with no teaser image: re-fetch its arXiv figure, or (for non-arXiv
-    /// papers like CVF) ensure the PDF is cached so its first page renders as the thumbnail.
-    func backfillMissingVisuals() async {
-        let candidates = ((try? store.allPapers()) ?? []).filter { $0.teaserURL.isEmpty && $0.pipelineURL.isEmpty }
-        guard !candidates.isEmpty else { return }
-        ActivityCenter.shared.beginBatch("Loading figures", total: candidates.count)
-        for p in candidates {
-            if let id = ArxivService.extractID(from: p.url),
-               let figs = try? await AppEnvironment.fetchArxivFigures(id),
-               figs.teaser != nil || figs.pipeline != nil {
-                var x = p; x.teaserURL = figs.teaser ?? ""; x.pipelineURL = figs.pipeline ?? ""
-                _ = try? store.update(x)
-            } else if p.pdfPath.isEmpty || !FileManager.default.fileExists(atPath: p.pdfPath) {
-                _ = await ensurePDF(for: p)
+    /// After every reload, fetch missing figures and PDFs for incomplete papers in the
+    /// background (one at a time, with per-item + status-bar progress). Each paper is
+    /// auto-attempted once per session; `retry(_:)` re-arms a specific one.
+    func autoCompleteIncomplete() {
+        guard !autoCompleteRunning else { return }
+        let todo = papers.filter { p in
+            guard let id = p.id, !inflight.contains(id), !attempted.contains(id) else { return false }
+            return needsCompletion(p)
+        }
+        guard !todo.isEmpty else { return }
+        for p in todo { if let id = p.id { attempted.insert(id) } }
+        autoCompleteRunning = true
+        Task {
+            await complete(todo)
+            autoCompleteRunning = false
+            autoCompleteIncomplete()   // pick up anything captured while we were working
+        }
+    }
+
+    /// Clear the once-per-session guard and re-run completion (toolbar "Load missing…").
+    func retryAllIncomplete() {
+        attempted.removeAll()
+        autoCompleteIncomplete()
+    }
+
+    /// Re-arm a single paper (tapping its orange badge) and resume completion.
+    func retry(_ paper: Paper) {
+        if let id = paper.id { attempted.remove(id) }
+        autoCompleteIncomplete()
+    }
+
+    private func complete(_ list: [Paper]) async {
+        ActivityCenter.shared.beginBatch("Preparing papers", total: list.count)
+        for p in list {
+            guard let id = p.id else { continue }
+            inflight.insert(id)
+            var cur = p
+            // 1. Figure (arXiv only — others have no figure source).
+            if !cur.hasFigure, let aid = ArxivService.extractID(from: cur.url) {
+                ActivityCenter.shared.beginItem(id, "Fetching figure…")
+                if let figs = try? await AppEnvironment.fetchArxivFigures(aid),
+                   figs.teaser != nil || figs.pipeline != nil {
+                    cur.teaserURL = figs.teaser ?? ""; cur.pipelineURL = figs.pipeline ?? ""
+                    _ = try? store.update(cur)
+                }
             }
+            // 2. PDF (also gives a thumbnail when there's no figure).
+            if !cur.hasLocalPDF {
+                ActivityCenter.shared.beginItem(id, "Downloading PDF…")
+                if let url = try? await AppEnvironment.shared.downloader.ensureLocalPDF(for: cur) {
+                    cur.pdfPath = url.path
+                    _ = try? store.update(cur)
+                }
+            }
+            ActivityCenter.shared.endItem(id)
+            inflight.remove(id)
             ActivityCenter.shared.stepBatch()
         }
         ActivityCenter.shared.endBatch()

@@ -22,6 +22,7 @@ struct RowsView: View {
                             .frame(width: 160, height: 110)
                             .clipped()
                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(alignment: .topTrailing) { PaperStatusBadge(paper: paper) }
                         VStack(alignment: .leading, spacing: 6) {
                             Text(paper.title).font(.headline)
                             Text([paper.authors, paper.venue, paper.year].filter { !$0.isEmpty }.joined(separator: " · "))

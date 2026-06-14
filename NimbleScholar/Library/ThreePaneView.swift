@@ -14,6 +14,8 @@ struct ThreePaneView: View {
                             Text(paper.title).lineLimit(2).font(.headline)
                             Text(paper.authors).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                         }
+                        Spacer()
+                        PaperStatusInline(paper: paper)
                     }
                     .tag(paper.id ?? -1)
                     .paperContextMenu(paper)

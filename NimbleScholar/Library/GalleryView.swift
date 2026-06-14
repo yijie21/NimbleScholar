@@ -23,6 +23,7 @@ struct GalleryView: View {
                             .frame(height: 130)
                             .clipped()
                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(alignment: .topTrailing) { PaperStatusBadge(paper: paper) }
                         Text(paper.title).font(.subheadline).bold().lineLimit(2)
                         Text(paper.authors).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
