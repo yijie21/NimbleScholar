@@ -30,7 +30,7 @@ public final class LibraryStore {
     private var migrator: DatabaseMigrator {
         var m = DatabaseMigrator()
         m.registerMigration("v1") { db in
-            try db.create(table: "papers") { t in
+            try db.create(table: "papers", options: [.ifNotExists]) { t in
                 t.autoIncrementedPrimaryKey("id")
                 t.column("title", .text).notNull()
                 for col in ["authors", "year", "venue", "doi", "url", "pdf_url", "pdf_path",
@@ -40,18 +40,18 @@ public final class LibraryStore {
                 t.column("created_at", .integer).notNull()
                 t.column("updated_at", .integer).notNull()
             }
-            try db.create(table: "tags") { t in
+            try db.create(table: "tags", options: [.ifNotExists]) { t in
                 t.autoIncrementedPrimaryKey("id")
                 t.column("name", .text).notNull().unique()
             }
-            try db.create(table: "paper_tags") { t in
+            try db.create(table: "paper_tags", options: [.ifNotExists]) { t in
                 t.column("paper_id", .integer).notNull()
                     .references("papers", onDelete: .cascade)
                 t.column("tag_id", .integer).notNull()
                     .references("tags", onDelete: .cascade)
                 t.primaryKey(["paper_id", "tag_id"])
             }
-            try db.create(table: "pdf_annotations") { t in
+            try db.create(table: "pdf_annotations", options: [.ifNotExists]) { t in
                 t.autoIncrementedPrimaryKey("id")
                 t.column("paper_id", .integer).notNull()
                     .references("papers", onDelete: .cascade)
@@ -68,7 +68,7 @@ public final class LibraryStore {
             }
         }
         m.registerMigration("v2-fts") { db in
-            try db.create(virtualTable: "papers_fts", using: FTS5()) { t in
+            try db.create(virtualTable: "papers_fts", options: [.ifNotExists], using: FTS5()) { t in
                 t.synchronize(withTable: "papers")
                 t.column("title"); t.column("authors"); t.column("abstract")
                 t.column("summary"); t.column("venue"); t.column("doi")
