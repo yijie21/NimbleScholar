@@ -54,7 +54,8 @@ else
       - NimbleScholar/App
       - NimbleScholar/Library
       - NimbleScholar/Reader
-      - NimbleScholar/Settings'
+      - NimbleScholar/Settings
+      - NimbleScholar/Assets.xcassets'
 fi
 
 # --- 3. write the XcodeGen spec ----------------------------------------------
@@ -92,6 +93,7 @@ $SOURCES
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yijie.nimblescholar
         SWIFT_VERSION: "5.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         # Ad-hoc local signing: no Apple Developer account required.

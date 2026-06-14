@@ -4,6 +4,7 @@ import NimbleScholarCore
 struct CaptureSheet: View {
     @EnvironmentObject var vm: LibraryViewModel
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("defaultCaptureTags") private var defaultTags = "to-read"
     @State private var url = ""
     @State private var tags = ""
     @State private var busy = false
@@ -14,6 +15,7 @@ struct CaptureSheet: View {
             Text("Capture URL").font(.headline)
             TextField("https://arxiv.org/abs/…", text: $url).textFieldStyle(.roundedBorder)
             TextField("Tags (comma separated)", text: $tags).textFieldStyle(.roundedBorder)
+                .onAppear { if tags.isEmpty { tags = defaultTags } }
             if let error {
                 Text(error).font(.caption).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading)
             }
