@@ -7,6 +7,14 @@ struct GalleryView: View {
     private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
 
     var body: some View {
+        if vm.papers.isEmpty {
+            EmptyLibraryView()
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(vm.papers) { paper in

@@ -6,6 +6,14 @@ struct RowsView: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
+        if vm.papers.isEmpty {
+            EmptyLibraryView()
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(vm.papers) { paper in
