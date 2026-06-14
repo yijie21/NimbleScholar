@@ -10,6 +10,12 @@ struct ReaderToolbar: ToolbarContent {
     @Binding var showInspector: Bool
     @ObservedObject var vm: ReaderViewModel
     @State private var search = ""
+    @AppStorage("highlightColorHex") private var highlightColorHex = "#ffd966"
+
+    private let highlightColors: [(name: String, hex: String)] = [
+        ("Yellow", "#ffd966"), ("Green", "#a8e6a1"), ("Blue", "#9ec9ff"),
+        ("Pink", "#ffb3d1"), ("Orange", "#ffc08a"),
+    ]
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
@@ -32,6 +38,15 @@ struct ReaderToolbar: ToolbarContent {
             .pickerStyle(.segmented)
             .frame(width: 120)
             Button { highlightSelection() } label: { Image(systemName: "highlighter") }
+            Menu {
+                ForEach(highlightColors, id: \.hex) { c in
+                    Button {
+                        highlightColorHex = c.hex
+                    } label: {
+                        Label(c.name, systemImage: highlightColorHex == c.hex ? "checkmark.circle.fill" : "circle.fill")
+                    }
+                }
+            } label: { Image(systemName: "paintpalette") }
             Button { addNote() } label: { Image(systemName: "note.text.badge.plus") }
             Button { showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
         }

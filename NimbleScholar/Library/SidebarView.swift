@@ -3,11 +3,15 @@ import NimbleScholarCore
 
 struct SidebarView: View {
     @EnvironmentObject var vm: LibraryViewModel
+    @State private var renaming: String?
+    @State private var renameText = ""
 
     var body: some View {
-        List(selection: $vm.selectedTag) {
+        List(selection: Binding(get: { vm.scope }, set: { vm.scope = $0 ?? .all })) {
             Section {
-                Label("All papers", systemImage: "tray.full").tag(String?.none)
+                Label("All papers", systemImage: "tray.full").tag(LibraryScope.all)
+                Label("Recently added", systemImage: "clock").tag(LibraryScope.recent)
+                Label("Untagged", systemImage: "tag.slash").tag(LibraryScope.untagged)
             }
             Section("Tags") {
                 ForEach(vm.tagCounts, id: \.name) { tc in
@@ -17,10 +21,22 @@ struct SidebarView: View {
                         Spacer()
                         Text("\(tc.count)").foregroundStyle(.secondary)
                     }
-                    .tag(String?.some(tc.name))
+                    .tag(LibraryScope.tag(tc.name))
+                    .contextMenu {
+                        Button("Rename…") { renameText = tc.name; renaming = tc.name }
+                        Button("Delete Tag", role: .destructive) { vm.deleteTag(tc.name) }
+                    }
                 }
             }
         }
         .listStyle(.sidebar)
+        .alert("Rename tag", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField("New name", text: $renameText)
+            Button("Cancel", role: .cancel) { renaming = nil }
+            Button("Rename") {
+                if let old = renaming { vm.renameTag(old, to: renameText) }
+                renaming = nil
+            }
+        }
     }
 }

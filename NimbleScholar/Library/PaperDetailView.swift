@@ -8,19 +8,14 @@ struct PaperDetailView: View {
     let paper: Paper
     @State private var newTag = ""
 
-    private var imageURL: URL? {
-        let s = paper.teaserURL.isEmpty ? paper.pipelineURL : paper.teaserURL
-        return s.isEmpty ? nil : URL(string: s)
-    }
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                if let img = imageURL {
-                    AsyncImage(url: img) { $0.resizable().scaledToFit() } placeholder: { Color.gray.opacity(0.1) }
-                        .frame(maxHeight: 240)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                }
+                PaperThumbnail(paper: paper)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 240)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 Text(paper.title).font(.title2).bold()
                 Text([paper.authors, paper.venue, paper.year].filter { !$0.isEmpty }.joined(separator: " · "))
                     .foregroundStyle(.secondary)

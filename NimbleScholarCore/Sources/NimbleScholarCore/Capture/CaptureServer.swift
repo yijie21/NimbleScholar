@@ -29,6 +29,11 @@ public final class CaptureServer {
             HTTPResponse(statusCode: .noContent, headers: Self.cors)
         }
 
+        // Health probe so the browser extension can discover which port we bound.
+        await server.appendRoute("GET /api/ping") { _ in
+            HTTPResponse(statusCode: .ok, headers: Self.json, body: Data(#"{"ok":true,"app":"nimble-scholar"}"#.utf8))
+        }
+
         await server.appendRoute("POST /api/capture") { req in
             do {
                 let body = try await req.bodyData

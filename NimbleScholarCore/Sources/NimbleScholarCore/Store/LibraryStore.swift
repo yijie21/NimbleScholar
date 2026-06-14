@@ -122,6 +122,41 @@ public final class LibraryStore {
             .joined(separator: " ")
     }
 
+    /// Papers with no tags (for the "Untagged" smart filter).
+    public func untaggedPapers(query: String?) throws -> [Paper] {
+        try dbQueue.read { db in
+            var sql = "SELECT papers.* FROM papers WHERE papers.id NOT IN (SELECT paper_id FROM paper_tags)"
+            var args = [DatabaseValueConvertible]()
+            if let q = query, !q.trimmingCharacters(in: .whitespaces).isEmpty {
+                sql += " AND papers.id IN (SELECT rowid FROM papers_fts WHERE papers_fts MATCH ?)"
+                args.append(Self.ftsQuery(q))
+            }
+            sql += " ORDER BY papers.updated_at DESC"
+            return try Paper.fetchAll(db, sql: sql, arguments: StatementArguments(args))
+        }
+    }
+
+    public func renameTag(_ old: String, to new: String) throws {
+        let names = TagNormalizer.normalize(new)
+        guard let n = names.first else { return }
+        try dbQueue.write { db in
+            try db.execute(sql: "INSERT OR IGNORE INTO tags(name) VALUES (?)", arguments: [n])
+            let newID = try Int64.fetchOne(db, sql: "SELECT id FROM tags WHERE name = ?", arguments: [n])!
+            guard let oldID = try Int64.fetchOne(db, sql: "SELECT id FROM tags WHERE name = ?", arguments: [old]),
+                  oldID != newID else { return }
+            try db.execute(sql: "UPDATE OR IGNORE paper_tags SET tag_id = ? WHERE tag_id = ?", arguments: [newID, oldID])
+            try db.execute(sql: "DELETE FROM paper_tags WHERE tag_id = ?", arguments: [oldID])
+            try db.execute(sql: "DELETE FROM tags WHERE id = ?", arguments: [oldID])
+        }
+    }
+
+    public func deleteTag(_ name: String) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM paper_tags WHERE tag_id IN (SELECT id FROM tags WHERE name = ?)", arguments: [name])
+            try db.execute(sql: "DELETE FROM tags WHERE name = ?", arguments: [name])
+        }
+    }
+
     public func tags(forPaper id: Int64) throws -> [String] {
         try dbQueue.read { db in
             try String.fetchAll(db, sql: """

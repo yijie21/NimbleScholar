@@ -8,20 +8,43 @@ import NimbleScholarCore
 struct AnnotationController {
     let vm: ReaderViewModel
 
+    /// Currently selected highlight color (hex), from Settings/toolbar.
+    static var highlightHex: String { UserDefaults.standard.string(forKey: "highlightColorHex") ?? "#ffd966" }
+
     /// Text-aware highlight: one highlight rectangle per selected line.
     func highlight(selection: PDFSelection, in pdfView: PDFView) {
         guard let page = selection.pages.first,
               let pageIndex = pdfView.document?.index(for: page) else { return }
+        let hex = AnnotationController.highlightHex
+        let color = NSColor(hex: hex)
         for line in selection.selectionsByLine() {
             let bounds = line.bounds(for: page)
             let a = PDFAnnotation(bounds: bounds, forType: .highlight, withProperties: nil)
-            a.color = NSColor(red: 1, green: 0.85, blue: 0.4, alpha: 1)
+            a.color = color
             page.addAnnotation(a)
         }
         persist(pdfView)
-        index(kind: "highlight", color: "#ffd966", snippet: selection.string ?? "",
+        index(kind: "highlight", color: hex, snippet: selection.string ?? "",
               bounds: selection.bounds(for: page), on: page, pageIndex: pageIndex)
         pdfView.clearSelection()
+    }
+
+    /// Remove an annotation tapped on the page, and its nearest index row.
+    func deleteAnnotation(_ annotation: PDFAnnotation, on page: PDFPage, pdfView: PDFView) {
+        guard let pageIndex = pdfView.document?.index(for: page) else { return }
+        let pageRect = page.bounds(for: .mediaBox)
+        let b = annotation.bounds
+        page.removeAnnotation(annotation)
+        persist(pdfView)
+        if pageRect.width > 0, pageRect.height > 0, let pid = vm.paper.id {
+            let nx = Double(b.minX / pageRect.width), ny = Double(b.minY / pageRect.height)
+            let onPage = ((try? vm.store.annotations(forPaper: pid)) ?? []).filter { $0.page == pageIndex + 1 }
+            if let nearest = onPage.min(by: { hypot($0.x - nx, $0.y - ny) < hypot($1.x - nx, $1.y - ny) }),
+               let id = nearest.id {
+                try? vm.store.deleteAnnotation(id: id)
+            }
+        }
+        vm.refreshAnnotations()
     }
 
     func addNote(text: String, at point: CGPoint, on page: PDFPage, pdfView: PDFView) {
@@ -67,3 +90,15 @@ struct AnnotationController {
 }
 
 extension CGRect { var center: CGPoint { CGPoint(x: midX, y: midY) } }
+
+extension NSColor {
+    convenience init(hex: String) {
+        let s = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        var v: UInt64 = 0
+        Scanner(string: s).scanHexInt64(&v)
+        self.init(srgbRed: CGFloat((v >> 16) & 0xff) / 255,
+                  green: CGFloat((v >> 8) & 0xff) / 255,
+                  blue: CGFloat(v & 0xff) / 255,
+                  alpha: 1)
+    }
+}

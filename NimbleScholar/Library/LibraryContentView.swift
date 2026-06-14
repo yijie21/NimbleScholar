@@ -1,5 +1,16 @@
 import SwiftUI
+import AppKit
 import NimbleScholarCore
+
+/// Export the whole library to a .bib file (shared by the toolbar menu and the ⇧⌘E command).
+@MainActor func exportBibTeX() {
+    let papers = (try? AppEnvironment.shared.store.searchPapers(query: nil, tag: nil)) ?? []
+    let panel = NSSavePanel()
+    panel.nameFieldStringValue = "papers.bib"
+    if panel.runModal() == .OK, let url = panel.url {
+        try? BibTeXExporter.export(papers).data(using: .utf8)?.write(to: url)
+    }
+}
 
 enum LibraryViewMode: String, CaseIterable, Identifiable {
     case threePane, gallery, rows
@@ -56,7 +67,7 @@ struct LibraryContentView: View {
             }
         }
         .environmentObject(vm)
-        .navigationTitle(vm.selectedTag ?? "All papers")
+        .navigationTitle(vm.scopeTitle)
         .searchable(text: $vm.query, prompt: "Search papers, authors, DOI, tags")
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -69,6 +80,14 @@ struct LibraryContentView: View {
                 Picker("Sort", selection: $vm.sort) {
                     ForEach(LibraryViewModel.SortMode.allCases) { Text($0.label).tag($0) }
                 }
+            }
+            ToolbarItem {
+                Menu {
+                    Button("Download all PDFs") { Task { await vm.downloadAllPDFs() } }
+                    Button("Refresh arXiv figures") { Task { await vm.refreshAllFigures() } }
+                    Divider()
+                    Button("Export BibTeX…") { exportBibTeX() }
+                } label: { Label("Actions", systemImage: "ellipsis.circle") }
             }
             ToolbarItem {
                 Button { capturing = true } label: { Label("Capture", systemImage: "link.badge.plus") }

@@ -22,6 +22,10 @@ final class ReaderViewModel: ObservableObject {
         do {
             let url = try await downloader.ensureLocalPDF(for: paper)
             self.localURL = url
+            // Persist the cached path so library thumbnails / future opens find it.
+            if paper.pdfPath != url.path {
+                var p = paper; p.pdfPath = url.path; _ = try? store.update(p)
+            }
             self.document = PDFDocument(url: url)
             self.status = document == nil ? "Could not open PDF" : "Ready"
             refreshAnnotations()
@@ -33,4 +37,10 @@ final class ReaderViewModel: ObservableObject {
     func refreshAnnotations() {
         if let id = paper.id { annotations = (try? store.annotations(forPaper: id)) ?? [] }
     }
+
+    // MARK: - Reading position
+
+    private var positionKey: String { "readingPage.\(paper.id ?? -1)" }
+    var savedPageIndex: Int { UserDefaults.standard.integer(forKey: positionKey) }
+    func savePage(_ index: Int) { UserDefaults.standard.set(index, forKey: positionKey) }
 }

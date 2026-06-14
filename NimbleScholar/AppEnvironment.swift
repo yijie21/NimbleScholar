@@ -71,7 +71,7 @@ final class AppEnvironment: ObservableObject {
         // Port comes from Settings (@AppStorage "capturePort"); default 8781.
         // If it's taken, walk forward until we find a free one, and log which we bound.
         let saved = UserDefaults.standard.integer(forKey: "capturePort")
-        let base = UInt16(saved > 0 ? saved : 8781)
+        let base = UInt16(saved > 0 ? saved : 8917)
         Task {
             for offset: UInt16 in 0..<20 {
                 let port = base &+ offset
