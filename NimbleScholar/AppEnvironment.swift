@@ -61,7 +61,10 @@ final class AppEnvironment: ObservableObject {
         let handler = CaptureHandler(store: store) { url in
             try await AppEnvironment.resolveMetadata(for: url)
         }
-        let server = CaptureServer(port: 8765, handler: handler)
+        // Port comes from Settings (@AppStorage "capturePort"); default 8781.
+        let saved = UserDefaults.standard.integer(forKey: "capturePort")
+        let port = UInt16(saved > 0 ? saved : 8781)
+        let server = CaptureServer(port: port, handler: handler)
         self.captureServer = server
         Task {
             do { try await server.run() }

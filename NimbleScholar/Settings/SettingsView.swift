@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("nightReading") private var nightReading = false
-    @AppStorage("capturePort") private var capturePort = 8765
+    @AppStorage("capturePort") private var capturePort = 8781
 
     var body: some View {
         Form {
