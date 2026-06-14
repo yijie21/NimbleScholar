@@ -12,6 +12,7 @@ struct ThreePaneView: View {
                     Text(paper.authors).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .tag(paper.id)
+                .paperContextMenu(paper)
             }
             .frame(minWidth: 260)
         } detail: {

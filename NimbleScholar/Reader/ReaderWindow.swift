@@ -21,7 +21,7 @@ struct ReaderWindow: View {
             }
             Group {
                 if let doc = vm.document {
-                    PDFKitView(document: doc, displayMode: $displayMode) { self.pdfView = $0 }
+                    PDFKitView(document: doc, displayMode: $displayMode, vm: vm) { self.pdfView = $0 }
                 } else {
                     ContentUnavailableView(vm.status, systemImage: "doc.richtext")
                 }

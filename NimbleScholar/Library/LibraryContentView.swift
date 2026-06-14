@@ -24,7 +24,6 @@ struct LibraryContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @StateObject private var vm = LibraryViewModel()
     @AppStorage("libraryViewMode") private var mode: LibraryViewMode = .threePane
-    @State private var editing: Paper?
     @State private var capturing = false
 
     var body: some View {
@@ -44,7 +43,7 @@ struct LibraryContentView: View {
             }
         }
         .task { vm.reload() }
-        .sheet(item: $editing) { PaperEditSheet(paper: $0).environmentObject(vm) }
+        .sheet(item: $vm.editingPaper) { PaperEditSheet(paper: $0).environmentObject(vm) }
         .sheet(isPresented: $capturing) { CaptureSheet().environmentObject(vm) }
     }
 
@@ -75,7 +74,7 @@ struct LibraryContentView: View {
                 Button { capturing = true } label: { Label("Capture", systemImage: "link.badge.plus") }
             }
             ToolbarItem {
-                Button { editing = Paper(title: "") } label: { Label("Add", systemImage: "plus") }
+                Button { vm.editingPaper = Paper(title: "") } label: { Label("Add", systemImage: "plus") }
             }
         }
     }

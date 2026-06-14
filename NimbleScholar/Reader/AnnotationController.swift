@@ -52,6 +52,18 @@ struct AnnotationController {
     private func persist(_ pdfView: PDFView) {
         if let u = vm.localURL { pdfView.document?.write(to: u) }
     }
+
+    /// Modal prompt for note text (shared by the toolbar button and the right-click menu).
+    static func promptNoteText() -> String? {
+        let alert = NSAlert()
+        alert.messageText = "New note"
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Add")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn, !field.stringValue.isEmpty else { return nil }
+        return field.stringValue
+    }
 }
 
 extension CGRect { var center: CGPoint { CGPoint(x: midX, y: midY) } }

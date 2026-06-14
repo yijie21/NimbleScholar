@@ -195,4 +195,34 @@ public final class LibraryStore {
     public func deleteAnnotation(id: Int64) throws {
         _ = try dbQueue.write { try AnnotationIndex.deleteOne($0, key: id) }
     }
+
+    // MARK: - Change observation
+
+    /// Calls `onChange` (on the main queue) whenever papers/tags/annotations change —
+    /// including writes from the capture server — so the UI can refresh live.
+    /// Hold the returned token; cancellation stops the observation.
+    public func observeChanges(_ onChange: @escaping () -> Void) -> ObservationToken {
+        let observation = ValueObservation.tracking { db -> [Int64] in
+            let papers = try Int64.fetchOne(db, sql: "SELECT COUNT(*) FROM papers") ?? 0
+            let links = try Int64.fetchOne(db, sql: "SELECT COUNT(*) FROM paper_tags") ?? 0
+            let annos = try Int64.fetchOne(db, sql: "SELECT COUNT(*) FROM pdf_annotations") ?? 0
+            // MAX(updated_at) makes edits (not just inserts/deletes) trigger a refresh.
+            let touched = try Int64.fetchOne(db, sql: "SELECT COALESCE(MAX(updated_at), 0) FROM papers") ?? 0
+            return [papers, links, annos, touched]
+        }
+        let cancellable = observation.start(
+            in: dbQueue,
+            scheduling: .async(onQueue: .main),
+            onError: { _ in },
+            onChange: { _ in onChange() }
+        )
+        return ObservationToken(cancellable)
+    }
+}
+
+/// Opaque cancellation handle so callers don't need to import GRDB.
+public final class ObservationToken {
+    private let cancellable: AnyDatabaseCancellable
+    init(_ cancellable: AnyDatabaseCancellable) { self.cancellable = cancellable }
+    public func cancel() { cancellable.cancel() }
 }

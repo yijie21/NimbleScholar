@@ -3,7 +3,6 @@ import NimbleScholarCore
 
 struct GalleryView: View {
     @EnvironmentObject var vm: LibraryViewModel
-    @Environment(\.openWindow) private var openWindow
     private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
 
     var body: some View {
@@ -24,9 +23,7 @@ struct GalleryView: View {
                     .background(RoundedRectangle(cornerRadius: 12).fill(.background).shadow(radius: 1))
                     .contentShape(Rectangle())
                     .onTapGesture { vm.selection = paper.id }
-                    .contextMenu {
-                        Button("Read") { if let id = paper.id { openWindow(id: "reader", value: id) } }
-                    }
+                    .paperContextMenu(paper)
                 }
             }
             .padding(20)

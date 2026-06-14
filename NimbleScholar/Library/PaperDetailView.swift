@@ -34,6 +34,9 @@ struct PaperDetailView: View {
                             NSWorkspace.shared.open(u)
                         }
                     }
+                    Spacer()
+                    Button("Edit") { vm.editingPaper = paper }
+                    Button("Delete", role: .destructive) { vm.delete(paper) }
                 }
                 FlowTags(tags: vm.tags(for: paper), onRemove: { vm.removeTag($0, from: paper) })
                 TextField("+ tag", text: $newTag)

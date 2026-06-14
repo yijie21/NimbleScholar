@@ -21,8 +21,15 @@ final class LibraryViewModel: ObservableObject {
     @Published var selectedTag: String? = nil { didSet { reload() } }
     @Published var sort: SortMode = .updated { didSet { papers = sorted(papers) } }
     @Published var selection: Paper.ID? = nil
+    @Published var editingPaper: Paper? = nil   // drives the edit/add sheet
 
     private let store = AppEnvironment.shared.store
+    private var observation: ObservationToken?
+
+    init() {
+        // Auto-refresh on any DB change, including captures from the embedded server.
+        observation = store.observeChanges { [weak self] in self?.reload() }
+    }
 
     func reload() {
         papers = sorted((try? store.searchPapers(query: query, tag: selectedTag)) ?? [])

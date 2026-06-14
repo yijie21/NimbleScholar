@@ -28,6 +28,7 @@ struct RowsView: View {
                     .padding(14)
                     .background(RoundedRectangle(cornerRadius: 12).fill(.background).shadow(radius: 1))
                     .onTapGesture { vm.selection = paper.id }
+                    .paperContextMenu(paper)
                 }
             }
             .padding(20)

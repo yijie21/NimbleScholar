@@ -50,15 +50,9 @@ struct ReaderToolbar: ToolbarContent {
     }
 
     private func addNote() {
-        guard let pv = pdfView, let page = pv.currentPage else { return }
-        let alert = NSAlert()
-        alert.messageText = "New note"
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Add")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn, !field.stringValue.isEmpty else { return }
+        guard let pv = pdfView, let page = pv.currentPage,
+              let text = AnnotationController.promptNoteText() else { return }
         let center = pv.convert(pv.bounds.center, to: page)
-        AnnotationController(vm: vm).addNote(text: field.stringValue, at: center, on: page, pdfView: pv)
+        AnnotationController(vm: vm).addNote(text: text, at: center, on: page, pdfView: pv)
     }
 }
