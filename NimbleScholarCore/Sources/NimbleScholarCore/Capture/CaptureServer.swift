@@ -16,7 +16,9 @@ public final class CaptureServer {
         self.handler = handler
         // Bind to IPv4 127.0.0.1 explicitly. FlyingFox's `.loopback` resolves to IPv6
         // `::1` only, which the browser extension / curl (both IPv4 127.0.0.1) can't reach.
-        self.server = HTTPServer(address: .inet(ip4: "127.0.0.1", port: port))
+        // `.inet(ip4:port:)` parses the IP string and can throw; "127.0.0.1" is always
+        // valid, so try! never fires.
+        self.server = HTTPServer(address: try! .inet(ip4: "127.0.0.1", port: port))
         Task { await registerRoutes() }
     }
 
