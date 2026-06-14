@@ -1,5 +1,6 @@
 import GRDB
 
+/// A normalized (lowercased) tag name. One row in `tags`; orphaned tags are pruned by the store.
 public struct Tag: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistableRecord {
     public var id: Int64?
     public var name: String
@@ -8,6 +9,7 @@ public struct Tag: Codable, Identifiable, Hashable, FetchableRecord, MutablePers
     public init(id: Int64? = nil, name: String) { self.id = id; self.name = name }
 }
 
+/// The many-to-many join between papers and tags.
 public struct PaperTag: Codable, FetchableRecord, PersistableRecord {
     public var paperId: Int64
     public var tagId: Int64

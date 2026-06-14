@@ -7,6 +7,9 @@ enum LibraryScope: Hashable {
     case tag(String)
 }
 
+/// Drives the library window: the visible papers for the current scope/search/sort, a batched
+/// paper→tags map (avoids N+1), tag counts, and selection. It owns a GRDB change observation so
+/// the UI refreshes live on any write (including captures from the embedded server).
 @MainActor
 final class LibraryViewModel: ObservableObject {
     enum SortMode: String, CaseIterable, Identifiable {

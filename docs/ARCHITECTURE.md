@@ -1,0 +1,89 @@
+# Nimble Scholar — Architecture
+
+A developer's map of the codebase. For user-facing docs see `README.md`.
+
+## Overview
+
+Two layers:
+
+- **`NimbleScholarCore/`** — a SwiftPM package with all non-UI logic: models, the GRDB SQLite
+  store, services (arXiv/metadata/figures/PDF download/BibTeX/Markdown), and the embedded capture
+  HTTP server. **No SwiftUI, no AppKit windows.** It is fully unit-tested with `swift test`, which
+  is the project's main correctness signal.
+- **`NimbleScholar/`** — the SwiftUI/PDFKit app target. It depends on the core package and holds
+  windows, views, view models, and PDFKit/AppKit interop.
+
+Why the split: the core can be tested on any machine with a Swift toolchain, independent of the
+UI, and the boundary keeps business logic out of views.
+
+## Module map
+
+| Path | Responsibility |
+|---|---|
+| `Core/Models/Paper.swift` | Paper record (metadata, PDF cache, `isRead`); camelCase↔snake_case mapping |
+| `Core/Models/Tag.swift` | `Tag`, `PaperTag` join, `TagCount` (sidebar) |
+| `Core/Models/AnnotationIndex.swift` | Index row for one highlight/note (PDF file is source of truth) |
+| `Core/Models/CapturePayload.swift` | JSON body from the extension |
+| `Core/Store/LibraryStore.swift` | GRDB queue, migrations, CRUD, FTS5 search, tags, read state, change observation |
+| `Core/Store/TagNormalizer.swift` | Split/lowercase/dedupe tag strings |
+| `Core/Services/ArxivService.swift` | arXiv id extraction + PDF URL normalization |
+| `Core/Services/MetadataService.swift` | Parse arXiv Atom XML + generic `<meta>` HTML |
+| `Core/Services/FigureChooser.swift` / `ArxivFigureService.swift` | Pick teaser/pipeline figures from arXiv HTML |
+| `Core/Services/PDFDownloader.swift` | Resolve + download + cache a PDF |
+| `Core/Services/BibTeXExporter.swift` / `MarkdownExporter.swift` | Export formats |
+| `Core/Capture/CaptureHandler.swift` | Turn a payload into a saved/updated paper (with dedupe + figures) |
+| `Core/Capture/CaptureServer.swift` | FlyingFox loopback server: `/api/capture`, `/api/ping` |
+| `App/AppEnvironment.swift` | App-wide singleton: store, PDF cache, capture server (port auto-retry), metadata/figure resolvers |
+| `App/App/NimbleScholarApp.swift` | `@main`; library + per-paper reader windows; menu commands |
+| `App/Library/LibraryViewModel.swift` | Library state: scope/search/sort, batched tag map, observation, bulk ops |
+| `App/Library/*View.swift` | Sidebar, the three view modes, detail, edit/capture sheets, context menu, thumbnails |
+| `App/Library/ThumbnailCache.swift` | Two-level (memory + disk) card-image cache |
+| `App/Library/BackupManager.swift` | Zip backup/restore of the data dir via `ditto` |
+| `App/Reader/*` | Reader window, `PDFKitView` (NSViewRepresentable), toolbar, inspector, `AnnotationController`, reader VM |
+| `App/Settings/SettingsView.swift` | General + Reading settings |
+
+## Data flow
+
+**Capture** (in-app sheet, or extension/bookmarklet over HTTP):
+```
+CaptureSheet / CaptureServer → CaptureHandler.capture(payload)
+  → resolve metadata (arXiv API or <meta>) → dedupe via LibraryStore.existingPaper(forCaptureURL:)
+  → create or update Paper → (best-effort) arXiv figure enrichment
+LibraryStore write → GRDB ValueObservation → LibraryViewModel.reload() → views update live
+```
+
+**Reading & annotating**:
+```
+openWindow("reader", id) → ReaderWindow → ReaderViewModel.load()
+  → PDFDownloader.ensureLocalPDF (persists pdf_path) → PDFDocument → PDFKitView
+  → mark read; restore last page; reconcile annotation index vs file
+AnnotationController: add highlight/note → PDFAnnotation into the document + AnnotationIndex row
+  → ReaderViewModel.scheduleSave() debounces the whole-file write (flushed on close)
+```
+
+**Thumbnails**: `PaperThumbnail` → `ThumbnailCache.image(for:)` → memory (NSCache) → disk PNG →
+produce (download teaser, else render PDF page 1). Disk capped; prewarmed after reload.
+
+## Data model
+
+Tables (see `LibraryStore.migrator`): `papers` (incl. `read`), `tags`, `paper_tags`,
+`pdf_annotations`, and the `papers_fts` FTS5 virtual table synchronized with `papers`.
+Migrations are **additive and idempotent** (`v1`, `v2-fts`, `v3-read`); existing libraries
+upgrade in place. Search uses FTS5 with `LibraryStore.ftsQuery` quoting each token so punctuation
+can't break the query.
+
+## How to add a feature
+
+- **A new paper field**: add the column in a new migration; add the property + `Columns`/`CodingKeys`
+  cases in `Paper.swift`; surface it in the edit sheet / detail / card as needed.
+- **A new bulk action**: add a method on `LibraryViewModel` operating over `selectedPapers()`; add a
+  button in the Three-pane bulk bar.
+- **A new export/format**: add a pure function in `Core/Services` with a `swift test`; wire a
+  toolbar/menu button that runs an `NSSavePanel`.
+
+## Build & run
+
+- App: `bash scripts/mac_bootstrap.sh full run` (generates the Xcode project with XcodeGen, builds,
+  launches; no App Sandbox so the capture server + network work).
+- Core tests: `cd NimbleScholarCore && swift test`.
+- App icon: `python3 scripts/generate_icon.py` regenerates `Assets.xcassets/AppIcon.appiconset`.

@@ -1,6 +1,8 @@
 import Foundation
 import GRDB
 
+/// A research paper: metadata, local PDF cache info, and read state. One row in `papers`.
+/// GRDB record; `CodingKeys` map camelCase properties to snake_case columns.
 public struct Paper: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistableRecord {
     public var id: Int64?
     public var title: String

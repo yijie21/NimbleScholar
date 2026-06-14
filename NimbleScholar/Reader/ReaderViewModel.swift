@@ -2,6 +2,9 @@ import SwiftUI
 import PDFKit
 import NimbleScholarCore
 
+/// Drives one reader window: loads (downloading if needed) the paper's PDF, tracks its annotation
+/// index, marks the paper read on open, remembers the last page, and debounces whole-file saves so
+/// annotating stays responsive. The PDF file is the source of truth for annotation geometry.
 @MainActor
 final class ReaderViewModel: ObservableObject {
     @Published var document: PDFDocument?

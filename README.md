@@ -45,8 +45,10 @@ There are three ways to add papers.
 Toolbar → **Capture** → paste any paper URL → **Capture**. Nimble Scholar fetches the
 title, authors, abstract, PDF link, and (for arXiv) a teaser figure.
 
-### 2. ➕ Add manually
-Toolbar → **＋** → fill in the fields. Useful for papers without a clean web page.
+### 2. ➕ Add manually / drag in a PDF
+Toolbar → **＋** → fill in the fields. Or **drag a `.pdf` from Finder** onto the window to add it
+(its first page becomes the thumbnail). Re-capturing the same arXiv paper **updates** the existing
+entry instead of creating a duplicate.
 
 ### 3. 🧩 Chrome / Edge extension (one-click from any paper page)
 
@@ -75,16 +77,25 @@ Save the page you're reading straight into Nimble Scholar.
 
 - **View modes** (toolbar segmented control): **Three-pane** (list + detail), **Gallery**
   (figure grid), **Rows** (wide cards with inline editing). Your choice is remembered.
-- **Sidebar**: **All papers**, **Recently added**, **Untagged**, and one entry per tag
+- **Sidebar**: **All papers**, **Unread**, **Recently added**, **Untagged**, and one entry per tag
   (with a colored dot + count). Right-click a tag to **Rename** or **Delete** it.
-- **Search**: the toolbar search box matches title, authors, abstract, summary, venue, DOI.
+- **Read / Unread**: new papers show a blue dot; opening a paper marks it read. Toggle via
+  right-click, or filter to **Unread** in the sidebar.
+- **Search**: the toolbar search box matches title, authors, abstract, summary, venue, DOI
+  (punctuation-safe).
 - **Sort**: Recently updated / Newest year / Title A–Z (remembered across launches).
 - **Tags & summary**: edit inline on Rows cards, or in the detail pane. Add a one-sentence
   takeaway to each paper.
-- **Right-click any paper** → Read · Edit… · Open in Browser · Copy BibTeX · Delete.
+- **Right-click any paper** → Read · Edit… · Re-fetch Metadata · Mark Read/Unread · Open in
+  Browser · Open PDF in Default App · Reveal Cached PDF in Finder · Copy BibTeX · Delete.
+- **Multi-select** (Three-pane): ⌘/shift-click several papers for a bulk bar (**Download** /
+  **Delete**).
 
 **Bulk actions** (toolbar **⋯** menu): Download all PDFs · Refresh arXiv figures · Export
 BibTeX. (Export BibTeX is also ⇧⌘E.)
+
+**Keyboard**: **Delete** removes the selected paper(s); **⌘O** opens the reader; **⌘F** focuses
+search.
 
 ---
 
@@ -104,6 +115,8 @@ Click **Read** to open a paper in the PDF reader.
   Annotations list in the inspector.
 - Highlights and notes are saved **into the PDF file**, so they open correctly in Preview
   or any other PDF app.
+- **Export to Markdown**: the share button in the reader toolbar saves a `.md` of the paper's
+  metadata + all your highlights and notes.
 - The reader **remembers your last page** and reopens there.
 - **Night reading** (Settings) inverts the page colors for dark reading.
 
@@ -114,6 +127,14 @@ Click **Read** to open a paper in the PDF reader.
 - **General** — default capture tags; the capture-server port (auto-discovered by the
   extension; change only if it conflicts).
 - **Reading** — night-reading toggle; default highlight color.
+
+---
+
+## Backup & restore
+
+**File → Back Up Library…** writes a `.zip` of your whole library (database + cached PDFs).
+**File → Restore Library…** replaces the current library from a backup (the app quits; reopen it
+afterward). Keep a backup before big changes.
 
 ---
 

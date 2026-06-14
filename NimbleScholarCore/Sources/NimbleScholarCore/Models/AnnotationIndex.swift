@@ -1,5 +1,8 @@
 import GRDB
 
+/// A lightweight index of one PDF annotation (highlight/note) for the Annotations list and
+/// cross-paper search. The annotation geometry itself lives in the PDF file (source of truth);
+/// this row stores page, kind, color, snippet text, and normalized (0–1) bounds.
 public struct AnnotationIndex: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistableRecord {
     public var id: Int64?
     public var paperId: Int64
