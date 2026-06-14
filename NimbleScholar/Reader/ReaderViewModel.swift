@@ -14,8 +14,11 @@ final class ReaderViewModel: ObservableObject {
     var localURL: URL?
 
     init(paperID: Int64?) {
-        let all = (try? AppEnvironment.shared.store.allPapers()) ?? []
-        self.paper = all.first { $0.id == paperID } ?? Paper(title: "Unknown paper")
+        if let pid = paperID, let found = (try? AppEnvironment.shared.store.paper(id: pid)) ?? nil {
+            self.paper = found
+        } else {
+            self.paper = Paper(title: "Unknown paper")
+        }
     }
 
     func load() async {

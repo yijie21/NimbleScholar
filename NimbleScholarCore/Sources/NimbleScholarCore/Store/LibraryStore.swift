@@ -83,6 +83,11 @@ public final class LibraryStore {
         try dbQueue.read { try Paper.order(Paper.Columns.updatedAt.desc).fetchAll($0) }
     }
 
+    /// Fetch one paper by primary key, or nil if it doesn't exist.
+    public func paper(id: Int64) throws -> Paper? {
+        try dbQueue.read { try Paper.fetchOne($0, key: id) }
+    }
+
     public func tagCounts() throws -> [TagCount] {
         try dbQueue.read { db in
             try TagCount.fetchAll(db, sql: """

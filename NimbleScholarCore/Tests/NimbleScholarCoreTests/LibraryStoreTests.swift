@@ -63,4 +63,11 @@ extension LibraryStoreTests {
         XCTAssertNoThrow(try store.searchPapers(query: "deep:", tag: nil))
         XCTAssertEqual(try store.searchPapers(query: "system", tag: nil).count, 1)
     }
+
+    func testPaperByID() throws {
+        let store = try makeStore()
+        let saved = try store.create(Paper(title: "Findable"))
+        XCTAssertEqual(try store.paper(id: saved.id!)?.title, "Findable")
+        XCTAssertNil(try store.paper(id: 999_999))
+    }
 }
