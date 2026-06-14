@@ -28,7 +28,7 @@ UI, and the boundary keeps business logic out of views.
 | `Core/Store/TagNormalizer.swift` | Split/lowercase/dedupe tag strings |
 | `Core/Services/ArxivService.swift` | arXiv id extraction + PDF URL normalization |
 | `Core/Services/MetadataService.swift` | Parse arXiv Atom XML + generic `<meta>` HTML |
-| `Core/Services/FigureChooser.swift` / `ArxivFigureService.swift` | Pick teaser/pipeline figures from arXiv HTML |
+| `Core/Services/FigureChooser.swift` / `ArxivFigureService.swift` | Scrape teaser/pipeline figures: arXiv HTML → ar5iv fallback, or any HTML landing page (`<figure>` + `og:image`) |
 | `Core/Services/PDFDownloader.swift` | Resolve + download + cache a PDF |
 | `Core/Services/BibTeXExporter.swift` / `MarkdownExporter.swift` | Export formats |
 | `Core/Capture/CaptureHandler.swift` | Turn a payload into a saved/updated paper (with dedupe + figures) |
@@ -38,9 +38,11 @@ UI, and the boundary keeps business logic out of views.
 | `App/Library/LibraryViewModel.swift` | Library state: scope/search/sort, batched tag map, observation, bulk ops |
 | `App/Library/*View.swift` | Sidebar, the three view modes, detail, edit/capture sheets, context menu, thumbnails |
 | `App/Library/ThumbnailCache.swift` | Two-level (memory + disk) card-image cache |
+| `App/Library/ActivityCenter.swift` | Tracks global + per-paper download activity; drives the bottom status bar |
+| `App/Library/PaperStatus.swift` | Per-paper readiness (`isReady`/`hasFigure`/`hasLocalPDF`) + card status badges |
 | `App/Library/BackupManager.swift` | Zip backup/restore of the data dir via `ditto` |
 | `App/Reader/*` | Reader window, `PDFKitView` (NSViewRepresentable), toolbar, inspector, `AnnotationController`, reader VM |
-| `App/Settings/SettingsView.swift` | General + Reading settings |
+| `App/Settings/SettingsView.swift` | General (capture, port, download proxy) + Reading + AI settings |
 
 ## Data flow
 
@@ -50,6 +52,9 @@ CaptureSheet / CaptureServer → CaptureHandler.capture(payload)
   → resolve metadata (arXiv API or <meta>) → dedupe via LibraryStore.existingPaper(forCaptureURL:)
   → create or update Paper → (best-effort) arXiv figure enrichment
 LibraryStore write → GRDB ValueObservation → LibraryViewModel.reload() → views update live
+  → reload() also runs autoCompleteIncomplete(): for each not-yet-ready paper, fetch its
+    figure (arXiv/ar5iv/landing page) + PDF in the background, with per-item + status-bar
+    progress (attempted once per session; orange badge / "Load missing…" re-arm a retry)
 ```
 
 **Reading & annotating**:
@@ -62,7 +67,7 @@ AnnotationController: add highlight/note → PDFAnnotation into the document + A
 ```
 
 **Thumbnails**: `PaperThumbnail` → `ThumbnailCache.image(for:)` → memory (NSCache) → disk PNG →
-produce (download teaser, else render PDF page 1). Disk capped; prewarmed after reload.
+produce (download teaser/pipeline figure, else render PDF page 1). Disk capped; prewarmed after reload.
 
 ## Data model
 

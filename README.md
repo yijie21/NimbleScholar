@@ -90,9 +90,16 @@ Save the page you're reading straight into Nimble Scholar.
   Browser · Open PDF in Default App · Reveal Cached PDF in Finder · Copy BibTeX · Delete.
 - **Multi-select** (Three-pane): ⌘/shift-click several papers for a bulk bar (**Download** /
   **Delete**).
+- **Per-paper status**: each card shows its own badge — a **spinner** while its figure/PDF
+  download, a green **✓** once the PDF is cached ("ready"), or a tappable orange **↓** to
+  retry a paper that hasn't loaded. The bar at the window bottom shows overall progress
+  ("Preparing papers — 3/12") or **"Up to date"**.
 
-**Bulk actions** (toolbar **⋯** menu): Download all PDFs · Refresh arXiv figures · Export
-BibTeX. (Export BibTeX is also ⇧⌘E.)
+Newly captured papers complete themselves automatically: the app fetches each missing
+figure and PDF in the background, so a paper goes spinner → ready on its own.
+
+**Bulk actions** (toolbar **⋯** menu): Download all PDFs · Load missing figures & PDFs ·
+Export BibTeX. (Export BibTeX is also ⇧⌘E.)
 
 **Keyboard**: **Delete** removes the selected paper(s); **⌘O** opens the reader; **⌘F** focuses
 search.
@@ -125,8 +132,11 @@ Click **Read** to open a paper in the PDF reader.
 ## Settings (⌘,)
 
 - **General** — default capture tags; the capture-server port (auto-discovered by the
-  extension; change only if it conflicts).
+  extension; change only if it conflicts); an optional **download proxy** (host + port) used
+  for PDFs, figures, and metadata when your network needs it (restart to apply).
 - **Reading** — night-reading toggle; default highlight color.
+- **AI** — enable an OpenAI-compatible chat endpoint in the reader (a local server such as
+  Ollama / LM Studio, or the OpenAI cloud).
 
 ---
 
@@ -154,9 +164,12 @@ afterward). Keep a backup before big changes.
 
 - **Extension says it can't save** → make sure the app is running; it must be open for the
   capture server to accept the request.
-- **A figure is missing** → arXiv only provides HTML figures for newer papers; older papers
-  fall back to showing the PDF's first page (download the PDF once via the reader or
-  "Download all PDFs" so the thumbnail can render).
+- **A figure is missing** → the app pulls the teaser/pipeline figure from the paper's HTML
+  view (arXiv HTML → ar5iv fallback; CVF/publisher landing pages; `og:image` as a last
+  resort). A few papers expose no online figure at all and fall back to the PDF's first page.
+  Use **⋯ → "Load missing figures & PDFs"** or tap a paper's orange badge to retry.
+- **Downloads are slow** → enable the **proxy** in Settings → General → Downloads, or check
+  whether a paper's badge stays orange (a real download failure) vs. spinning (in progress).
 - **Port conflict** → the app automatically tries the next free port; the extension probes
   for it, so you normally don't need to do anything.
 

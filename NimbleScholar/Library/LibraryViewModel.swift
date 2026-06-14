@@ -313,13 +313,4 @@ final class LibraryViewModel: ObservableObject {
     func bulkDownloadPDFs() async {
         for p in selectedPapers() { _ = await ensurePDF(for: p) }
     }
-    func refreshAllFigures() async {
-        for p in papers where p.teaserURL.isEmpty {
-            guard let id = ArxivService.extractID(from: p.url),
-                  let figs = try? await AppEnvironment.fetchArxivFigures(id),
-                  figs.teaser != nil || figs.pipeline != nil else { continue }
-            var x = p; x.teaserURL = figs.teaser ?? ""; x.pipelineURL = figs.pipeline ?? ""
-            _ = try? store.update(x)
-        }
-    }
 }
