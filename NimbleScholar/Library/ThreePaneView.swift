@@ -7,9 +7,12 @@ struct ThreePaneView: View {
     var body: some View {
         HSplitView {
             List(vm.papers, selection: $vm.selection) { paper in
-                VStack(alignment: .leading) {
-                    Text(paper.title).lineLimit(2).font(.headline)
-                    Text(paper.authors).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                HStack(spacing: 6) {
+                    Circle().fill(.blue).frame(width: 7, height: 7).opacity(paper.isRead ? 0 : 1)
+                    VStack(alignment: .leading) {
+                        Text(paper.title).lineLimit(2).font(.headline)
+                        Text(paper.authors).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
                 }
                 .tag(paper.id)
                 .paperContextMenu(paper)

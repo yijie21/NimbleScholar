@@ -74,6 +74,11 @@ public final class LibraryStore {
                 t.column("summary"); t.column("venue"); t.column("doi")
             }
         }
+        m.registerMigration("v3-read") { db in
+            try db.alter(table: "papers") { t in
+                t.add(column: "read", .integer).notNull().defaults(to: 0)
+            }
+        }
         return m
     }
 
@@ -215,6 +220,14 @@ public final class LibraryStore {
 
     public func deletePaper(id: Int64) throws {
         _ = try dbQueue.write { try Paper.deleteOne($0, key: id) }
+    }
+
+    /// Mark a paper read/unread.
+    public func setRead(paperID: Int64, read: Bool) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "UPDATE papers SET read = ?, updated_at = ? WHERE id = ?",
+                           arguments: [read ? 1 : 0, Int64(Date().timeIntervalSince1970), paperID])
+        }
     }
 
     public func setTags(paperID: Int64, tags rawTags: [String]) throws {

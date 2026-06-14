@@ -31,6 +31,7 @@ final class ReaderViewModel: ObservableObject {
             }
             self.document = PDFDocument(url: url)
             self.status = document == nil ? "Could not open PDF" : "Ready"
+            if let id = paper.id, !paper.isRead { try? store.setRead(paperID: id, read: true) }
             refreshAnnotations()
         } catch {
             self.status = "PDF unavailable — use Browser"

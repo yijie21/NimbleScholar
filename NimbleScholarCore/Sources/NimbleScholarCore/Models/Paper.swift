@@ -17,6 +17,7 @@ public struct Paper: Codable, Identifiable, Hashable, FetchableRecord, MutablePe
     public var abstract: String = ""
     public var notes: String = ""
     public var source: String = ""
+    public var isRead: Bool = false
     public var createdAt: Int64 = 0
     public var updatedAt: Int64 = 0
 
@@ -27,6 +28,7 @@ public struct Paper: Codable, Identifiable, Hashable, FetchableRecord, MutablePe
         case pdfURL = "pdf_url", pdfPath = "pdf_path", summary
         case teaserURL = "teaser_url", pipelineURL = "pipeline_url"
         case abstract, notes, source
+        case isRead = "read"
         case createdAt = "created_at", updatedAt = "updated_at"
     }
 
@@ -36,6 +38,7 @@ public struct Paper: Codable, Identifiable, Hashable, FetchableRecord, MutablePe
         case pdfURL = "pdf_url", pdfPath = "pdf_path", summary
         case teaserURL = "teaser_url", pipelineURL = "pipeline_url"
         case abstract, notes, source
+        case isRead = "read"
         case createdAt = "created_at", updatedAt = "updated_at"
     }
 

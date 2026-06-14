@@ -2,7 +2,7 @@ import SwiftUI
 import NimbleScholarCore
 
 enum LibraryScope: Hashable {
-    case all, untagged, recent
+    case all, unread, untagged, recent
     case tag(String)
 }
 
@@ -46,6 +46,7 @@ final class LibraryViewModel: ObservableObject {
     var scopeTitle: String {
         switch scope {
         case .all: return "All papers"
+        case .unread: return "Unread"
         case .untagged: return "Untagged"
         case .recent: return "Recently added"
         case .tag(let t): return t
@@ -56,6 +57,7 @@ final class LibraryViewModel: ObservableObject {
         let result: [Paper]
         switch scope {
         case .all:           result = (try? store.searchPapers(query: query, tag: nil)) ?? []
+        case .unread:        result = ((try? store.searchPapers(query: query, tag: nil)) ?? []).filter { !$0.isRead }
         case .tag(let t):    result = (try? store.searchPapers(query: query, tag: t)) ?? []
         case .untagged:      result = (try? store.untaggedPapers(query: query)) ?? []
         case .recent:        result = ((try? store.searchPapers(query: query, tag: nil)) ?? [])
@@ -109,6 +111,9 @@ final class LibraryViewModel: ObservableObject {
     }
     func delete(_ paper: Paper) {
         if let id = paper.id { try? store.deletePaper(id: id); reload() }
+    }
+    func toggleRead(_ paper: Paper) {
+        if let id = paper.id { try? store.setRead(paperID: id, read: !paper.isRead); reload() }
     }
     func save(_ paper: Paper) {
         _ = try? (paper.id == nil ? store.create(paper) : store.update(paper))

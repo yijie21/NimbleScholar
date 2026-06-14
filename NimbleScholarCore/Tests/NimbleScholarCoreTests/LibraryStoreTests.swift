@@ -81,4 +81,12 @@ extension LibraryStoreTests {
         XCTAssertEqual(map[a.id!], ["llm", "vision"])
         XCTAssertEqual(map[b.id!], ["llm"])
     }
+
+    func testReadStatusRoundTrip() throws {
+        let store = try makeStore()
+        let p = try store.create(Paper(title: "P"))
+        XCTAssertEqual(try store.paper(id: p.id!)?.isRead, false)
+        try store.setRead(paperID: p.id!, read: true)
+        XCTAssertEqual(try store.paper(id: p.id!)?.isRead, true)
+    }
 }
