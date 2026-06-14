@@ -14,10 +14,9 @@ public final class CaptureServer {
 
     public init(port: UInt16 = 8765, handler: CaptureHandler) {
         self.handler = handler
-        // Bind to loopback only; the extension posts to 127.0.0.1.
-        // NOTE: if the installed FlyingFox version exposes a different address
-        // API, swap to `HTTPServer(port: port)` — the routes below are unchanged.
-        self.server = HTTPServer(address: .loopback(port: port))
+        // Bind to IPv4 127.0.0.1 explicitly. FlyingFox's `.loopback` resolves to IPv6
+        // `::1` only, which the browser extension / curl (both IPv4 127.0.0.1) can't reach.
+        self.server = HTTPServer(address: .inet(ip4: "127.0.0.1", port: port))
         Task { await registerRoutes() }
     }
 
