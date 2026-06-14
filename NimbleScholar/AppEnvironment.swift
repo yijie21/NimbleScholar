@@ -62,16 +62,29 @@ final class AppEnvironment: ObservableObject {
             try await AppEnvironment.resolveMetadata(for: url)
         }
         // Port comes from Settings (@AppStorage "capturePort"); default 8781.
+        // If it's taken, walk forward until we find a free one, and log which we bound.
         let saved = UserDefaults.standard.integer(forKey: "capturePort")
-        let port = UInt16(saved > 0 ? saved : 8781)
-        let server = CaptureServer(port: port, handler: handler)
-        self.captureServer = server
+        let base = UInt16(saved > 0 ? saved : 8781)
         Task {
-            do { try await server.run() }
-            catch {
-                NSLog("‼️ NimbleScholar: capture server stopped: %@", "\(error)")
-                print("‼️ NimbleScholar: capture server stopped: \(error)")
+            for offset: UInt16 in 0..<20 {
+                let port = base &+ offset
+                let server = CaptureServer(port: port, handler: handler)
+                let listen = Task {
+                    try? await server.waitUntilListening()
+                    NSLog("‼️ NimbleScholar: capture server LISTENING on http://127.0.0.1:%u", UInt(port))
+                    print("‼️ NimbleScholar: capture server LISTENING on http://127.0.0.1:\(port)")
+                }
+                do {
+                    try await server.run()   // serves until stopped; throws immediately on bind failure
+                    listen.cancel()
+                    return
+                } catch {
+                    listen.cancel()
+                    NSLog("‼️ NimbleScholar: port %u busy; trying %u", UInt(port), UInt(port &+ 1))
+                    continue
+                }
             }
+            NSLog("‼️ NimbleScholar: no free capture port in range")
         }
     }
 }
