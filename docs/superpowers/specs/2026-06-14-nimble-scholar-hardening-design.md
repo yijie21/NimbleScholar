@@ -148,7 +148,8 @@ Expand `NimbleScholarCoreTests`:
 - Duplicate detection (same arXiv id updates, doesn't duplicate; tags/annotations preserved).
 - Read-status round-trip + migration from a v2 DB.
 - `allTagsByPaper()` correctness.
-- Backup zip round-trip (write → restore → same rows) — logic testable in core.
+- Backup/restore: the DB open-after-restore yields the same rows (the store half is
+  core-testable; the actual zip step uses macOS tooling and is verified on the Mac).
 - Markdown export formatting.
 - Metadata edge cases (empty/garbled Atom, missing meta tags).
 
