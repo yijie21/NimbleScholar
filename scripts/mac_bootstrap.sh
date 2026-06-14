@@ -129,8 +129,14 @@ if [[ "$ACTION" == "run" ]]; then
     build
   APP="$(/usr/bin/find .build-xcode/Build/Products/Debug -maxdepth 1 -name 'NimbleScholar.app' | head -1)"
   if [[ -n "$APP" ]]; then
-    echo "==> Launching $APP"
-    open "$APP"
+    # Kill any already-running instance. Otherwise `open` would just re-activate the
+    # OLD process (same bundle id) instead of launching the new build — and it would
+    # keep holding port 8765.
+    pkill -f "NimbleScholar.app/Contents/MacOS/NimbleScholar" 2>/dev/null || true
+    sleep 1
+    echo "==> Launching the freshly built binary directly (bypassing LaunchServices)."
+    echo "    Logs print below; press Ctrl+C to quit the app."
+    exec "$APP/Contents/MacOS/NimbleScholar"
   else
     echo "!! Build produced no .app — see errors above."; exit 1
   fi
