@@ -53,4 +53,20 @@ final class CaptureHandlerTests: XCTestCase {
         let saved = try await handler.capture(p)
         XCTAssertEqual(saved.pdfURL, "https://openaccess.thecvf.com/content/CVPR2023/papers/Foo_Paper.pdf")
     }
+
+    func testDirectPdfUrlSkipsResolve() async throws {
+        let store = try LibraryStore(dbQueue: DatabaseQueue())
+        // If resolve ran, this abstract would be pulled in; it must not be (URL is a .pdf).
+        let handler = CaptureHandler(store: store) { _ in
+            var m = PaperMetadata(); m.abstract = "FROM RESOLVE"; return m
+        }
+        var p = CapturePayload()
+        p.url = "https://openaccess.thecvf.com/content/ICCV2021/papers/Kwon_H2O_paper.pdf"
+        p.title = "Kwon H2O"
+        p.pdf_url = p.url
+        let saved = try await handler.capture(p)
+        XCTAssertEqual(saved.abstract, "")     // resolve skipped for direct PDF URLs
+        XCTAssertEqual(saved.pdfURL, p.url)
+        XCTAssertEqual(saved.title, "Kwon H2O")
+    }
 }

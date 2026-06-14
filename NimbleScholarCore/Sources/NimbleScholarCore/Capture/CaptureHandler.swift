@@ -16,7 +16,10 @@ public final class CaptureHandler {
 
     @discardableResult
     public func capture(_ payload: CapturePayload) async throws -> Paper {
-        let meta = (try? await resolve(payload.url)) ?? PaperMetadata()
+        // Skip the HTML metadata fetch for direct PDF links (nothing to parse, and it
+        // would otherwise download the whole PDF just to scrape <meta> tags).
+        let meta = Self.looksLikePDFURL(payload.url) ? PaperMetadata()
+                                                     : ((try? await resolve(payload.url)) ?? PaperMetadata())
         var p = Paper(title: payload.title?.nonEmpty ?? meta.title.nonEmpty ?? payload.url)
         p.authors = payload.authors?.nonEmpty ?? meta.authors
         p.year = meta.year
@@ -62,6 +65,11 @@ public final class CaptureHandler {
             }
         }
         return saved
+    }
+
+    static func looksLikePDFURL(_ url: String) -> Bool {
+        let lower = url.lowercased()
+        return lower.hasSuffix(".pdf") || lower.contains(".pdf?")
     }
 
     /// Resolve a possibly-relative URL (e.g. CVF's `citation_pdf_url`) against the page URL.
