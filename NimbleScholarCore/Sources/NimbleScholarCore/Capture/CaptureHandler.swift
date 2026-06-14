@@ -3,7 +3,8 @@ import Foundation
 public final class CaptureHandler {
     public typealias Resolver = (String) async throws -> PaperMetadata
     /// Optional arXiv figure fetcher (by arXiv id). Left nil in unit tests to stay offline.
-    public typealias FigureFetcher = (String) async throws -> FigureChooser.Result
+    /// `@Sendable` so it can run in a background enrichment task after capture returns.
+    public typealias FigureFetcher = @Sendable (String) async throws -> FigureChooser.Result
 
     let store: LibraryStore
     let resolve: Resolver
@@ -23,10 +24,10 @@ public final class CaptureHandler {
         p.url = payload.url
         p.abstract = payload.abstract?.nonEmpty ?? meta.abstract
         p.source = payload.source ?? ""
-        p.teaserURL = payload.teaser_url?.nonEmpty ?? meta.teaserURL
-        p.pdfURL = payload.pdf_url?.nonEmpty
-            ?? ArxivService.normalizedPDFURL(absOrID: payload.url)
-            ?? meta.pdfURL
+        p.teaserURL = absolutize(payload.teaser_url?.nonEmpty ?? meta.teaserURL, base: payload.url)
+        p.pdfURL = absolutize(
+            payload.pdf_url?.nonEmpty ?? ArxivService.normalizedPDFURL(absOrID: payload.url) ?? meta.pdfURL,
+            base: payload.url)
         var saved: Paper
         if let existing = try store.existingPaper(forCaptureURL: payload.url) {
             // Update the existing row in place — don't create a duplicate, keep tags/annotations.
@@ -44,18 +45,32 @@ public final class CaptureHandler {
             }
         }
 
-        // Best-effort arXiv figure enrichment so cards show a teaser image.
+        // arXiv figure enrichment runs in the BACKGROUND so capture returns immediately;
+        // the teaser fills in a moment later and the UI refreshes via DB observation.
         if saved.teaserURL.isEmpty,
            let id = ArxivService.extractID(from: payload.url),
            let fetch = fetchFigures,
-           let figs = try? await fetch(id) {
-            saved.teaserURL = figs.teaser ?? ""
-            saved.pipelineURL = figs.pipeline ?? ""
-            if !(saved.teaserURL.isEmpty && saved.pipelineURL.isEmpty) {
-                saved = try store.update(saved)
+           let pid = saved.id {
+            let store = self.store
+            Task {
+                guard let figs = try? await fetch(id),
+                      figs.teaser != nil || figs.pipeline != nil,
+                      var paper = try? store.paper(id: pid) else { return }
+                paper.teaserURL = figs.teaser ?? ""
+                paper.pipelineURL = figs.pipeline ?? ""
+                _ = try? store.update(paper)
             }
         }
         return saved
+    }
+
+    /// Resolve a possibly-relative URL (e.g. CVF's `citation_pdf_url`) against the page URL.
+    private func absolutize(_ urlString: String, base: String) -> String {
+        guard !urlString.isEmpty, !urlString.hasPrefix("http") else { return urlString }
+        if let baseURL = URL(string: base), let resolved = URL(string: urlString, relativeTo: baseURL) {
+            return resolved.absoluteString
+        }
+        return urlString
     }
 }
 

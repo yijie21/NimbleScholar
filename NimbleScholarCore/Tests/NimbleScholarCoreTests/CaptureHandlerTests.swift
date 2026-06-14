@@ -43,4 +43,14 @@ final class CaptureHandlerTests: XCTestCase {
         XCTAssertEqual(second.title, "Updated")            // metadata merged
         XCTAssertEqual(Set(try store.tags(forPaper: first.id!)), ["a", "keep-me"])  // tags preserved
     }
+
+    func testRelativePdfUrlIsResolvedAgainstPageURL() async throws {
+        let store = try LibraryStore(dbQueue: DatabaseQueue())
+        let handler = CaptureHandler(store: store) { _ in PaperMetadata() }
+        var p = CapturePayload()
+        p.url = "https://openaccess.thecvf.com/content/CVPR2023/html/Foo_Paper.html"
+        p.pdf_url = "/content/CVPR2023/papers/Foo_Paper.pdf"   // relative, as some sites emit
+        let saved = try await handler.capture(p)
+        XCTAssertEqual(saved.pdfURL, "https://openaccess.thecvf.com/content/CVPR2023/papers/Foo_Paper.pdf")
+    }
 }

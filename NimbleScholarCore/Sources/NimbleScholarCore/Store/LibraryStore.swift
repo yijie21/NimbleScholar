@@ -1,7 +1,8 @@
 import Foundation
 import GRDB
 
-public final class LibraryStore {
+/// Thread-safe (GRDB `DatabaseQueue` serializes access), so it's safe to use from background tasks.
+public final class LibraryStore: @unchecked Sendable {
     public let dbQueue: DatabaseQueue
 
     public init(dbQueue: DatabaseQueue) throws {
