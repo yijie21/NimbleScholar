@@ -1,10 +1,17 @@
-// The app binds a fixed base port (8917) but walks forward if it's busy, so we
-// probe the range and cache whichever port answers /api/ping.
-const BASE_PORT = 8917;
-const PORT_SPAN = 20;
+// The app binds a fixed base port (8917) and walks forward if it's busy. We probe a
+// wide set of candidate ports in PARALLEL (covering the current + historical defaults)
+// and use whichever answers /api/ping first.
 let cachedPort = null;
 
-async function pingPort(port, timeoutMs = 400) {
+function candidatePorts() {
+  const ports = new Set();
+  for (let p = 8917; p <= 8940; p++) ports.add(p);   // current default range
+  for (let p = 8780; p <= 8800; p++) ports.add(p);   // earlier default range
+  [8765, 8766, 8767, 8768, 8781, 8782, 8783].forEach((p) => ports.add(p));
+  return [...ports];
+}
+
+async function pingPort(port, timeoutMs = 600) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -23,13 +30,21 @@ async function findEndpoint() {
   if (cachedPort && (await pingPort(cachedPort))) {
     return `http://127.0.0.1:${cachedPort}/api/capture`;
   }
-  for (let p = BASE_PORT; p < BASE_PORT + PORT_SPAN; p += 1) {
-    if (await pingPort(p)) {
-      cachedPort = p;
-      return `http://127.0.0.1:${p}/api/capture`;
-    }
+  // Probe all candidates concurrently; resolve with the first that answers.
+  const found = await Promise.any(
+    candidatePorts().map(async (p) => {
+      if (await pingPort(p)) return p;
+      throw new Error("no");
+    })
+  ).catch(() => null);
+  if (found) {
+    cachedPort = found;
+    return `http://127.0.0.1:${found}/api/capture`;
   }
-  throw new Error("Nimble Scholar isn't running (no port responded). Open the app first.");
+  throw new Error(
+    "Nimble Scholar isn't running, or the browser can't reach 127.0.0.1 (a proxy may be blocking localhost). " +
+      "Open the app, and add 127.0.0.1/localhost to your proxy bypass list."
+  );
 }
 
 async function readSettings() {
