@@ -38,6 +38,27 @@ final class ReaderViewModel: ObservableObject {
         if let id = paper.id { annotations = (try? store.annotations(forPaper: id)) ?? [] }
     }
 
+    // MARK: - Debounced PDF persistence
+    // Writing the whole PDF on every annotation stalls the UI; coalesce writes instead.
+    private var saveWork: DispatchWorkItem?
+
+    func scheduleSave() {
+        saveWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.writeNow() }
+        saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
+    }
+
+    func flushSave() {
+        saveWork?.cancel(); saveWork = nil
+        writeNow()
+    }
+
+    private func writeNow() {
+        guard let url = localURL, let doc = document else { return }
+        doc.write(to: url)
+    }
+
     // MARK: - Reading position
 
     private var positionKey: String { "readingPage.\(paper.id ?? -1)" }

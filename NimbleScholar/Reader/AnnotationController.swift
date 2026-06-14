@@ -73,7 +73,9 @@ struct AnnotationController {
     }
 
     private func persist(_ pdfView: PDFView) {
-        if let u = vm.localURL { pdfView.document?.write(to: u) }
+        // Annotation is already on screen; coalesce the (whole-file) write off the
+        // interaction path so highlighting/deleting feels instant.
+        vm.scheduleSave()
     }
 
     /// Modal prompt for note text (shared by the toolbar button and the right-click menu).

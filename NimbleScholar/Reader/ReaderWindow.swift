@@ -41,5 +41,6 @@ struct ReaderWindow: View {
         }
         .navigationTitle(vm.paper.title)
         .task { await vm.load() }
+        .onDisappear { vm.flushSave() }
     }
 }
