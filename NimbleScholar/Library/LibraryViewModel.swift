@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import NimbleScholarCore
 
 enum LibraryScope: Hashable {
@@ -114,6 +115,33 @@ final class LibraryViewModel: ObservableObject {
     }
     func toggleRead(_ paper: Paper) {
         if let id = paper.id { try? store.setRead(paperID: id, read: !paper.isRead); reload() }
+    }
+
+    /// Download (if needed) then reveal the cached PDF in Finder.
+    func revealPDF(_ paper: Paper) {
+        Task { if let url = await ensurePDF(for: paper) { NSWorkspace.shared.activateFileViewerSelecting([url]) } }
+    }
+    /// Download (if needed) then open the cached PDF in the system default PDF app.
+    func openPDFExternally(_ paper: Paper) {
+        Task { if let url = await ensurePDF(for: paper) { NSWorkspace.shared.open(url) } }
+    }
+    /// Re-fetch metadata + figure from the source and update the paper.
+    func refetchMetadata(_ paper: Paper) {
+        Task {
+            let meta = (try? await AppEnvironment.resolveMetadata(for: paper.url)) ?? PaperMetadata()
+            var p = paper
+            if !meta.title.isEmpty { p.title = meta.title }
+            if !meta.authors.isEmpty { p.authors = meta.authors }
+            if !meta.abstract.isEmpty { p.abstract = meta.abstract }
+            if !meta.year.isEmpty { p.year = meta.year }
+            _ = try? store.update(p)
+            if p.teaserURL.isEmpty, let id = ArxivService.extractID(from: p.url),
+               let figs = try? await AppEnvironment.fetchArxivFigures(id) {
+                p.teaserURL = figs.teaser ?? ""; p.pipelineURL = figs.pipeline ?? ""
+                _ = try? store.update(p)
+            }
+            await MainActor.run { reload() }
+        }
     }
     func save(_ paper: Paper) {
         _ = try? (paper.id == nil ? store.create(paper) : store.update(paper))

@@ -14,16 +14,20 @@ struct PaperContextMenu: ViewModifier {
                 Label("Read", systemImage: "book")
             }
             Button { vm.editingPaper = paper } label: { Label("Edit…", systemImage: "pencil") }
+            Button { vm.refetchMetadata(paper) } label: { Label("Re-fetch Metadata", systemImage: "arrow.clockwise") }
             Button {
                 vm.toggleRead(paper)
             } label: {
                 Label(paper.isRead ? "Mark as Unread" : "Mark as Read",
                       systemImage: paper.isRead ? "circle" : "checkmark.circle")
             }
+            Divider()
             Button {
                 let s = paper.pdfURL.isEmpty ? paper.url : paper.pdfURL
                 if let u = URL(string: s) { NSWorkspace.shared.open(u) }
             } label: { Label("Open in Browser", systemImage: "safari") }
+            Button { vm.openPDFExternally(paper) } label: { Label("Open PDF in Default App", systemImage: "doc.richtext") }
+            Button { vm.revealPDF(paper) } label: { Label("Reveal Cached PDF in Finder", systemImage: "folder") }
             Button {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(BibTeXExporter.export([paper]), forType: .string)
