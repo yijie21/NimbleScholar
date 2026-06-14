@@ -47,3 +47,20 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertEqual(try store.annotations(forPaper: paper.id!).count, 0)
     }
 }
+
+extension LibraryStoreTests {
+    func testFtsQueryEscapesSpecialCharacters() {
+        XCTAssertEqual(LibraryStore.ftsQuery("attention"), "\"attention\"*")
+        XCTAssertEqual(LibraryStore.ftsQuery("c++ models"), "\"c++\"* \"models\"*")
+        XCTAssertEqual(LibraryStore.ftsQuery("deep: learning"), "\"deep:\"* \"learning\"*")
+        XCTAssertEqual(LibraryStore.ftsQuery("  "), "")
+    }
+
+    func testSearchWithSpecialCharsDoesNotThrowOrCrash() throws {
+        let store = try makeStore()
+        _ = try store.create(Paper(title: "C++ and AT&T systems"))
+        XCTAssertNoThrow(try store.searchPapers(query: "c++", tag: nil))
+        XCTAssertNoThrow(try store.searchPapers(query: "deep:", tag: nil))
+        XCTAssertEqual(try store.searchPapers(query: "system", tag: nil).count, 1)
+    }
+}

@@ -115,10 +115,15 @@ public final class LibraryStore {
         }
     }
 
-    /// Turn a raw user query into a prefix FTS query: `transformer mod` -> `transformer* mod*`
+    /// Turn a raw user query into a safe prefix FTS query. Each token becomes a
+    /// double-quoted FTS string literal with a trailing `*`, so punctuation and FTS
+    /// operators can never be interpreted as syntax: `c++ mod` -> `"c++"* "mod"*`.
     static func ftsQuery(_ raw: String) -> String {
         raw.split(whereSeparator: \.isWhitespace)
-            .map { $0.replacingOccurrences(of: "\"", with: "") + "*" }
+            .map { token -> String in
+                let escaped = token.replacingOccurrences(of: "\"", with: "\"\"")
+                return "\"\(escaped)\"*"
+            }
             .joined(separator: " ")
     }
 
