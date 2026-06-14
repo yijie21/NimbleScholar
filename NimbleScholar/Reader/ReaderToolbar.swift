@@ -48,6 +48,7 @@ struct ReaderToolbar: ToolbarContent {
                 }
             } label: { Image(systemName: "paintpalette") }
             Button { addNote() } label: { Image(systemName: "note.text.badge.plus") }
+            Button { exportMarkdown() } label: { Image(systemName: "square.and.arrow.up") }
             Button { showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
         }
     }
@@ -69,5 +70,14 @@ struct ReaderToolbar: ToolbarContent {
               let text = AnnotationController.promptNoteText() else { return }
         let center = pv.convert(pv.bounds.center, to: page)
         AnnotationController(vm: vm).addNote(text: text, at: center, on: page, pdfView: pv)
+    }
+
+    private func exportMarkdown() {
+        let md = MarkdownExporter.export(paper: vm.paper, annotations: vm.annotations)
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "\(vm.paper.title.prefix(40)).md"
+        if panel.runModal() == .OK, let url = panel.url {
+            try? md.data(using: .utf8)?.write(to: url)
+        }
     }
 }
