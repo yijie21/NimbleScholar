@@ -60,6 +60,7 @@ struct LibraryContentView: View {
                     .background(Color.red)
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) { StatusBar() }
         .task { vm.reload(); vm.backfillVisualsIfNeeded() }
         .sheet(item: $vm.editingPaper) { PaperEditSheet(paper: $0).environmentObject(vm) }
         .sheet(isPresented: $capturing) { CaptureSheet().environmentObject(vm) }

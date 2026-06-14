@@ -172,6 +172,8 @@ final class LibraryViewModel: ObservableObject {
     /// Ensure a local PDF exists and persist its path (so thumbnails/reader find it).
     @discardableResult
     func ensurePDF(for paper: Paper) async -> URL? {
+        ActivityCenter.shared.begin("Downloading PDF — \(paper.title)")
+        defer { ActivityCenter.shared.end() }
         guard let url = try? await AppEnvironment.shared.downloader.ensureLocalPDF(for: paper) else { return nil }
         if paper.pdfPath != url.path {
             var p = paper; p.pdfPath = url.path; _ = try? store.update(p)
@@ -196,8 +198,10 @@ final class LibraryViewModel: ObservableObject {
     /// For every paper with no teaser image: re-fetch its arXiv figure, or (for non-arXiv
     /// papers like CVF) ensure the PDF is cached so its first page renders as the thumbnail.
     func backfillMissingVisuals() async {
-        let all = (try? store.allPapers()) ?? []
-        for p in all where p.teaserURL.isEmpty && p.pipelineURL.isEmpty {
+        let candidates = ((try? store.allPapers()) ?? []).filter { $0.teaserURL.isEmpty && $0.pipelineURL.isEmpty }
+        guard !candidates.isEmpty else { return }
+        ActivityCenter.shared.beginBatch("Loading figures", total: candidates.count)
+        for p in candidates {
             if let id = ArxivService.extractID(from: p.url),
                let figs = try? await AppEnvironment.fetchArxivFigures(id),
                figs.teaser != nil || figs.pipeline != nil {
@@ -206,7 +210,9 @@ final class LibraryViewModel: ObservableObject {
             } else if p.pdfPath.isEmpty || !FileManager.default.fileExists(atPath: p.pdfPath) {
                 _ = await ensurePDF(for: p)
             }
+            ActivityCenter.shared.stepBatch()
         }
+        ActivityCenter.shared.endBatch()
     }
 
     // MARK: - Multi-selection bulk actions

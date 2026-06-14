@@ -25,6 +25,8 @@ final class ReaderViewModel: ObservableObject {
     }
 
     func load() async {
+        ActivityCenter.shared.begin("Downloading PDF — \(paper.title)")
+        defer { ActivityCenter.shared.end() }
         do {
             let url = try await downloader.ensureLocalPDF(for: paper)
             self.localURL = url
