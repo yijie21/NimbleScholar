@@ -5,19 +5,28 @@ import NimbleScholarCore
 struct InspectorPanel: View {
     let pdfView: PDFView
     @ObservedObject var vm: ReaderViewModel
+    @StateObject private var chatVM: ChatViewModel
     @State private var tab = 0
+
+    init(pdfView: PDFView, vm: ReaderViewModel) {
+        self.pdfView = pdfView
+        self._vm = ObservedObject(wrappedValue: vm)
+        self._chatVM = StateObject(wrappedValue: ChatViewModel(paper: vm.paper))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $tab) {
                 Text("Outline").tag(0)
                 Text("Annotations").tag(1)
+                Text("Chat").tag(2)
             }
             .pickerStyle(.segmented)
             .padding(8)
             Divider()
-            if tab == 0 { outline } else { annotationList }
+            if tab == 0 { outline } else if tab == 1 { annotationList } else { ChatView(vm: chatVM) }
         }
+        .onAppear { chatVM.pdfView = pdfView }
     }
 
     private var outline: some View {
