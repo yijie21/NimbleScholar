@@ -27,9 +27,21 @@ public final class CaptureHandler {
         p.pdfURL = payload.pdf_url?.nonEmpty
             ?? ArxivService.normalizedPDFURL(absOrID: payload.url)
             ?? meta.pdfURL
-        var saved = try store.create(p)
-        if let tags = payload.tags {
-            try store.setTags(paperID: saved.id!, tags: TagNormalizer.normalize(tags))
+        var saved: Paper
+        if let existing = try store.existingPaper(forCaptureURL: payload.url) {
+            // Update the existing row in place — don't create a duplicate, keep tags/annotations.
+            p.id = existing.id
+            p.createdAt = existing.createdAt
+            if p.teaserURL.isEmpty { p.teaserURL = existing.teaserURL }
+            if p.pipelineURL.isEmpty { p.pipelineURL = existing.pipelineURL }
+            if p.pdfPath.isEmpty { p.pdfPath = existing.pdfPath }
+            p.isRead = existing.isRead
+            saved = try store.update(p)
+        } else {
+            saved = try store.create(p)
+            if let tags = payload.tags {
+                try store.setTags(paperID: saved.id!, tags: TagNormalizer.normalize(tags))
+            }
         }
 
         // Best-effort arXiv figure enrichment so cards show a teaser image.

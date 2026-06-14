@@ -93,6 +93,20 @@ public final class LibraryStore {
         try dbQueue.read { try Paper.fetchOne($0, key: id) }
     }
 
+    /// Find an existing paper that a capture URL would duplicate: by arXiv id (matched against
+    /// url/pdf_url/doi, version-insensitive) or by exact URL. Used for duplicate detection.
+    public func existingPaper(forCaptureURL url: String) throws -> Paper? {
+        try dbQueue.read { db -> Paper? in
+            if let id = ArxivService.extractID(from: url) {
+                let bare = id.replacingOccurrences(of: #"v\d+$"#, with: "", options: .regularExpression)
+                if let p = try Paper.fetchOne(db, sql: """
+                    SELECT * FROM papers WHERE url LIKE ? OR pdf_url LIKE ? OR doi LIKE ? LIMIT 1
+                """, arguments: ["%\(bare)%", "%\(bare)%", "%\(bare)%"]) { return p }
+            }
+            return try Paper.fetchOne(db, sql: "SELECT * FROM papers WHERE url = ? LIMIT 1", arguments: [url])
+        }
+    }
+
     public func tagCounts() throws -> [TagCount] {
         try dbQueue.read { db in
             try TagCount.fetchAll(db, sql: """

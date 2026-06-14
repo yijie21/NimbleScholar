@@ -22,4 +22,25 @@ final class CaptureHandlerTests: XCTestCase {
         XCTAssertEqual(Set(try store.tags(forPaper: paper.id!)), ["to-read", "vla"])
         XCTAssertEqual(try store.allPapers().count, 1)
     }
+
+    func testCaptureUpdatesExistingArxivPaperInsteadOfDuplicating() async throws {
+        let store = try LibraryStore(dbQueue: DatabaseQueue())
+        let handler = CaptureHandler(store: store) { _ in
+            var m = PaperMetadata(); m.title = "First"; return m
+        }
+        var p = CapturePayload(); p.url = "https://arxiv.org/abs/2606.01234"; p.tags = "a"
+        let first = try await handler.capture(p)
+        try store.setTags(paperID: first.id!, tags: ["a", "keep-me"])
+
+        var p2 = CapturePayload(); p2.url = "https://arxiv.org/pdf/2606.01234"
+        let handler2 = CaptureHandler(store: store) { _ in
+            var m = PaperMetadata(); m.title = "Updated"; return m
+        }
+        let second = try await handler2.capture(p2)
+
+        XCTAssertEqual(second.id, first.id)                // same row, not a copy
+        XCTAssertEqual(try store.allPapers().count, 1)
+        XCTAssertEqual(second.title, "Updated")            // metadata merged
+        XCTAssertEqual(Set(try store.tags(forPaper: first.id!)), ["a", "keep-me"])  // tags preserved
+    }
 }
