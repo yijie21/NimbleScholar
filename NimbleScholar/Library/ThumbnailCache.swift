@@ -78,12 +78,14 @@ final class ThumbnailCache {
     }
 
     private func produce(for paper: Paper) async -> NSImage? {
-        // 1) Teaser / pipeline figure from the web.
-        let remote = paper.teaserURL.isEmpty ? paper.pipelineURL : paper.teaserURL
-        if !remote.isEmpty, let url = URL(string: remote),
-           let (data, _) = try? await AppEnvironment.shared.networkSession.data(from: url),
-           let img = NSImage(data: data) {
-            return downscaled(img)
+        // 1) Teaser figure, else pipeline figure, from the web (a broken teaser URL must not
+        //    block the pipeline figure, and neither should fall straight through to the PDF).
+        for remote in [paper.teaserURL, paper.pipelineURL] where !remote.isEmpty {
+            if let url = URL(string: remote),
+               let (data, _) = try? await AppEnvironment.shared.networkSession.data(from: url),
+               let img = NSImage(data: data) {
+                return downscaled(img)
+            }
         }
         // 2) Fallback: render the cached PDF's first page (off the main thread).
         let path = paper.pdfPath

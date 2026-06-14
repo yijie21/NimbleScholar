@@ -101,6 +101,7 @@ Newly captured papers complete themselves automatically: the app fetches each mi
 figure and PDF in the background, so a paper goes spinner → ready on its own.
 
 **Bulk actions** (toolbar **⋯** menu): Download all PDFs · Load missing figures & PDFs ·
+Re-fetch all figures (force a fresh scrape, repairing any paper stuck on its PDF first page) ·
 Export BibTeX. (Export BibTeX is also ⇧⌘E.)
 
 **Keyboard**: **Delete** removes the selected paper(s); **⌘O** opens the reader; **⌘F** focuses

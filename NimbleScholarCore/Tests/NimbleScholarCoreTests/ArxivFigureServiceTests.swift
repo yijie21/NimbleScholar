@@ -17,6 +17,17 @@ final class ArxivFigureServiceTests: XCTestCase {
         XCTAssertEqual(r.pipeline, "https://arxiv.org/html/2606.01234v1/x3.png")
     }
 
+    func testResolvesRelativeURLWhenBaseHasNoTrailingSlash() {
+        // arXiv serves the page at …/html/<id> (no slash); figures must still resolve
+        // under the <id> directory, not drop it.
+        let noSlash = URL(string: "https://arxiv.org/html/2606.01234v1")!
+        let html = """
+        <figure><img src="x1.png" alt="teaser"><figcaption>Figure 1: Teaser</figcaption></figure>
+        """
+        let r = ArxivFigureService.parse(html: html, baseURL: noSlash)
+        XCTAssertEqual(r.teaser, "https://arxiv.org/html/2606.01234v1/x1.png")
+    }
+
     func testFallsBackToOgImageWhenNoFigures() {
         let html = """
         <html><head>

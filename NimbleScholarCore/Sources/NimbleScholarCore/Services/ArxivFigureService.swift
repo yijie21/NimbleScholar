@@ -32,10 +32,25 @@ public struct ArxivFigureService {
         return Self.parse(html: String(decoding: data, as: UTF8.self), baseURL: base)
     }
 
+    /// arXiv/ar5iv serve the HTML at `…/html/<id>` (no trailing slash) but reference figures
+    /// relatively (`x1.png`), which must resolve to `…/html/<id>/x1.png`. Standard URL
+    /// resolution would drop the `<id>` segment (treating it as a file). Unless the page URL
+    /// ends in a real web-page extension, we treat it as a directory and append a slash.
+    /// (An arXiv id like `2606.01234v1` contains a dot but is NOT a file, so a plain
+    /// "has a dot" check would be wrong — we match known page extensions instead.)
+    private static let pageExtensions: Set<String> = ["html", "htm", "xhtml", "shtml", "php", "asp", "aspx", "jsp", "pdf"]
+    static func normalizedBase(_ url: URL) -> URL {
+        if url.absoluteString.hasSuffix("/") { return url }
+        let ext = url.pathExtension.lowercased()
+        if pageExtensions.contains(ext) { return url }            // a real page file
+        return URL(string: url.absoluteString + "/") ?? url       // treat as a directory
+    }
+
     /// Parse `<figure>`/`<img>` (relative URLs resolved against `baseURL`) plus an
     /// `og:image`/`twitter:image` teaser candidate, then pick teaser + pipeline.
     static func parse(html: String, baseURL: URL) -> FigureChooser.Result {
-        guard let doc = try? SwiftSoup.parse(html, baseURL.absoluteString) else {
+        let base = normalizedBase(baseURL)
+        guard let doc = try? SwiftSoup.parse(html, base.absoluteString) else {
             return .init(teaser: nil, pipeline: nil)
         }
         var figs: [Figure] = (try? doc.select("figure").array().compactMap { fig -> Figure? in
