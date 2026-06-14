@@ -46,9 +46,8 @@ fi
 
 # --- 2. choose the source set for this mode ----------------------------------
 if [[ "$MODE" == "c" ]]; then
-  SOURCES='      - NimbleScholar/AppEnvironment.swift
-      - NimbleScholar/NimbleScholarApp.swift
-      - NimbleScholar/BootCheckView.swift'
+  echo "!! The 'c' (boot-check) mode was removed; use 'full'." >&2
+  exit 1
 else
   SOURCES='      - NimbleScholar/AppEnvironment.swift
       - NimbleScholar/App
