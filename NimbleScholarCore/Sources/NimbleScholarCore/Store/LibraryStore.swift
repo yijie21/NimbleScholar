@@ -15,7 +15,10 @@ public final class LibraryStore {
             .url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             .appendingPathComponent("Nimble Scholar", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let dbURL = dir.appendingPathComponent("paper_app.sqlite3")
+        // Distinct filename so we never collide with the old Python prototype's
+        // `paper_app.sqlite3` (which has the same table names but no GRDB migration
+        // bookkeeping, causing "table papers already exists").
+        let dbURL = dir.appendingPathComponent("nimblescholar.sqlite3")
         return try LibraryStore(dbQueue: try DatabaseQueue(path: dbURL.path))
     }
 
