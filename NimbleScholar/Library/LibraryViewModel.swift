@@ -140,10 +140,19 @@ final class LibraryViewModel: ObservableObject {
             if !meta.abstract.isEmpty { p.abstract = meta.abstract }
             if !meta.year.isEmpty { p.year = meta.year }
             _ = try? store.update(p)
-            if p.teaserURL.isEmpty, let id = ArxivService.extractID(from: p.url),
-               let figs = try? await AppEnvironment.fetchArxivFigures(id) {
-                p.teaserURL = figs.teaser ?? ""; p.pipelineURL = figs.pipeline ?? ""
-                _ = try? store.update(p)
+            if !p.hasFigure {
+                let figs: FigureChooser.Result?
+                if let id = ArxivService.extractID(from: p.url) {
+                    figs = try? await AppEnvironment.fetchArxivFigures(id)
+                } else if let page = landingPageURL(for: p) {
+                    figs = try? await AppEnvironment.fetchPageFigures(page)
+                } else {
+                    figs = nil
+                }
+                if let figs {
+                    p.teaserURL = figs.teaser ?? ""; p.pipelineURL = figs.pipeline ?? ""
+                    _ = try? store.update(p)
+                }
             }
             await MainActor.run { reload() }
         }
@@ -192,11 +201,30 @@ final class LibraryViewModel: ObservableObject {
     private var attempted = Set<Int64>()     // papers already auto-processed this session
     private var autoCompleteRunning = false
 
-    /// True when the paper still needs work: no local PDF, or no figure yet for an arXiv paper.
+    /// True when the paper still needs work: no local PDF, or no figure yet but a figure
+    /// source (arXiv HTML/ar5iv, or an HTML landing page) we can scrape.
     private func needsCompletion(_ p: Paper) -> Bool {
         if !p.hasLocalPDF { return true }
-        if !p.hasFigure, ArxivService.extractID(from: p.url) != nil { return true }
+        if !p.hasFigure, canFetchFigure(p) { return true }
         return false
+    }
+
+    private func canFetchFigure(_ p: Paper) -> Bool {
+        ArxivService.extractID(from: p.url) != nil || landingPageURL(for: p) != nil
+    }
+
+    /// The HTML landing page to scrape a figure from. arXiv is handled by id elsewhere; this
+    /// covers non-arXiv papers: an HTML URL is used directly, and a CVF raw-PDF URL
+    /// (`…/papers/Name.pdf`) is mapped to its abstract page (`…/html/Name.html`).
+    private func landingPageURL(for p: Paper) -> String? {
+        let u = p.url
+        guard !u.isEmpty, ArxivService.extractID(from: u) == nil else { return nil }
+        if u.lowercased().hasSuffix(".pdf") {
+            guard u.contains("/papers/") else { return nil }
+            return u.replacingOccurrences(of: "/papers/", with: "/html/")
+                    .replacingOccurrences(of: ".pdf", with: ".html")
+        }
+        return u
     }
 
     /// After every reload, fetch missing figures and PDFs for incomplete papers in the
@@ -236,11 +264,18 @@ final class LibraryViewModel: ObservableObject {
             guard let id = p.id else { continue }
             inflight.insert(id)
             var cur = p
-            // 1. Figure (arXiv only — others have no figure source).
-            if !cur.hasFigure, let aid = ArxivService.extractID(from: cur.url) {
+            // 1. Figure: arXiv HTML/ar5iv by id, else the paper's HTML landing page.
+            if !cur.hasFigure, canFetchFigure(cur) {
                 ActivityCenter.shared.beginItem(id, "Fetching figure…")
-                if let figs = try? await AppEnvironment.fetchArxivFigures(aid),
-                   figs.teaser != nil || figs.pipeline != nil {
+                let figs: FigureChooser.Result?
+                if let aid = ArxivService.extractID(from: cur.url) {
+                    figs = try? await AppEnvironment.fetchArxivFigures(aid)
+                } else if let page = landingPageURL(for: cur) {
+                    figs = try? await AppEnvironment.fetchPageFigures(page)
+                } else {
+                    figs = nil
+                }
+                if let figs, figs.teaser != nil || figs.pipeline != nil {
                     cur.teaserURL = figs.teaser ?? ""; cur.pipelineURL = figs.pipeline ?? ""
                     _ = try? store.update(cur)
                 }

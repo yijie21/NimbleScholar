@@ -86,6 +86,11 @@ final class AppEnvironment: ObservableObject {
         try await AppEnvironment.shared.figures.figures(forID: id)
     }
 
+    /// Figure scrape from a non-arXiv paper's HTML landing page (CVF, publishers, …).
+    static func fetchPageFigures(_ pageURL: String) async throws -> FigureChooser.Result {
+        try await AppEnvironment.shared.figures.figures(forPageURL: pageURL)
+    }
+
     private func startCaptureServer() {
         let handler = CaptureHandler(
             store: store,

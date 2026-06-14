@@ -14,9 +14,16 @@ public enum FigureChooser {
         public init(teaser: String?, pipeline: String?) { self.teaser = teaser; self.pipeline = pipeline }
     }
 
-    private static let placeholders = ["logo", "favicon", "icon", "static", "browse", "arxiv-logo"]
-    private static let teaserWords = ["teaser", "overview", "result", "qualitative"]
-    private static let pipelineWords = ["pipeline", "method", "architecture", "framework", "overview of"]
+    private static let placeholders = [
+        "logo", "favicon", "icon", "static", "browse", "arxiv-logo",
+        "orcid", "creativecommons", "cc-by", "cc_by", "header", "footer",
+        "banner", "spacer", "email", "/badge", "doi.svg",
+    ]
+    private static let teaserWords = ["teaser", "overview", "result", "qualitative", "example", "motivation"]
+    private static let pipelineWords = [
+        "pipeline", "method", "architecture", "framework", "overview of",
+        "approach", "network", "model", "system",
+    ]
 
     public static func choose(from figures: [Figure]) -> Result {
         let valid = figures.filter { f in
