@@ -32,7 +32,7 @@ struct ThreePaneView: View {
                     .background(.bar)
                 }
             }
-            .frame(minWidth: 240, idealWidth: 300, maxWidth: 440)
+            .frame(width: 320)   // fixed so the detail content can't make the list jitter
 
             Group {
                 if vm.multiSelection.count == 1, let id = vm.multiSelection.first,

@@ -52,7 +52,10 @@ struct PDFKitView: NSViewRepresentable {
             }
         }
 
-        onReady(v)
+        // Defer to the next runloop tick: calling back synchronously here would set the
+        // caller's @State during SwiftUI's view-update pass (ignored / doesn't propagate),
+        // leaving the inspector stuck because its `pdfView` never updates.
+        DispatchQueue.main.async { onReady(v) }
         return v
     }
 
