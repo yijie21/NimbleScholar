@@ -36,7 +36,6 @@ struct LibraryContentView: View {
     @StateObject private var vm = LibraryViewModel()
     @AppStorage("libraryViewMode") private var mode: LibraryViewMode = .threePane
     @Environment(\.openWindow) private var openWindow
-    @State private var capturing = false
 
     private func openSelectedReader() {
         if vm.multiSelection.count == 1, let id = vm.multiSelection.first {
@@ -63,7 +62,6 @@ struct LibraryContentView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) { StatusBar() }
         .task { vm.reload() }
         .sheet(item: $vm.editingPaper) { PaperEditSheet(paper: $0).environmentObject(vm) }
-        .sheet(isPresented: $capturing) { CaptureSheet().environmentObject(vm) }
     }
 
     @ViewBuilder private var detail: some View {
@@ -114,12 +112,6 @@ struct LibraryContentView: View {
                     Divider()
                     Button("Export BibTeX…") { exportBibTeX() }
                 } label: { Label("Actions", systemImage: "ellipsis.circle") }
-            }
-            ToolbarItem {
-                Button { capturing = true } label: { Label("Capture", systemImage: "link.badge.plus") }
-            }
-            ToolbarItem {
-                Button { vm.editingPaper = Paper(title: "") } label: { Label("Add", systemImage: "plus") }
             }
         }
     }
