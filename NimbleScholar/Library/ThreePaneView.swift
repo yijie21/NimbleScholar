@@ -9,6 +9,7 @@ struct ThreePaneView: View {
             VStack(spacing: 0) {
                 List(vm.papers, selection: $vm.multiSelection) { paper in
                     HStack(spacing: 6) {
+                        ImportanceStar(paper: paper).font(.caption)
                         Circle().fill(.blue).frame(width: 7, height: 7).opacity(paper.isRead ? 0 : 1)
                         VStack(alignment: .leading) {
                             Text(paper.title).lineLimit(2).font(.headline)

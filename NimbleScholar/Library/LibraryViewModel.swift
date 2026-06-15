@@ -3,7 +3,7 @@ import AppKit
 import NimbleScholarCore
 
 enum LibraryScope: Hashable {
-    case all, unread, untagged, recent
+    case all, unread, untagged, recent, important
     case tag(String)
 }
 
@@ -32,7 +32,7 @@ final class LibraryViewModel: ObservableObject {
     @Published var sort: SortMode = .updated {
         didSet {
             UserDefaults.standard.set(sort.rawValue, forKey: "librarySort")
-            papers = sorted(papers)
+            papers = floatImportant(sorted(papers))
         }
     }
     @Published var selection: Paper.ID? = nil
@@ -54,6 +54,7 @@ final class LibraryViewModel: ObservableObject {
         case .unread: return "Unread"
         case .untagged: return "Untagged"
         case .recent: return "Recently added"
+        case .important: return "Important"
         case .tag(let t): return t
         }
     }
@@ -63,12 +64,14 @@ final class LibraryViewModel: ObservableObject {
         switch scope {
         case .all:           result = (try? store.searchPapers(query: query, tag: nil)) ?? []
         case .unread:        result = ((try? store.searchPapers(query: query, tag: nil)) ?? []).filter { !$0.isRead }
+        case .important:     result = ((try? store.searchPapers(query: query, tag: nil)) ?? []).filter { $0.isImportant }
         case .tag(let t):    result = (try? store.searchPapers(query: query, tag: t)) ?? []
         case .untagged:      result = (try? store.untaggedPapers(query: query)) ?? []
         case .recent:        result = ((try? store.searchPapers(query: query, tag: nil)) ?? [])
                                  .sorted { $0.createdAt > $1.createdAt }
         }
-        papers = (scope == .recent) ? Array(result.prefix(30)) : sorted(result)
+        let ordered = (scope == .recent) ? Array(result.prefix(30)) : sorted(result)
+        papers = floatImportant(ordered)
         tagCounts = (try? store.tagCounts()) ?? []
         tagsByPaper = (try? store.allTagsByPaper()) ?? [:]
         ThumbnailCache.shared.prewarm(papers)
@@ -82,6 +85,11 @@ final class LibraryViewModel: ObservableObject {
         case .year:    return list.sorted { $0.year > $1.year }
         case .title:   return list.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
+    }
+
+    /// Stable: keeps important papers first while preserving the active sort within groups.
+    private func floatImportant(_ list: [Paper]) -> [Paper] {
+        list.sorted { $0.isImportant && !$1.isImportant }
     }
 
     // MARK: - Tags
@@ -134,6 +142,9 @@ final class LibraryViewModel: ObservableObject {
     }
     func toggleRead(_ paper: Paper) {
         if let id = paper.id { try? store.setRead(paperID: id, read: !paper.isRead); reload() }
+    }
+    func toggleImportant(_ paper: Paper) {
+        if let id = paper.id { try? store.setImportant(paperID: id, important: !paper.isImportant); reload() }
     }
 
     /// Download (if needed) then reveal the cached PDF in Finder.

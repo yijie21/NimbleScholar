@@ -10,6 +10,7 @@ struct SidebarView: View {
         List(selection: Binding(get: { vm.scope }, set: { vm.scope = $0 ?? .all })) {
             Section {
                 Label("All papers", systemImage: "tray.full").tag(LibraryScope.all)
+                Label("Important", systemImage: "star.fill").tag(LibraryScope.important)
                 Label("Unread", systemImage: "circle.fill").tag(LibraryScope.unread)
                 Label("Recently added", systemImage: "clock").tag(LibraryScope.recent)
                 Label("Untagged", systemImage: "tag.slash").tag(LibraryScope.untagged)

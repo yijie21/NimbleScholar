@@ -15,7 +15,10 @@ struct PaperDetailView: View {
                     .frame(maxHeight: 340)
                     .background(.quaternary.opacity(0.25))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                Text(paper.title).font(.title2).bold()
+                HStack(alignment: .top, spacing: 8) {
+                    Text(paper.title).font(.title2).bold()
+                    ImportanceStar(paper: paper).font(.title3)
+                }
                 Text([paper.authors, paper.venue, paper.year].filter { !$0.isEmpty }.joined(separator: " · "))
                     .foregroundStyle(.secondary)
                 DetailSummaryField(paper: paper)

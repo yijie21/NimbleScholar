@@ -42,6 +42,7 @@ private struct GalleryCard: View {
                 .overlay(PaperThumbnail(paper: paper))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(alignment: .topTrailing) { PaperStatusBadge(paper: paper) }
+                .overlay(alignment: .topLeading) { ImportanceStar(paper: paper, onImage: true).font(.caption).padding(6) }
             Text(paper.title).font(.subheadline).bold().lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text(paper.authors).font(.caption).foregroundStyle(.secondary).lineLimit(1)

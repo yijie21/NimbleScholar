@@ -41,6 +41,7 @@ private struct RowCard: View {
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(alignment: .topTrailing) { PaperStatusBadge(paper: paper) }
+                .overlay(alignment: .topLeading) { ImportanceStar(paper: paper, onImage: true).font(.caption).padding(6) }
             VStack(alignment: .leading, spacing: 6) {
                 Text(paper.title).font(.headline)
                 Text([paper.authors, paper.venue, paper.year].filter { !$0.isEmpty }.joined(separator: " · "))

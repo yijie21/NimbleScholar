@@ -21,6 +21,10 @@ struct PaperContextMenu: ViewModifier {
                 Label(paper.isRead ? "Mark as Unread" : "Mark as Read",
                       systemImage: paper.isRead ? "circle" : "checkmark.circle")
             }
+            Button { vm.toggleImportant(paper) } label: {
+                Label(paper.isImportant ? "Unmark Important" : "Mark as Important",
+                      systemImage: paper.isImportant ? "star.slash" : "star")
+            }
             Divider()
             Button {
                 let s = paper.pdfURL.isEmpty ? paper.url : paper.pdfURL
