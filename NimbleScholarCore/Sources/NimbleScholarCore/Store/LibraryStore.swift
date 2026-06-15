@@ -96,6 +96,11 @@ public final class LibraryStore: @unchecked Sendable {
                 t.add(column: "links_scanned", .integer).notNull().defaults(to: 0)
             }
         }
+        m.registerMigration("v6-code-ready") { db in
+            try db.alter(table: "papers") { t in
+                t.add(column: "code_ready", .integer).notNull().defaults(to: 0)
+            }
+        }
         return m
     }
 
