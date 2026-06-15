@@ -1,5 +1,21 @@
 # Changelog
 
+## Milestone 3 — Reliable capture: proxy default + error notifications (2026-06-15, `v3.0.0`)
+
+### Fixed
+- **Capture metadata silently failed on proxy-only networks.** A Finder-launched app's
+  `URLSession` honors only macOS *System* proxy settings (not shell env vars), so the
+  app couldn't reach arXiv and saved papers with the URL as their title.
+
+### Changed / Added
+- **Download proxy ON by default** — `AppDefaults` (proxy enabled, `127.0.0.1:7892`)
+  registered into UserDefaults at launch; Settings fields read from it. Explicit user
+  values still override.
+- **Capture problems now surface as a macOS notification** instead of being swallowed.
+  `CaptureHandler` reports an actionable message ("…check your network or proxy") when
+  no title can be resolved; `AppEnvironment.makeCaptureHandler()` (shared by the capture
+  server and the in-app Capture sheet) routes it to `Notifier`. + unit tests.
+
 ## Milestone 2 — New logo + one-click auto-update (2026-06-15, `v2.0.0`)
 
 ### Added
