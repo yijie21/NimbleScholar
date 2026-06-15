@@ -33,6 +33,26 @@ struct PaperDetailView: View {
                     Button("Edit") { vm.editingPaper = paper }
                     Button("Delete", role: .destructive) { vm.delete(paper) }
                 }
+                if !paper.projectURL.isEmpty || !paper.codeURL.isEmpty {
+                    HStack(spacing: 8) {
+                        if !paper.projectURL.isEmpty {
+                            Button { openLink(paper.projectURL) } label: {
+                                Label("Project", systemImage: "globe")
+                            }
+                            .buttonStyle(.bordered).controlSize(.small)
+                        }
+                        if !paper.codeURL.isEmpty {
+                            Button { openLink(paper.codeURL) } label: {
+                                Label("Code", systemImage: "chevron.left.forward.slash")
+                            }
+                            .buttonStyle(.bordered).controlSize(.small)
+                        }
+                    }
+                } else {
+                    Button("Add links…") { vm.editingPaper = paper }
+                        .buttonStyle(.borderless).controlSize(.small)
+                        .font(.caption)
+                }
                 FlowTags(tags: vm.tags(for: paper), onRemove: { vm.removeTag($0, from: paper) })
                 TagInputField(paper: paper)
                 if !paper.abstract.isEmpty {
@@ -42,6 +62,10 @@ struct PaperDetailView: View {
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func openLink(_ string: String) {
+        if let url = URL(string: string) { NSWorkspace.shared.open(url) }
     }
 }
 

@@ -18,6 +18,8 @@ struct PaperEditSheet: View {
                 TextField("DOI / arXiv ID", text: $paper.doi)
                 TextField("URL", text: $paper.url)
                 TextField("PDF URL", text: $paper.pdfURL)
+                TextField("Project URL", text: $paper.projectURL)
+                TextField("Code URL (GitHub)", text: $paper.codeURL)
                 TextField("Summary", text: $paper.summary)
                 TextField("Abstract", text: $paper.abstract, axis: .vertical).lineLimit(4...)
             }

@@ -210,7 +210,14 @@ final class LibraryViewModel: ObservableObject {
     private func needsCompletion(_ p: Paper) -> Bool {
         if !p.hasLocalPDF { return true }
         if !p.hasFigure, canFetchFigure(p) { return true }
+        if !p.linksScanned, canScanLinks(p) { return true }
         return false
+    }
+
+    /// We can look for project/code links once there's a PDF to read, an arXiv id, or a
+    /// landing page to scrape.
+    private func canScanLinks(_ p: Paper) -> Bool {
+        p.hasLocalPDF || ArxivService.extractID(from: p.url) != nil || landingPageURL(for: p) != nil
     }
 
     private func canFetchFigure(_ p: Paper) -> Bool {
@@ -320,6 +327,15 @@ final class LibraryViewModel: ObservableObject {
                     cur.pdfPath = url.path
                     _ = try? store.update(cur)
                 }
+            }
+            // 3. Project / code links (once per paper).
+            if !cur.linksScanned, canScanLinks(cur) {
+                ActivityCenter.shared.beginItem(id, "Finding links…")
+                let links = await LinkFinder.find(for: cur, session: AppEnvironment.shared.networkSession)
+                if let project = links.projectURL { cur.projectURL = project }
+                if let code = links.codeURL { cur.codeURL = code }
+                cur.linksScanned = true
+                _ = try? store.update(cur)
             }
             ActivityCenter.shared.endItem(id)
             inflight.remove(id)
