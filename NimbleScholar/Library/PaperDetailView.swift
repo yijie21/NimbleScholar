@@ -43,7 +43,11 @@ struct PaperDetailView: View {
                         }
                         if !paper.codeURL.isEmpty {
                             Button { openLink(paper.codeURL) } label: {
-                                Label("Code", systemImage: "chevron.left.forward.slash")
+                                Label {
+                                    Text("Code")
+                                } icon: {
+                                    Image("GitHubMark").renderingMode(.template)
+                                }
                             }
                             .buttonStyle(.bordered).controlSize(.small)
                         }
