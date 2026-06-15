@@ -24,6 +24,7 @@ public struct Paper: Codable, Identifiable, Hashable, FetchableRecord, MutablePe
     public var codeURL: String = ""
     public var linksScanned: Bool = false
     public var codeReady: Bool = false
+    public var isImportant: Bool = false
     public var createdAt: Int64 = 0
     public var updatedAt: Int64 = 0
 
@@ -37,6 +38,7 @@ public struct Paper: Codable, Identifiable, Hashable, FetchableRecord, MutablePe
         case isRead = "read"
         case projectURL = "project_url", codeURL = "code_url", linksScanned = "links_scanned"
         case codeReady = "code_ready"
+        case isImportant = "important"
         case createdAt = "created_at", updatedAt = "updated_at"
     }
 
@@ -49,6 +51,7 @@ public struct Paper: Codable, Identifiable, Hashable, FetchableRecord, MutablePe
         case isRead = "read"
         case projectURL = "project_url", codeURL = "code_url", linksScanned = "links_scanned"
         case codeReady = "code_ready"
+        case isImportant = "important"
         case createdAt = "created_at", updatedAt = "updated_at"
     }
 

@@ -106,6 +106,11 @@ public final class LibraryStore: @unchecked Sendable {
         m.registerMigration("v7-existing-code-ready") { db in
             try db.execute(sql: "UPDATE papers SET code_ready = 1 WHERE code_url <> ''")
         }
+        m.registerMigration("v8-important") { db in
+            try db.alter(table: "papers") { t in
+                t.add(column: "important", .integer).notNull().defaults(to: 0)
+            }
+        }
         return m
     }
 
@@ -268,6 +273,13 @@ public final class LibraryStore: @unchecked Sendable {
         try dbQueue.write { db in
             try db.execute(sql: "UPDATE papers SET read = ?, updated_at = ? WHERE id = ?",
                            arguments: [read ? 1 : 0, Int64(Date().timeIntervalSince1970), paperID])
+        }
+    }
+
+    public func setImportant(paperID: Int64, important: Bool) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "UPDATE papers SET important = ?, updated_at = ? WHERE id = ?",
+                           arguments: [important ? 1 : 0, Int64(Date().timeIntervalSince1970), paperID])
         }
     }
 
