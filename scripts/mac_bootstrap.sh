@@ -62,6 +62,7 @@ else
       - NimbleScholar/Library
       - NimbleScholar/Reader
       - NimbleScholar/Settings
+      - NimbleScholar/Update
       - NimbleScholar/Assets.xcassets'
 fi
 

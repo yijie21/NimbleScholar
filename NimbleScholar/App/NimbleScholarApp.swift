@@ -11,6 +11,11 @@ struct NimbleScholarApp: App {
         }
         .defaultSize(width: 1180, height: 760)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    AppEnvironment.shared.updater.checkForUpdates()
+                }
+            }
             CommandGroup(after: .importExport) {
                 Button("Export BibTeX…") { exportBibTeX() }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
