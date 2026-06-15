@@ -43,8 +43,33 @@ ditto -c -k --keepParent "$APP" "$ZIP"
 echo "==> Archived $ZIP"
 
 # --- 4. sign + (re)generate appcast.xml ---------------------------------------
-GEN_APPCAST="${GEN_APPCAST:-$(find ~/Library/Developer/Xcode/DerivedData -path '*/Sparkle/bin/generate_appcast' 2>/dev/null | head -1)}"
-[[ -n "$GEN_APPCAST" ]] || { echo "!! generate_appcast not found — build once so SPM resolves Sparkle, or download the Sparkle release tarball and set GEN_APPCAST=/path/to/bin/generate_appcast."; exit 1; }
+# Locate generate_appcast. Override order:
+#   1. GEN_APPCAST=/full/path/to/generate_appcast
+#   2. SPARKLE_BIN=/path/to/Sparkle/bin   (we append /generate_appcast)
+#   3. common install spots (covers ~/tools/Sparkle-2.9.3/bin and Downloads)
+#   4. the SPM-resolved copy under DerivedData
+if [[ -z "${GEN_APPCAST:-}" && -n "${SPARKLE_BIN:-}" ]]; then
+  GEN_APPCAST="${SPARKLE_BIN%/}/generate_appcast"
+fi
+if [[ -z "${GEN_APPCAST:-}" ]]; then
+  for cand in \
+    ~/tools/Sparkle-*/bin/generate_appcast \
+    /opt/Sparkle-*/bin/generate_appcast \
+    ~/Downloads/Sparkle-*/bin/generate_appcast \
+    ~/Downloads/bin/generate_appcast; do
+    [[ -x "$cand" ]] && { GEN_APPCAST="$cand"; break; }
+  done
+fi
+if [[ -z "${GEN_APPCAST:-}" ]]; then
+  GEN_APPCAST="$(find ~/Library/Developer/Xcode/DerivedData -path '*/Sparkle/bin/generate_appcast' 2>/dev/null | head -1)"
+fi
+[[ -n "${GEN_APPCAST:-}" && -x "$GEN_APPCAST" ]] || {
+  echo "!! generate_appcast not found. Point to your Sparkle tools, e.g.:"
+  echo "     SPARKLE_BIN=/Users/zed/tools/Sparkle-2.9.3/bin bash scripts/release.sh ${VERSION}"
+  echo "   or:  GEN_APPCAST=/Users/zed/tools/Sparkle-2.9.3/bin/generate_appcast bash scripts/release.sh ${VERSION}"
+  exit 1
+}
+echo "==> Using generate_appcast: $GEN_APPCAST"
 "$GEN_APPCAST" releases/ \
   --download-url-prefix "https://github.com/yijie21/NimbleScholar/releases/download/updates/"
 echo "==> Wrote releases/appcast.xml"

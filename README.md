@@ -218,3 +218,11 @@ bash scripts/release.sh 0.2.0
 This bumps the version, builds Release, signs the archive, regenerates `appcast.xml`,
 and uploads both to the rolling `updates` GitHub Release. Installed copies pick it up
 on their next check.
+
+`release.sh` auto-finds the Sparkle CLI tools in `~/tools/Sparkle-*/bin`,
+`~/Downloads/Sparkle-*/bin`, or the SPM-resolved copy under DerivedData. If yours live
+elsewhere, point to them once:
+
+```bash
+SPARKLE_BIN=/path/to/Sparkle-2.9.3/bin bash scripts/release.sh 0.2.0
+```
