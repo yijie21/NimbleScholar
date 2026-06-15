@@ -1,5 +1,12 @@
 # New App Logo + One-Click Auto-Update — Implementation Plan
 
+> **STATUS (2026-06-15): IMPLEMENTED — shipped as Milestone 2 (`v2.0.0`).**
+> Tasks 1–10 done and on `main`. `SUPublicEDKey` is set in `scripts/mac_bootstrap.sh`.
+> Remaining: cut the first real release (`bash scripts/release.sh 0.1.1`, needs `gh auth login`)
+> and the manual end-to-end update check (Task 11). Extension toolbar icons also updated
+> (`scripts/generate_extension_icons.py`) and `scripts/install_app.sh` added — both beyond
+> the original plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give Nimble Scholar a new "page + highlighter" app icon and a Sparkle-based one-click auto-update that pulls signed releases from GitHub Releases (works without an Apple Developer account).
