@@ -15,11 +15,9 @@ struct PaperContextMenu: ViewModifier {
             }
             Button { vm.editingPaper = paper } label: { Label("Edit…", systemImage: "pencil") }
             Button { vm.refetchMetadata(paper) } label: { Label("Re-fetch Metadata", systemImage: "arrow.clockwise") }
-            Button {
-                vm.toggleRead(paper)
-            } label: {
-                Label(paper.isRead ? "Mark as Unread" : "Mark as Read",
-                      systemImage: paper.isRead ? "circle" : "checkmark.circle")
+            Button { vm.toggleToRead(paper) } label: {
+                Label(vm.isUnread(paper) ? "Mark as Read" : "Mark as Unread",
+                      systemImage: vm.isUnread(paper) ? "checkmark.circle" : "circle")
             }
             Button { vm.toggleImportant(paper) } label: {
                 Label(paper.isImportant ? "Unmark Important" : "Mark as Important",
@@ -27,6 +25,7 @@ struct PaperContextMenu: ViewModifier {
             }
             Divider()
             Button {
+                vm.markRead(paper)
                 let s = paper.pdfURL.isEmpty ? paper.url : paper.pdfURL
                 if let u = URL(string: s) { NSWorkspace.shared.open(u) }
             } label: { Label("Open in Browser", systemImage: "safari") }

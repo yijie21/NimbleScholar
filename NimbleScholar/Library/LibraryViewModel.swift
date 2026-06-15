@@ -24,6 +24,9 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
+    /// The tag that marks a paper "unread" (drives the blue dot + Unread filter).
+    static let toReadTag = "to-read"
+
     @Published var papers: [Paper] = []
     @Published var tagCounts: [TagCount] = []
     @Published var tagsByPaper: [Int64: [String]] = [:]   // batched once per reload (no N+1)
@@ -63,7 +66,7 @@ final class LibraryViewModel: ObservableObject {
         let result: [Paper]
         switch scope {
         case .all:           result = (try? store.searchPapers(query: query, tag: nil)) ?? []
-        case .unread:        result = ((try? store.searchPapers(query: query, tag: nil)) ?? []).filter { !$0.isRead }
+        case .unread:        result = (try? store.searchPapers(query: query, tag: Self.toReadTag)) ?? []
         case .important:     result = ((try? store.searchPapers(query: query, tag: nil)) ?? []).filter { $0.isImportant }
         case .tag(let t):    result = (try? store.searchPapers(query: query, tag: t)) ?? []
         case .untagged:      result = (try? store.untaggedPapers(query: query)) ?? []
@@ -145,6 +148,22 @@ final class LibraryViewModel: ObservableObject {
     }
     func toggleImportant(_ paper: Paper) {
         if let id = paper.id { try? store.setImportant(paperID: id, important: !paper.isImportant); reload() }
+    }
+
+    /// A paper counts as "unread" while it still carries the to-read tag.
+    func isUnread(_ paper: Paper) -> Bool { tags(for: paper).contains(Self.toReadTag) }
+
+    /// Clear the to-read tag (used when a paper is opened via Read/Browser).
+    func markRead(_ paper: Paper) {
+        guard let id = paper.id else { return }
+        try? store.removeTag(Self.toReadTag, fromPaper: id)
+        reload()
+    }
+
+    /// Toggle the to-read tag (context-menu Mark as Read/Unread).
+    func toggleToRead(_ paper: Paper) {
+        if isUnread(paper) { removeTag(Self.toReadTag, from: paper) }
+        else { addTag(Self.toReadTag, to: paper) }
     }
 
     /// Download (if needed) then reveal the cached PDF in Finder.

@@ -27,11 +27,12 @@ struct PaperDetailView: View {
                         if let id = paper.id { openWindow(id: "reader", value: id) }
                     } label: { Label("Read", systemImage: "book") }
                     .buttonStyle(.borderedProminent)
-                    Button("Browser") {
+                    Button {
+                        vm.markRead(paper)
                         if let u = URL(string: paper.pdfURL.isEmpty ? paper.url : paper.pdfURL) {
                             NSWorkspace.shared.open(u)
                         }
-                    }
+                    } label: { Label("Browser", systemImage: "safari") }
                     Spacer()
                     Button("Edit") { vm.editingPaper = paper }
                     Button("Delete", role: .destructive) { vm.delete(paper) }
