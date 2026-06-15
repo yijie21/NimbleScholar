@@ -103,7 +103,7 @@ $SOURCES
         LSApplicationCategoryType: public.app-category.productivity
         # --- Sparkle auto-update (EdDSA-trusted; no Apple Developer account needed) ---
         SUFeedURL: "https://github.com/yijie21/NimbleScholar/releases/download/updates/appcast.xml"
-        SUPublicEDKey: "REPLACE_WITH_PUBLIC_KEY"
+        SUPublicEDKey: "aBi7PCWVn8QlNF9hGxUseNkHw+9lCcpeSIWHjqrb8QU="
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400
         NSPrincipalClass: NSApplication
