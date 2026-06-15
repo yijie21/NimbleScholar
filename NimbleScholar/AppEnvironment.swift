@@ -18,6 +18,9 @@ final class AppEnvironment: ObservableObject {
     /// Non-nil if on-disk store setup failed; shown as a banner + logged. Indicates
     /// the app is running on an in-memory fallback store (nothing persists).
     let startupError: String?
+    /// Sparkle-based auto-updater (see UpdaterController). Created on the main thread
+    /// when `AppEnvironment.shared` is first realized by the app's @StateObject.
+    let updater = UpdaterController()
 
     /// Where data lives: ~/Library/Application Support/Nimble Scholar/
     /// (Sandboxed apps get the container-relative equivalent.)

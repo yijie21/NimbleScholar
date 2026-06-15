@@ -21,7 +21,15 @@ ACTION="${2:-open}"   # open | run
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "==> Nimble Scholar bootstrap  (mode=$MODE, action=$ACTION)"
+# Versions: file defaults, overridable by env (release.sh sets them).
+if [[ -f scripts/version.env ]]; then
+  # shellcheck disable=SC1091
+  source scripts/version.env
+fi
+MARKETING_VERSION="${MARKETING_VERSION:-0.1.0}"
+BUILD_NUMBER="${BUILD_NUMBER:-1}"
+
+echo "==> Nimble Scholar bootstrap  (mode=$MODE, action=$ACTION, version=$MARKETING_VERSION build=$BUILD_NUMBER)"
 echo "    repo: $ROOT"
 
 # --- 0. sanity ---------------------------------------------------------------
@@ -54,6 +62,7 @@ else
       - NimbleScholar/Library
       - NimbleScholar/Reader
       - NimbleScholar/Settings
+      - NimbleScholar/Update
       - NimbleScholar/Assets.xcassets'
 fi
 
@@ -69,6 +78,9 @@ options:
 packages:
   NimbleScholarCore:
     path: NimbleScholarCore
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
 targets:
   NimbleScholar:
     type: application
@@ -79,22 +91,29 @@ $SOURCES
     dependencies:
       - package: NimbleScholarCore
         product: NimbleScholarCore
+      - package: Sparkle
+        product: Sparkle
     info:
       path: Generated/Info.plist
       properties:
         CFBundleDisplayName: Nimble Scholar
         LSMinimumSystemVersion: "14.0"
-        CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "${MARKETING_VERSION}"
+        CFBundleVersion: "${BUILD_NUMBER}"
         LSApplicationCategoryType: public.app-category.productivity
+        # --- Sparkle auto-update (EdDSA-trusted; no Apple Developer account needed) ---
+        SUFeedURL: "https://github.com/yijie21/NimbleScholar/releases/download/updates/appcast.xml"
+        SUPublicEDKey: "aBi7PCWVn8QlNF9hGxUseNkHw+9lCcpeSIWHjqrb8QU="
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
         NSPrincipalClass: NSApplication
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yijie.nimblescholar
         SWIFT_VERSION: "5.0"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        MARKETING_VERSION: "0.1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "${MARKETING_VERSION}"
+        CURRENT_PROJECT_VERSION: "${BUILD_NUMBER}"
         # Ad-hoc local signing: no Apple Developer account required.
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "-"
@@ -152,6 +171,8 @@ if [[ "$ACTION" == "run" ]]; then
   else
     echo "!! Build produced no .app — see errors above."; exit 1
   fi
+elif [[ "$ACTION" == "generate" ]]; then
+  echo "==> Project generated (no build, no open)."
 else
   echo "==> Opening Xcode. Press ⌘R to run."
   open NimbleScholar.xcodeproj

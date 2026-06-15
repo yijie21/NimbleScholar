@@ -20,6 +20,7 @@ private struct GeneralSettings: View {
     @AppStorage("proxyEnabled") private var proxyEnabled = false
     @AppStorage("proxyHost") private var proxyHost = "127.0.0.1"
     @AppStorage("proxyPort") private var proxyPort = 7892
+    @ObservedObject private var updater = AppEnvironment.shared.updater
 
     private var boundPort: String {
         (try? String(contentsOfFile: "/tmp/nimblescholar-port.txt", encoding: .utf8))?
@@ -46,6 +47,14 @@ private struct GeneralSettings: View {
                     TextField("Proxy port", value: $proxyPort, format: .number)
                 }
                 Text("Used for paper PDFs, figures, and metadata (e.g. your local proxy for faster access). Restart the app to apply.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Software updates") {
+                Toggle("Automatically check for updates", isOn: Binding(
+                    get: { updater.automaticallyChecksForUpdates },
+                    set: { updater.automaticallyChecksForUpdates = $0 }))
+                Button("Check for Updates Now") { updater.checkForUpdates() }
+                Text("Updates are downloaded from GitHub and installed in place — no Gatekeeper prompt after the first install.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
