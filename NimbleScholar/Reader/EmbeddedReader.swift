@@ -18,17 +18,35 @@ struct EmbeddedReader: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let doc = vm.document {
-                    PDFKitView(document: doc, displayMode: $displayMode, vm: vm) { pv in
-                        self.pdfView = pv
-                        AnnotationController(vm: vm).reconcile(pdfView: pv)
+            HStack(spacing: 0) {
+                Group {
+                    if let doc = vm.document {
+                        PDFKitView(document: doc, displayMode: $displayMode, vm: vm) { pv in
+                            self.pdfView = pv
+                            AnnotationController(vm: vm).reconcile(pdfView: pv)
+                        }
+                    } else {
+                        ContentUnavailableView(vm.status, systemImage: "doc.richtext")
                     }
-                } else {
-                    ContentUnavailableView(vm.status, systemImage: "doc.richtext")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                // Inline inspector panel (outline / annotations / chat). Laid out directly
+                // rather than via `.inspector`, which only renders at the window level and
+                // shows nothing when the reader is nested in the three-pane detail pane.
+                if showInspector {
+                    Divider()
+                    Group {
+                        if let pv = pdfView {
+                            InspectorPanel(pdfView: pv, vm: vm)
+                        } else {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                    .frame(width: 300)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .toolbar {
                 ToolbarItem(placement: .navigation) {
                     Button { vm.flushSave(); onClose() } label: {
@@ -38,10 +56,6 @@ struct EmbeddedReader: View {
                 }
                 ReaderToolbar(pdfView: $pdfView, displayMode: $displayMode,
                               showInspector: $showInspector, vm: vm)
-            }
-            .inspector(isPresented: $showInspector) {
-                if let pv = pdfView { InspectorPanel(pdfView: pv, vm: vm) }
-                else { Text("—").foregroundStyle(.secondary) }
             }
             .navigationTitle(vm.paper.title)
         }
