@@ -5,22 +5,41 @@ public final class CaptureHandler {
     /// Optional arXiv figure fetcher (by arXiv id). Left nil in unit tests to stay offline.
     /// `@Sendable` so it can run in a background enrichment task after capture returns.
     public typealias FigureFetcher = @Sendable (String) async throws -> FigureChooser.Result
+    /// Optional sink for human-readable capture problems (e.g. metadata couldn't be
+    /// fetched). The app shows these as a macOS notification; nil in unit tests.
+    public typealias IssueReporter = (String) -> Void
 
     let store: LibraryStore
     let resolve: Resolver
     let fetchFigures: FigureFetcher?
+    let reportIssue: IssueReporter?
 
-    public init(store: LibraryStore, resolve: @escaping Resolver, fetchFigures: FigureFetcher? = nil) {
-        self.store = store; self.resolve = resolve; self.fetchFigures = fetchFigures
+    public init(store: LibraryStore, resolve: @escaping Resolver,
+                fetchFigures: FigureFetcher? = nil, reportIssue: IssueReporter? = nil) {
+        self.store = store; self.resolve = resolve
+        self.fetchFigures = fetchFigures; self.reportIssue = reportIssue
     }
 
     @discardableResult
     public func capture(_ payload: CapturePayload) async throws -> Paper {
         // Skip the HTML metadata fetch for direct PDF links (nothing to parse, and it
         // would otherwise download the whole PDF just to scrape <meta> tags).
-        let meta = Self.looksLikePDFURL(payload.url) ? PaperMetadata()
-                                                     : ((try? await resolve(payload.url)) ?? PaperMetadata())
-        var p = Paper(title: payload.title?.nonEmpty ?? meta.title.nonEmpty ?? payload.url)
+        var meta = PaperMetadata()
+        var resolveError: String?
+        if !Self.looksLikePDFURL(payload.url) {
+            do { meta = try await resolve(payload.url) }
+            catch { resolveError = error.localizedDescription }
+        }
+        // No usable title from the page payload OR the resolver ⇒ the capture landed
+        // without metadata (commonly a network/proxy problem). Tell the user, instead of
+        // silently saving a paper whose title is just the URL.
+        let resolvedTitle = payload.title?.nonEmpty ?? meta.title.nonEmpty
+        if resolvedTitle == nil {
+            let detail = resolveError.map { " (\($0))" } ?? ""
+            reportIssue?("Couldn't fetch the paper's details for \(payload.url)\(detail). "
+                + "Check your network or proxy in Settings ▸ General ▸ Downloads.")
+        }
+        var p = Paper(title: resolvedTitle ?? payload.url)
         p.authors = payload.authors?.nonEmpty ?? meta.authors
         p.year = meta.year
         p.doi = payload.doi?.nonEmpty ?? meta.doi

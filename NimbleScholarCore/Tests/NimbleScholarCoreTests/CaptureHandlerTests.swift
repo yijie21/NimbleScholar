@@ -54,6 +54,36 @@ final class CaptureHandlerTests: XCTestCase {
         XCTAssertEqual(saved.pdfURL, "https://openaccess.thecvf.com/content/CVPR2023/papers/Foo_Paper.pdf")
     }
 
+    func testReportsIssueWhenMetadataCannotBeFetched() async throws {
+        let store = try LibraryStore(dbQueue: DatabaseQueue())
+        var reported: [String] = []
+        // Resolver fails (e.g. arXiv unreachable without a proxy).
+        let handler = CaptureHandler(
+            store: store,
+            resolve: { _ in throw URLError(.cannotConnectToHost) },
+            reportIssue: { reported.append($0) }
+        )
+        var p = CapturePayload(); p.url = "https://arxiv.org/abs/2606.01234"
+        let saved = try await handler.capture(p)
+
+        XCTAssertEqual(saved.title, p.url)          // title fell back to the URL
+        XCTAssertEqual(reported.count, 1)           // and the user was told why
+        XCTAssertTrue(reported[0].contains("2606.01234"))
+    }
+
+    func testNoIssueReportedWhenTitleResolves() async throws {
+        let store = try LibraryStore(dbQueue: DatabaseQueue())
+        var reported: [String] = []
+        let handler = CaptureHandler(
+            store: store,
+            resolve: { _ in var m = PaperMetadata(); m.title = "Real Title"; return m },
+            reportIssue: { reported.append($0) }
+        )
+        var p = CapturePayload(); p.url = "https://arxiv.org/abs/2606.01234"
+        _ = try await handler.capture(p)
+        XCTAssertTrue(reported.isEmpty)             // metadata fine ⇒ no notification
+    }
+
     func testDirectPdfUrlSkipsResolve() async throws {
         let store = try LibraryStore(dbQueue: DatabaseQueue())
         // If resolve ran, this abstract would be pulled in; it must not be (URL is a .pdf).

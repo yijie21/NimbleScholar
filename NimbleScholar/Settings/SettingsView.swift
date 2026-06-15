@@ -17,9 +17,9 @@ struct SettingsView: View {
 private struct GeneralSettings: View {
     @AppStorage("defaultCaptureTags") private var defaultTags = "to-read"
     @AppStorage("capturePort") private var capturePort = 8917
-    @AppStorage("proxyEnabled") private var proxyEnabled = false
-    @AppStorage("proxyHost") private var proxyHost = "127.0.0.1"
-    @AppStorage("proxyPort") private var proxyPort = 7892
+    @AppStorage("proxyEnabled") private var proxyEnabled = AppDefaults.proxyEnabled
+    @AppStorage("proxyHost") private var proxyHost = AppDefaults.proxyHost
+    @AppStorage("proxyPort") private var proxyPort = AppDefaults.proxyPort
     @ObservedObject private var updater = AppEnvironment.shared.updater
 
     private var boundPort: String {

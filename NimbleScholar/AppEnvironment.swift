@@ -1,6 +1,17 @@
 import Foundation
 import NimbleScholarCore
 
+/// Default values registered into UserDefaults at launch, so a fresh install behaves
+/// correctly before the user opens Settings. The download proxy is ON by default: the
+/// app's URLSession only honors macOS *System* proxy settings (not shell env vars), so
+/// on networks that require a local proxy it must be enabled to reach arXiv. Set
+/// `proxyPort` to your local proxy's port.
+enum AppDefaults {
+    static let proxyEnabled = true
+    static let proxyHost = "127.0.0.1"
+    static let proxyPort = 7892   // local proxy port
+}
+
 /// App-wide singleton: owns the store, the PDF cache location, and the capture server.
 /// One instance for the whole app so the UI and the capture server share the same store.
 /// Not @MainActor: the store (GRDB) is internally synchronized, so view models can read
@@ -25,6 +36,8 @@ final class AppEnvironment: ObservableObject {
     /// Where data lives: ~/Library/Application Support/Nimble Scholar/
     /// (Sandboxed apps get the container-relative equivalent.)
     private init() {
+        AppEnvironment.registerDefaults()
+        Notifier.requestAuthorization()
         var err: String?
 
         // Try the on-disk store; if it fails, log the real error everywhere we can
@@ -55,6 +68,30 @@ final class AppEnvironment: ObservableObject {
             cacheDir: support.appendingPathComponent("Nimble Scholar/storage/pdfs", isDirectory: true))
 
         startCaptureServer()
+    }
+
+    /// Seed UserDefaults so a fresh install has the proxy on with sane host/port before
+    /// the user ever opens Settings. Explicit user values always override these.
+    private static func registerDefaults() {
+        UserDefaults.standard.register(defaults: [
+            "proxyEnabled": AppDefaults.proxyEnabled,
+            "proxyHost": AppDefaults.proxyHost,
+            "proxyPort": AppDefaults.proxyPort,
+        ])
+    }
+
+    /// A capture handler wired to this environment, with metadata problems surfaced as a
+    /// macOS notification. Shared by the capture server and the in-app Capture sheet.
+    func makeCaptureHandler() -> CaptureHandler {
+        CaptureHandler(
+            store: store,
+            resolve: { url in try await AppEnvironment.resolveMetadata(for: url) },
+            fetchFigures: AppEnvironment.fetchArxivFigures,
+            reportIssue: { message in
+                NSLog("‼️ NimbleScholar capture: %@", message)
+                Notifier.notify(title: "Capture issue", body: message)
+            }
+        )
     }
 
     /// Build the shared download session, honoring the proxy configured in Settings.
@@ -95,11 +132,7 @@ final class AppEnvironment: ObservableObject {
     }
 
     private func startCaptureServer() {
-        let handler = CaptureHandler(
-            store: store,
-            resolve: { url in try await AppEnvironment.resolveMetadata(for: url) },
-            fetchFigures: AppEnvironment.fetchArxivFigures
-        )
+        let handler = makeCaptureHandler()
         // Port comes from Settings (@AppStorage "capturePort"); default 8781.
         // If it's taken, walk forward until we find a free one, and log which we bound.
         let saved = UserDefaults.standard.integer(forKey: "capturePort")
