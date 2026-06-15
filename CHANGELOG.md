@@ -1,5 +1,21 @@
 # Changelog
 
+## Milestone 4 — Project & code (GitHub) links (2026-06-15, `v4.0.0`)
+
+### Added
+- **Project-page and open-source (GitHub) link buttons** on the paper detail view.
+  Links are auto-extracted from the cached PDF (link annotations + text) and the
+  abstract/landing HTML page; if only a project page is found, it's fetched and scanned
+  for a GitHub link. Project-page detection uses strong signals only (`*.github.io`,
+  `sites.google.com`, links labeled "project page"/"website").
+  - Core `LinkExtractor` (pure classification + SwiftSoup anchor parsing) + tests.
+  - App `LinkFinder` (PDFKit + network orchestration).
+  - `Paper.projectURL` / `codeURL` / `linksScanned` + `v5-links` migration.
+- **Background backfill** for already-imported papers via the existing auto-complete loop,
+  each showing a per-item **"Finding links…"** status; scanned once per paper.
+- **Manual entry** — Project URL / Code URL fields in the Edit sheet, and an "Add links…"
+  button in the detail view when none were found.
+
 ## Milestone 3 — Reliable capture: proxy default + error notifications (2026-06-15, `v3.0.0`)
 
 ### Fixed
