@@ -101,6 +101,11 @@ public final class LibraryStore: @unchecked Sendable {
                 t.add(column: "code_ready", .integer).notNull().defaults(to: 0)
             }
         }
+        // Trust links we already discovered: don't hide an existing Code button behind
+        // re-validation. The watcher only validates NEW discoveries going forward.
+        m.registerMigration("v7-existing-code-ready") { db in
+            try db.execute(sql: "UPDATE papers SET code_ready = 1 WHERE code_url <> ''")
+        }
         return m
     }
 
