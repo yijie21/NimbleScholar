@@ -30,7 +30,11 @@ struct PaperEditSheet: View {
                 }
                 Spacer()
                 Button("Cancel") { dismiss() }
-                Button("Save") { vm.save(paper); dismiss() }.keyboardShortcut(.defaultAction)
+                Button("Save") {
+                    paper.codeReady = !paper.codeURL.isEmpty
+                    vm.save(paper)
+                    dismiss()
+                }.keyboardShortcut(.defaultAction)
             }
             .padding()
         }

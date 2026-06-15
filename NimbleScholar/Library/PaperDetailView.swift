@@ -33,29 +33,35 @@ struct PaperDetailView: View {
                     Button("Edit") { vm.editingPaper = paper }
                     Button("Delete", role: .destructive) { vm.delete(paper) }
                 }
-                if !paper.projectURL.isEmpty || !paper.codeURL.isEmpty {
-                    HStack(spacing: 8) {
-                        if !paper.projectURL.isEmpty {
-                            Button { openLink(paper.projectURL) } label: {
-                                Label("Project", systemImage: "globe")
-                            }
-                            .buttonStyle(.bordered).controlSize(.small)
-                        }
-                        if !paper.codeURL.isEmpty {
-                            Button { openLink(paper.codeURL) } label: {
-                                Label {
-                                    Text("Code")
-                                } icon: {
-                                    Image("GitHubMark").renderingMode(.template)
+                VStack(alignment: .leading, spacing: 6) {
+                    if !paper.projectURL.isEmpty || hasReadyCode {
+                        HStack(spacing: 8) {
+                            if !paper.projectURL.isEmpty {
+                                Button { openLink(paper.projectURL) } label: {
+                                    Label("Project", systemImage: "globe")
                                 }
+                                .buttonStyle(.bordered).controlSize(.small)
                             }
-                            .buttonStyle(.bordered).controlSize(.small)
+                            if hasReadyCode {
+                                Button { openLink(paper.codeURL) } label: {
+                                    Label {
+                                        Text("Code")
+                                    } icon: {
+                                        Image("GitHubMark").renderingMode(.template)
+                                    }
+                                }
+                                .buttonStyle(.bordered).controlSize(.small)
+                            }
                         }
                     }
-                } else {
-                    Button("Add links…") { vm.editingPaper = paper }
-                        .buttonStyle(.borderless).controlSize(.small)
-                        .font(.caption)
+                    if isWatchingCode {
+                        Label("Watching for code release", systemImage: "hourglass")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else if paper.projectURL.isEmpty && paper.codeURL.isEmpty {
+                        Button("Add links…") { vm.editingPaper = paper }
+                            .buttonStyle(.borderless).controlSize(.small)
+                            .font(.caption)
+                    }
                 }
                 FlowTags(tags: vm.tags(for: paper), onRemove: { vm.removeTag($0, from: paper) })
                 TagInputField(paper: paper)
@@ -70,6 +76,12 @@ struct PaperDetailView: View {
 
     private func openLink(_ string: String) {
         if let url = URL(string: string) { NSWorkspace.shared.open(url) }
+    }
+
+    private var hasReadyCode: Bool { !paper.codeURL.isEmpty && paper.codeReady }
+    /// No confirmed code yet, but there's a source we keep re-checking.
+    private var isWatchingCode: Bool {
+        !hasReadyCode && (!paper.url.isEmpty || !paper.projectURL.isEmpty || !paper.codeURL.isEmpty)
     }
 }
 

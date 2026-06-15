@@ -7,7 +7,9 @@ struct NimbleScholarApp: App {
 
     var body: some Scene {
         WindowGroup("Nimble Scholar") {
-            LibraryContentView().environmentObject(env)
+            LibraryContentView()
+                .environmentObject(env)
+                .onAppear { env.startCodeWatcherIfNeeded() }
         }
         .defaultSize(width: 1180, height: 760)
         .commands {

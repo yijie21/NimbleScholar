@@ -105,6 +105,9 @@ struct LibraryContentView: View {
                     Button("Download all PDFs") { Task { await vm.downloadAllPDFs() } }
                     Button("Load missing figures & PDFs") { vm.retryAllIncomplete() }
                     Button("Re-fetch all figures") { vm.refetchAllFigures() }
+                    Button("Check for code now") {
+                        Task { await AppEnvironment.shared.codeWatcher?.sweep(force: true) }
+                    }
                     Divider()
                     Button("Export BibTeX…") { exportBibTeX() }
                 } label: { Label("Actions", systemImage: "ellipsis.circle") }

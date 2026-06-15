@@ -32,6 +32,8 @@ final class AppEnvironment: ObservableObject {
     /// Sparkle-based auto-updater (see UpdaterController). Created on the main thread
     /// when `AppEnvironment.shared` is first realized by the app's @StateObject.
     let updater = UpdaterController()
+    /// Watches papers for a code release (see CodeWatcher). Started from the library view.
+    var codeWatcher: CodeWatcher?
 
     /// Where data lives: ~/Library/Application Support/Nimble Scholar/
     /// (Sandboxed apps get the container-relative equivalent.)
@@ -78,6 +80,16 @@ final class AppEnvironment: ObservableObject {
             "proxyHost": AppDefaults.proxyHost,
             "proxyPort": AppDefaults.proxyPort,
         ])
+    }
+
+    /// Create + start the code watcher once (idempotent). Called on the main thread when
+    /// the library window appears.
+    @MainActor
+    func startCodeWatcherIfNeeded() {
+        guard codeWatcher == nil else { return }
+        let watcher = CodeWatcher(store: store, session: networkSession)
+        codeWatcher = watcher
+        watcher.start()
     }
 
     /// A capture handler wired to this environment, with metadata problems surfaced as a
