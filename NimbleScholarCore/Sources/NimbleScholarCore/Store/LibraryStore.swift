@@ -89,6 +89,13 @@ public final class LibraryStore: @unchecked Sendable {
                 t.column("created_at", .integer).notNull()
             }
         }
+        m.registerMigration("v5-links") { db in
+            try db.alter(table: "papers") { t in
+                t.add(column: "project_url", .text).notNull().defaults(to: "")
+                t.add(column: "code_url", .text).notNull().defaults(to: "")
+                t.add(column: "links_scanned", .integer).notNull().defaults(to: 0)
+            }
+        }
         return m
     }
 
