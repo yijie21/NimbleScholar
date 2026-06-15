@@ -1,5 +1,33 @@
 # Changelog
 
+## Milestone 5 — Code-release watch, important star, read/tag polish (2026-06-15, `v5.0.0`)
+
+### Added
+- **Watch for code release.** Papers without confirmed code are re-checked (on launch +
+  daily + manual "Check for code now"); when a **real** GitHub repo appears (not an
+  empty/README-only placeholder, detected via the GitHub contents API) the paper gets a
+  Code button and a **"Code released" notification that opens the repo on click**. First
+  sweep reconciles existing links silently. `GitHubRepo` (Core) + `GitHubRepoChecker` +
+  `CodeWatcher` + `Paper.code_ready` (`v6`).
+- **"Re-validate code links"** (⋯ menu) — re-checks trusted links and demotes any that are
+  actually empty back to "watching".
+- **Mark papers important (star).** Gold star on cards / detail / right-click; starred
+  papers float to the top of every list (All + any tag filter), with an **Important**
+  sidebar filter. `Paper.important` (`v8`).
+- **GitHub Octocat** mark on the Code button (template vector, light/dark adaptive).
+
+### Changed
+- **Unread = the `to-read` tag.** The blue dot, the Unread filter, and right-click
+  Mark-as-Read all follow the `to-read` tag; opening via **Read** or **Browser** (or
+  removing the tag) clears the dot. `LibraryStore.removeTag(_:fromPaper:)`.
+- The detail **Browser** button now has a safari icon.
+- Removed the in-app **Capture (URL)** and **Add (manual)** toolbar buttons (capture is via
+  the browser extension / drag-in PDF; editing existing papers is unchanged).
+
+### Fixed
+- `v7`: existing code links no longer disappear behind re-validation — already-discovered
+  links are trusted immediately; only new discoveries are validated.
+
 ## Milestone 4 — Project & code (GitHub) links (2026-06-15, `v4.0.0`)
 
 ### Added
