@@ -26,7 +26,6 @@ struct GalleryView: View {
 /// (subtle scale + shadow); the selected card keeps an accent ring.
 private struct GalleryCard: View {
     @EnvironmentObject var vm: LibraryViewModel
-    @Environment(\.openWindow) private var openWindow
     let paper: Paper
     @State private var hovering = false
 
@@ -64,7 +63,7 @@ private struct GalleryCard: View {
         .animation(.easeOut(duration: 0.13), value: selected)
         .contentShape(RoundedRectangle(cornerRadius: 12))
         .onHover { hovering = $0 }
-        .onTapGesture(count: 2) { if let id = paper.id { openWindow(id: "reader", value: id) } }
+        .onTapGesture(count: 2) { vm.openReader(paper) }
         .onTapGesture { vm.selection = paper.id }
         .paperContextMenu(paper)
     }

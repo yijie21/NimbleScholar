@@ -6,7 +6,6 @@ import NimbleScholarCore
 struct ReaderToolbar: ToolbarContent {
     @Binding var pdfView: PDFView?
     @Binding var displayMode: PDFDisplayMode
-    @Binding var showThumbs: Bool
     @Binding var showInspector: Bool
     @ObservedObject var vm: ReaderViewModel
     @State private var search = ""
@@ -18,9 +17,6 @@ struct ReaderToolbar: ToolbarContent {
     ]
 
     var body: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            Button { showThumbs.toggle() } label: { Image(systemName: "sidebar.left") }
-        }
         ToolbarItemGroup {
             TextField("Search", text: $search)
                 .frame(width: 160)

@@ -6,11 +6,10 @@ import NimbleScholarCore
 struct PaperContextMenu: ViewModifier {
     let paper: Paper
     @EnvironmentObject var vm: LibraryViewModel
-    @Environment(\.openWindow) private var openWindow
 
     func body(content: Content) -> some View {
         content.contextMenu {
-            Button { if let id = paper.id { openWindow(id: "reader", value: id) } } label: {
+            Button { vm.openReader(paper) } label: {
                 Label("Read", systemImage: "book")
             }
             Button { vm.editingPaper = paper } label: { Label("Edit…", systemImage: "pencil") }

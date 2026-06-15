@@ -1,0 +1,51 @@
+import SwiftUI
+import PDFKit
+import NimbleScholarCore
+
+/// The PDF reader hosted inside the library window (full-window reading mode).
+/// Reuses the reader internals; no page-thumbnail sidebar. `onClose` returns to the library.
+struct EmbeddedReader: View {
+    @StateObject private var vm: ReaderViewModel
+    @State private var displayMode: PDFDisplayMode = .singlePageContinuous
+    @State private var showInspector = true
+    @State private var pdfView: PDFView?
+    let onClose: () -> Void
+
+    init(paperID: Int64?, onClose: @escaping () -> Void) {
+        _vm = StateObject(wrappedValue: ReaderViewModel(paperID: paperID))
+        self.onClose = onClose
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let doc = vm.document {
+                    PDFKitView(document: doc, displayMode: $displayMode, vm: vm) { pv in
+                        self.pdfView = pv
+                        AnnotationController(vm: vm).reconcile(pdfView: pv)
+                    }
+                } else {
+                    ContentUnavailableView(vm.status, systemImage: "doc.richtext")
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    Button { vm.flushSave(); onClose() } label: {
+                        Label("Library", systemImage: "chevron.left")
+                    }
+                    .keyboardShortcut(.cancelAction)
+                }
+                ReaderToolbar(pdfView: $pdfView, displayMode: $displayMode,
+                              showInspector: $showInspector, vm: vm)
+            }
+            .inspector(isPresented: $showInspector) {
+                if let pv = pdfView { InspectorPanel(pdfView: pv, vm: vm) }
+                else { Text("—").foregroundStyle(.secondary) }
+            }
+            .navigationTitle(vm.paper.title)
+        }
+        .task { await vm.load() }
+        .onDisappear { vm.flushSave() }
+    }
+}

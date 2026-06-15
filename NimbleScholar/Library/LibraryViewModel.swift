@@ -41,6 +41,7 @@ final class LibraryViewModel: ObservableObject {
     @Published var selection: Paper.ID? = nil
     @Published var multiSelection: Set<Int64> = []   // three-pane multi-selection
     @Published var editingPaper: Paper? = nil
+    @Published var readingPaperID: Int64? = nil   // non-nil → in-window reading mode
 
     private let store = AppEnvironment.shared.store
     private var observation: ObservationToken?
@@ -149,6 +150,9 @@ final class LibraryViewModel: ObservableObject {
     func toggleImportant(_ paper: Paper) {
         if let id = paper.id { try? store.setImportant(paperID: id, important: !paper.isImportant); reload() }
     }
+
+    func openReader(_ paper: Paper) { readingPaperID = paper.id }
+    func closeReader() { readingPaperID = nil }
 
     /// A paper counts as "unread" while it still carries the to-read tag.
     func isUnread(_ paper: Paper) -> Bool { tags(for: paper).contains(Self.toReadTag) }

@@ -4,7 +4,6 @@ import NimbleScholarCore
 
 struct PaperDetailView: View {
     @EnvironmentObject var vm: LibraryViewModel
-    @Environment(\.openWindow) private var openWindow
     let paper: Paper
 
     var body: some View {
@@ -23,9 +22,7 @@ struct PaperDetailView: View {
                     .foregroundStyle(.secondary)
                 DetailSummaryField(paper: paper)
                 HStack {
-                    Button {
-                        if let id = paper.id { openWindow(id: "reader", value: id) }
-                    } label: { Label("Read", systemImage: "book") }
+                    Button { vm.openReader(paper) } label: { Label("Read", systemImage: "book") }
                     .buttonStyle(.borderedProminent)
                     Button {
                         vm.markRead(paper)

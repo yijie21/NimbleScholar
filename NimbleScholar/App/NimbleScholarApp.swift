@@ -27,12 +27,6 @@ struct NimbleScholarApp: App {
             }
         }
 
-        // One reader window per paper id.
-        WindowGroup("Reader", id: "reader", for: Int64.self) { $paperID in
-            ReaderWindow(paperID: paperID).environmentObject(env)
-        }
-        .defaultSize(width: 1100, height: 820)
-
         Settings { SettingsView() }
     }
 }

@@ -35,15 +35,28 @@ struct LibraryContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @StateObject private var vm = LibraryViewModel()
     @AppStorage("libraryViewMode") private var mode: LibraryViewMode = .threePane
-    @Environment(\.openWindow) private var openWindow
 
     private func openSelectedReader() {
-        if vm.multiSelection.count == 1, let id = vm.multiSelection.first {
-            openWindow(id: "reader", value: id)
+        if vm.multiSelection.count == 1, let id = vm.multiSelection.first,
+           let paper = vm.papers.first(where: { $0.id == id }) {
+            vm.openReader(paper)
         }
     }
 
     var body: some View {
+        Group {
+            if let id = vm.readingPaperID {
+                EmbeddedReader(paperID: id) { vm.closeReader() }
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            } else {
+                libraryBody
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: vm.readingPaperID)
+    }
+
+    @ViewBuilder private var libraryBody: some View {
         NavigationSplitView {
             SidebarView().environmentObject(vm).frame(minWidth: 200)
         } detail: {
