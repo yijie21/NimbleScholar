@@ -37,11 +37,17 @@ struct ThreePaneView: View {
             Group {
                 if vm.multiSelection.count == 1, let id = vm.multiSelection.first,
                    let paper = vm.papers.first(where: { $0.id == id }) {
-                    PaperDetailView(paper: paper).environmentObject(vm)
+                    if vm.readingPaperID == id {
+                        EmbeddedReader(paperID: id) { vm.closeReader() }
+                            .transition(.opacity)
+                    } else {
+                        PaperDetailView(paper: paper).environmentObject(vm)
+                    }
                 } else {
                     ContentUnavailableView("Select a paper", systemImage: "doc.text")
                 }
             }
+            .animation(.easeInOut(duration: 0.2), value: vm.readingPaperID)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }

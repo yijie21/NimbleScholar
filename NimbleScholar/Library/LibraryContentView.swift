@@ -44,19 +44,6 @@ struct LibraryContentView: View {
     }
 
     var body: some View {
-        Group {
-            if let id = vm.readingPaperID {
-                EmbeddedReader(paperID: id) { vm.closeReader() }
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
-            } else {
-                libraryBody
-                    .transition(.opacity)
-            }
-        }
-        .animation(.easeInOut(duration: 0.25), value: vm.readingPaperID)
-    }
-
-    @ViewBuilder private var libraryBody: some View {
         NavigationSplitView {
             SidebarView().environmentObject(vm).frame(minWidth: 200)
         } detail: {
@@ -79,10 +66,16 @@ struct LibraryContentView: View {
 
     @ViewBuilder private var detail: some View {
         Group {
-            switch mode {
-            case .threePane: ThreePaneView()
-            case .gallery: GalleryView()
-            case .rows: RowsView()
+            // While reading, always use the three-pane layout so the reader has its
+            // detail pane (with the paper list still beside it).
+            if vm.readingPaperID != nil {
+                ThreePaneView()
+            } else {
+                switch mode {
+                case .threePane: ThreePaneView()
+                case .gallery: GalleryView()
+                case .rows: RowsView()
+                }
             }
         }
         .environmentObject(vm)

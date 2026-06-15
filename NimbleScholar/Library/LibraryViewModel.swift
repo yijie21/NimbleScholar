@@ -151,7 +151,12 @@ final class LibraryViewModel: ObservableObject {
         if let id = paper.id { try? store.setImportant(paperID: id, important: !paper.isImportant); reload() }
     }
 
-    func openReader(_ paper: Paper) { readingPaperID = paper.id }
+    func openReader(_ paper: Paper) {
+        guard let id = paper.id else { return }
+        selection = id
+        multiSelection = [id]          // so the three-pane detail shows this paper
+        readingPaperID = id
+    }
     func closeReader() { readingPaperID = nil }
 
     /// A paper counts as "unread" while it still carries the to-read tag.

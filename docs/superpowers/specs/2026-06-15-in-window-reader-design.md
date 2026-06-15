@@ -1,7 +1,21 @@
 # Design — In-Window PDF Reader (no thumbnail sidebar)
 
 Date: 2026-06-15
-Status: Approved (pending spec review)
+Status: Implemented; **revised** after testing.
+
+## Revision (2026-06-15): reader in the three-pane DETAIL pane (not full-window)
+
+User feedback: the full-window mode felt like leaving the library. New behavior — the
+reader shows in the **three-pane detail pane**, with the **paper list + sidebar still
+visible**:
+- `openReader(_:)` selects the paper (`selection`/`multiSelection`) and sets `readingPaperID`.
+- `LibraryContentView.detail` forces the three-pane layout while `readingPaperID != nil`
+  (so Read from Gallery/Rows lands in a detail pane too); the full-window swap is removed.
+- `ThreePaneView`'s right pane shows `EmbeddedReader` (with a fade) when its selected paper
+  is the one being read; Back/Esc → `closeReader()` restores `PaperDetailView`.
+- `EmbeddedReader` (PDF + inspector, no thumbnails) and the window removal are unchanged.
+
+The original full-window design below is superseded by this revision.
 
 ## Overview
 
