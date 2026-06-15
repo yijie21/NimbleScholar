@@ -108,6 +108,9 @@ struct LibraryContentView: View {
                     Button("Check for code now") {
                         Task { await AppEnvironment.shared.codeWatcher?.sweep(force: true) }
                     }
+                    Button("Re-validate code links") {
+                        Task { await AppEnvironment.shared.codeWatcher?.revalidate() }
+                    }
                     Divider()
                     Button("Export BibTeX…") { exportBibTeX() }
                 } label: { Label("Actions", systemImage: "ellipsis.circle") }

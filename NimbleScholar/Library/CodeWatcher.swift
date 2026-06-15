@@ -74,6 +74,30 @@ final class CodeWatcher {
         if !rateLimited { UserDefaults.standard.set(true, forKey: Self.reconciledKey) }
     }
 
+    /// Re-check papers whose code link we currently trust, and demote any that turn out to
+    /// be empty/placeholder repos back to "watching". Manual (⋯ menu) — does one pass with
+    /// batch + per-item progress; stops early if rate-limited (re-run to continue).
+    func revalidate() async {
+        guard !running else { return }
+        running = true
+        defer { running = false }
+        let targets = ((try? store.allPapers()) ?? []).filter { $0.codeReady && !$0.codeURL.isEmpty }
+        guard !targets.isEmpty else { return }
+        ActivityCenter.shared.beginBatch("Re-validating code links", total: targets.count)
+        defer { ActivityCenter.shared.endBatch() }
+        for var p in targets {
+            ActivityCenter.shared.beginItem(p.id, "Checking repo…")
+            let status = await GitHubRepoChecker.check(p.codeURL, session: session)
+            if status == .notReleased {
+                p.codeReady = false          // empty/placeholder → back to watching
+                _ = try? store.update(p)
+            }
+            ActivityCenter.shared.endItem(p.id)
+            ActivityCenter.shared.stepBatch()
+            if status == .rateLimited { break }
+        }
+    }
+
     /// Not yet confirmed code, and there's something to check (a candidate, a project page,
     /// or a URL we can scrape). Local-only PDFs (no URL) aren't watched.
     private func isWatchable(_ p: Paper) -> Bool {
