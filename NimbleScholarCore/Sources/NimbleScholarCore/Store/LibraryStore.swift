@@ -283,6 +283,20 @@ public final class LibraryStore: @unchecked Sendable {
         }
     }
 
+    /// Remove a single tag from a paper (no-op if absent). Bumps `updated_at` so the
+    /// library's change observation refreshes even when the tag is cleared elsewhere
+    /// (e.g. from the reader window).
+    public func removeTag(_ name: String, fromPaper id: Int64) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: """
+                DELETE FROM paper_tags
+                 WHERE paper_id = ? AND tag_id = (SELECT id FROM tags WHERE name = ?)
+                """, arguments: [id, name])
+            try db.execute(sql: "UPDATE papers SET updated_at = ? WHERE id = ?",
+                           arguments: [Int64(Date().timeIntervalSince1970), id])
+        }
+    }
+
     public func setTags(paperID: Int64, tags rawTags: [String]) throws {
         let names = TagNormalizer.normalize(rawTags)
         try dbQueue.write { db in
