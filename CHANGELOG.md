@@ -1,5 +1,18 @@
 # Changelog
 
+## Milestone 6 — First auto-update release + robust release pipeline (2026-06-15, `v6.0.0`)
+
+### Added
+- **First real Sparkle release published** to the rolling `updates` GitHub Release —
+  installed copies can now auto-update via Check for Updates.
+
+### Fixed
+- **Release build numbers can no longer collide.** `CFBundleVersion` is now derived from
+  the git commit count (`git rev-list --count HEAD`) in `mac_bootstrap.sh`, instead of a
+  hand-incremented counter in `version.env`. A failed release run previously left the
+  counter uncommitted, so a later run reused a build number and `generate_appcast` rejected
+  the duplicate. `version.env` now holds only `MARKETING_VERSION`.
+
 ## Milestone 5 — Code-release watch, important star, read/tag polish (2026-06-15, `v5.0.0`)
 
 ### Added
