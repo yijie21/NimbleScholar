@@ -1,5 +1,22 @@
 # Changelog
 
+## Milestone 7 — In-window PDF reader (2026-06-15, `v7.0.0`)
+
+### Changed
+- **The PDF reader now opens inside the library window**, in the three-pane **detail
+  pane**, with the paper list + sidebar still visible — instead of a separate window. A
+  **Back** button (or Esc) returns to the paper detail. Reading from Gallery/Rows snaps to
+  the three-pane layout. The standalone reader window is removed.
+- **Two panels only:** the PDF (center) + the inspector (outline / annotations / chat).
+  The **left page-thumbnail sidebar is gone** (scroll the PDF directly).
+
+### Fixed
+- Inspector panel rendered empty when nested — laid out as an inline trailing panel
+  instead of SwiftUI's window-level `.inspector`.
+- Inspector stayed on a perpetual spinner — `PDFKitView` now hands back its `PDFView` on
+  the next runloop tick so the state actually updates.
+- Paper-list width no longer jitters when the detail content changes (fixed-width list).
+
 ## Milestone 6 — First auto-update release + robust release pipeline (2026-06-15, `v6.0.0`)
 
 ### Added
