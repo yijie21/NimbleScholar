@@ -16,20 +16,20 @@ cd "$ROOT"
 if [[ "$(uname)" != "Darwin" ]]; then echo "!! macOS only."; exit 1; fi
 command -v gh >/dev/null || { echo "!! gh CLI not found (brew install gh; gh auth login)"; exit 1; }
 
-# --- 1. bump versions (build number must increase for Sparkle) ----------------
-source scripts/version.env
-NEW_BUILD=$(( BUILD_NUMBER + 1 ))
+# --- 1. set marketing version; build number = commit count (auto-monotonic) ---
+# The build number Sparkle compares (CFBundleVersion) is derived from the git commit
+# count by mac_bootstrap.sh, so it always increases and is never reused — even if a
+# previous release run failed partway. We only record the user-facing version here.
 cat > scripts/version.env <<EOF
-# Versions baked into the app at generate time. release.sh bumps these.
-# MARKETING_VERSION: user-facing (CFBundleShortVersionString).
-# BUILD_NUMBER: monotonic integer Sparkle compares (CFBundleVersion) — must increase every release.
+# User-facing version (CFBundleShortVersionString). The build number (CFBundleVersion)
+# is derived from the git commit count in mac_bootstrap.sh.
 MARKETING_VERSION=${VERSION}
-BUILD_NUMBER=${NEW_BUILD}
 EOF
+NEW_BUILD="$(git rev-list --count HEAD)"
 echo "==> Releasing ${VERSION} (build ${NEW_BUILD})"
 
 # --- 2. generate project + build Release --------------------------------------
-MARKETING_VERSION="${VERSION}" BUILD_NUMBER="${NEW_BUILD}" bash scripts/mac_bootstrap.sh full generate
+MARKETING_VERSION="${VERSION}" bash scripts/mac_bootstrap.sh full generate
 xcodebuild -project NimbleScholar.xcodeproj -scheme NimbleScholar \
   -configuration Release -derivedDataPath .build-release build
 APP="$(/usr/bin/find .build-release/Build/Products/Release -maxdepth 1 -name 'NimbleScholar.app' | head -1)"

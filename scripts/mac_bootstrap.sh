@@ -27,7 +27,9 @@ if [[ -f scripts/version.env ]]; then
   source scripts/version.env
 fi
 MARKETING_VERSION="${MARKETING_VERSION:-0.1.0}"
-BUILD_NUMBER="${BUILD_NUMBER:-1}"
+# Build number (CFBundleVersion) = git commit count: always increasing and unique, so
+# Sparkle never sees a duplicate bundle version. Env override wins; falls back to 1.
+BUILD_NUMBER="${BUILD_NUMBER:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
 
 echo "==> Nimble Scholar bootstrap  (mode=$MODE, action=$ACTION, version=$MARKETING_VERSION build=$BUILD_NUMBER)"
 echo "    repo: $ROOT"
