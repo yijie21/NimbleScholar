@@ -62,10 +62,9 @@ struct ReaderToolbar: ToolbarContent {
     }
 
     private func addNote() {
-        guard let pv = pdfView, let page = pv.currentPage,
+        guard let pv = pdfView, let sel = pv.currentSelection, !(sel.string ?? "").isEmpty,
               let text = AnnotationController.promptNoteText() else { return }
-        let center = pv.convert(pv.bounds.center, to: page)
-        AnnotationController(vm: vm).addNote(text: text, at: center, on: page, pdfView: pv)
+        AnnotationController(vm: vm).addNote(text: text, selection: sel, in: pv)
     }
 
     private func exportMarkdown() {

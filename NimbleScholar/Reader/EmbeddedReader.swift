@@ -31,7 +31,7 @@ struct EmbeddedReader: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                // Inline inspector panel (outline / annotations / chat). Laid out directly
+                // Inline inspector panel (annotations / chat). Laid out directly
                 // rather than via `.inspector`, which only renders at the window level and
                 // shows nothing when the reader is nested in the three-pane detail pane.
                 if showInspector {

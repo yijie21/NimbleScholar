@@ -17,33 +17,15 @@ struct InspectorPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $tab) {
-                Text("Outline").tag(0)
-                Text("Annotations").tag(1)
-                Text("Chat").tag(2)
+                Text("Annotations").tag(0)
+                Text("Chat").tag(1)
             }
             .pickerStyle(.segmented)
             .padding(8)
             Divider()
-            if tab == 0 { outline } else if tab == 1 { annotationList } else { ChatView(vm: chatVM) }
+            if tab == 0 { annotationList } else { ChatView(vm: chatVM) }
         }
         .onAppear { chatVM.pdfView = pdfView }
-    }
-
-    private var outline: some View {
-        List {
-            if let root = pdfView.document?.outlineRoot, root.numberOfChildren > 0 {
-                ForEach(0..<root.numberOfChildren, id: \.self) { i in
-                    if let child = root.child(at: i) {
-                        Button(child.label ?? "—") {
-                            if let dest = child.destination { pdfView.go(to: dest) }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            } else {
-                Text("No outline").foregroundStyle(.secondary)
-            }
-        }
     }
 
     private var annotationList: some View {

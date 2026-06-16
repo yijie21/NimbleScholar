@@ -25,9 +25,9 @@ struct PDFKitView: NSViewRepresentable {
             AnnotationController(vm: vm).highlight(selection: sel, in: v)
         }
         v.onNote = { [weak v] in
-            guard let v, let page = v.currentPage, let text = AnnotationController.promptNoteText() else { return }
-            let point = v.convert(v.bounds.center, to: page)
-            AnnotationController(vm: vm).addNote(text: text, at: point, on: page, pdfView: v)
+            guard let v, let sel = v.currentSelection, !(sel.string ?? "").isEmpty,
+                  let text = AnnotationController.promptNoteText() else { return }
+            AnnotationController(vm: vm).addNote(text: text, selection: sel, in: v)
         }
         v.onDeleteAnnotation = { [weak v] annotation, page in
             guard let v else { return }

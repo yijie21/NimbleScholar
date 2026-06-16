@@ -11,6 +11,11 @@ struct AnnotationController {
     /// Currently selected highlight color (hex), from Settings/toolbar.
     static var highlightHex: String { UserDefaults.standard.string(forKey: "highlightColorHex") ?? "#ffd966" }
 
+    /// Fixed accent for the little "has a note" dot, so it reads the same regardless of the
+    /// highlight color, and lets notes show a distinct swatch in the Annotations list.
+    static let noteDotHex = "#4a90d9"
+    static var noteDotColor: NSColor { NSColor(hex: noteDotHex) }
+
     /// Text-aware highlight: one highlight rectangle per selected line.
     func highlight(selection: PDFSelection, in pdfView: PDFView) {
         guard let page = selection.pages.first,
@@ -29,40 +34,60 @@ struct AnnotationController {
         pdfView.clearSelection()
     }
 
-    /// Remove an annotation tapped on the page, and its nearest index row.
+    /// Remove an annotation tapped on the page together with everything else in the same indexed
+    /// region (a note's highlights + dot, or a multi-line highlight's rectangles), and drop the row.
     func deleteAnnotation(_ annotation: PDFAnnotation, on page: PDFPage, pdfView: PDFView) {
         guard let pageIndex = pdfView.document?.index(for: page) else { return }
-        let pageRect = page.bounds(for: .mediaBox)
-        let b = annotation.bounds
-        page.removeAnnotation(annotation)
-        persist(pdfView)
-        if pageRect.width > 0, pageRect.height > 0, let pid = vm.paper.id {
-            let nx = Double(b.minX / pageRect.width), ny = Double(b.minY / pageRect.height)
-            let onPage = ((try? vm.store.annotations(forPaper: pid)) ?? []).filter { $0.page == pageIndex + 1 }
-            if let nearest = onPage.min(by: { hypot($0.x - nx, $0.y - ny) < hypot($1.x - nx, $1.y - ny) }),
-               let id = nearest.id {
-                try? vm.store.deleteAnnotation(id: id)
-            }
+        let match = row(for: annotation, on: page, pageIndex: pageIndex)
+        if let m = match {
+            removeAnnotations(inRegionOf: m, on: page)
+        } else {
+            page.removeAnnotation(annotation)
         }
+        persist(pdfView)
+        if let id = match?.id { try? vm.store.deleteAnnotation(id: id) }
         vm.refreshAnnotations()
     }
 
-    /// Delete an annotation chosen from the inspector list: find the matching PDFAnnotation
-    /// on its page (nearest by normalized origin), remove it from the file, then drop the row.
+    /// Delete an annotation chosen from the inspector list: remove every PDFAnnotation in its
+    /// recorded region from the file (highlights + any note dot), then drop the row.
     func deleteIndexed(_ row: AnnotationIndex, pdfView: PDFView) {
         if let page = pdfView.document?.page(at: row.page - 1) {
-            let pageRect = page.bounds(for: .mediaBox)
-            if pageRect.width > 0, pageRect.height > 0 {
-                let tx = CGFloat(row.x) * pageRect.width
-                let ty = CGFloat(row.y) * pageRect.height
-                let match = page.annotations.min {
-                    hypot($0.bounds.minX - tx, $0.bounds.minY - ty) < hypot($1.bounds.minX - tx, $1.bounds.minY - ty)
-                }
-                if let match { page.removeAnnotation(match); vm.scheduleSave() }
-            }
+            removeAnnotations(inRegionOf: row, on: page)
+            vm.scheduleSave()
         }
         if let id = row.id { try? vm.store.deleteAnnotation(id: id) }
         vm.refreshAnnotations()
+    }
+
+    /// The page region (PDF coordinates) recorded for an index row, expanded slightly so a note's
+    /// trailing dot and a multi-line selection's per-line rectangles are all covered.
+    private func pageRegion(for row: AnnotationIndex, on page: PDFPage) -> CGRect? {
+        let pr = page.bounds(for: .mediaBox)
+        guard pr.width > 0, pr.height > 0 else { return nil }
+        return CGRect(x: CGFloat(row.x) * pr.width, y: CGFloat(row.y) * pr.height,
+                      width: CGFloat(row.width) * pr.width, height: CGFloat(row.height) * pr.height)
+            .insetBy(dx: -16, dy: -6)
+    }
+
+    /// Remove every annotation intersecting an index row's region (its highlights + any note dot).
+    private func removeAnnotations(inRegionOf row: AnnotationIndex, on page: PDFPage) {
+        guard let region = pageRegion(for: row, on: page) else { return }
+        for a in page.annotations where region.intersects(a.bounds) { page.removeAnnotation(a) }
+    }
+
+    /// The index row a clicked annotation belongs to: the row whose region contains it, else the
+    /// nearest by normalized origin.
+    private func row(for annotation: PDFAnnotation, on page: PDFPage, pageIndex: Int) -> AnnotationIndex? {
+        guard let pid = vm.paper.id else { return nil }
+        let rows = ((try? vm.store.annotations(forPaper: pid)) ?? []).filter { $0.page == pageIndex + 1 }
+        if let hit = rows.first(where: { (pageRegion(for: $0, on: page) ?? .null).intersects(annotation.bounds) }) {
+            return hit
+        }
+        let pr = page.bounds(for: .mediaBox)
+        guard pr.width > 0, pr.height > 0 else { return nil }
+        let nx = Double(annotation.bounds.minX / pr.width), ny = Double(annotation.bounds.minY / pr.height)
+        return rows.min(by: { hypot($0.x - nx, $0.y - ny) < hypot($1.x - nx, $1.y - ny) })
     }
 
     /// Drop index rows whose page no longer has any annotation near them — the PDF file is the
@@ -80,15 +105,37 @@ struct AnnotationController {
         vm.refreshAnnotations()
     }
 
-    func addNote(text: String, at point: CGPoint, on page: PDFPage, pdfView: PDFView) {
-        guard let pageIndex = pdfView.document?.index(for: page) else { return }
-        let rect = CGRect(x: point.x, y: point.y, width: 22, height: 22)
-        let note = PDFAnnotation(bounds: rect, forType: .text, withProperties: nil)
-        note.contents = text
-        note.color = NSColor(red: 0.49, green: 0.77, blue: 1, alpha: 1)
-        page.addAnnotation(note)
+    /// Highlight the selected sentence and attach a note: each line is highlighted in the current
+    /// color, a small dot is drawn just past the end of the last line, and the note text is stored
+    /// on the annotations (hover shows it) and indexed as kind "note".
+    func addNote(text: String, selection: PDFSelection, in pdfView: PDFView) {
+        guard let page = selection.pages.first,
+              let pageIndex = pdfView.document?.index(for: page) else { return }
+        let color = NSColor(hex: AnnotationController.highlightHex)
+        var lastLine: CGRect?
+        for line in selection.selectionsByLine() {
+            let b = line.bounds(for: page)
+            guard b.width > 0, b.height > 0 else { continue }
+            let a = PDFAnnotation(bounds: b, forType: .highlight, withProperties: nil)
+            a.color = color
+            a.contents = text
+            page.addAnnotation(a)
+            lastLine = b
+        }
+        guard let anchor = lastLine else { return }   // nothing highlightable
+        // Small filled dot at the end of the last line.
+        let d: CGFloat = 7
+        let dotRect = CGRect(x: anchor.maxX + 3, y: anchor.midY - d / 2, width: d, height: d)
+        let dot = PDFAnnotation(bounds: dotRect, forType: .circle, withProperties: nil)
+        dot.color = AnnotationController.noteDotColor
+        dot.interiorColor = AnnotationController.noteDotColor
+        let border = PDFBorder(); border.lineWidth = 0.5; dot.border = border
+        dot.contents = text
+        page.addAnnotation(dot)
         persist(pdfView)
-        index(kind: "note", color: "#7cc4ff", snippet: text, bounds: rect, on: page, pageIndex: pageIndex)
+        index(kind: "note", color: AnnotationController.noteDotHex, snippet: text,
+              bounds: selection.bounds(for: page), on: page, pageIndex: pageIndex)
+        pdfView.clearSelection()
     }
 
     private func index(kind: String, color: String, snippet: String,
