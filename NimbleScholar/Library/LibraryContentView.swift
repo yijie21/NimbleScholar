@@ -36,10 +36,11 @@ struct LibraryContentView: View {
     @StateObject private var vm = LibraryViewModel()
     @AppStorage("libraryViewMode") private var mode: LibraryViewMode = .threePane
 
-    /// Sidebar collapses while reading, derived directly from readingPaperID so it animates
-    /// in the SAME transaction as the rail/list (avoids the two-tick stutter of an onChange).
+    /// Sidebar collapses while reading. Driven by vm.sidebarCollapsed (NOT readingPaperID) so the
+    /// view model can toggle it in a non-animated transaction: animating this AppKit-backed column
+    /// collapse is what made open/close laggy. The rail/list/detail still animate via readingPaperID.
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
-        Binding(get: { vm.readingPaperID != nil ? .detailOnly : .all }, set: { _ in })
+        Binding(get: { vm.sidebarCollapsed ? .detailOnly : .all }, set: { _ in })
     }
 
     private func openSelectedReader() {

@@ -31,7 +31,7 @@ final class LibraryViewModel: ObservableObject {
     @Published var tagCounts: [TagCount] = []
     @Published var tagsByPaper: [Int64: [String]] = [:]   // batched once per reload (no N+1)
     @Published var query = "" { didSet { reload() } }
-    @Published var scope: LibraryScope = .all { didSet { readingPaperID = nil; reload() } }
+    @Published var scope: LibraryScope = .all { didSet { readingPaperID = nil; sidebarCollapsed = false; reload() } }
     @Published var sort: SortMode = .updated {
         didSet {
             UserDefaults.standard.set(sort.rawValue, forKey: "librarySort")
@@ -44,6 +44,11 @@ final class LibraryViewModel: ObservableObject {
     /// The single "current paper" (exactly one selected). Drives the detail pane, ⌘O, openReader.
     var currentPaperID: Int64? { multiSelection.count == 1 ? multiSelection.first : nil }
     @Published var readingPaperID: Int64? = nil   // non-nil → in-window reading mode
+    /// Drives the NavigationSplitView sidebar column. Kept SEPARATE from readingPaperID so it can
+    /// be toggled WITHOUT animation: animating the AppKit-backed column collapse relayouts the
+    /// heavy PDF detail every frame and is the source of the open/close lag. The rail, list resize
+    /// and detail cross-fade still animate (they're compositor-cheap); only this snaps instantly.
+    @Published var sidebarCollapsed = false
 
     private let store = AppEnvironment.shared.store
     private var observation: ObservationToken?
@@ -169,12 +174,19 @@ final class LibraryViewModel: ObservableObject {
         multiSelection = [id]          // selects immediately (cheap)
         // Defer the reader swap one runloop so the click returns instantly; the heavy
         // EmbeddedReader build then runs on a fresh frame instead of blocking the tap.
-        // The deferred change is animated so the rail/list/detail transition smoothly.
         DispatchQueue.main.async {
+            // Collapse the split-view sidebar INSTANTLY (no animation) — animating this
+            // AppKit-backed column is what stutters. Rail/list/detail still animate.
+            var instant = Transaction(); instant.disablesAnimations = true
+            withTransaction(instant) { self.sidebarCollapsed = true }
             withAnimation(Self.readingTransition) { self.readingPaperID = id }
         }
     }
-    func closeReader() { withAnimation(Self.readingTransition) { readingPaperID = nil } }
+    func closeReader() {
+        var instant = Transaction(); instant.disablesAnimations = true
+        withTransaction(instant) { sidebarCollapsed = false }
+        withAnimation(Self.readingTransition) { readingPaperID = nil }
+    }
 
     /// A paper counts as "unread" while it still carries the to-read tag.
     func isUnread(_ paper: Paper) -> Bool { tags(for: paper).contains(Self.toReadTag) }
