@@ -23,9 +23,13 @@ struct ThreePaneView: View {
                     .contentShape(Rectangle())
                     .paperContextMenu(paper)
                     // A tap gesture on a List row suppresses the List's own click selection, so we
-                    // drive selection ourselves: single click selects (⌘/⇧ extend), double opens.
-                    .onTapGesture(count: 2) { vm.openReader(paper) }
-                    .onTapGesture(count: 1) { handleClick(paper) }
+                    // drive it ourselves. Use ONE handler (not count:1 + count:2, which forces a
+                    // double-click wait before selecting): select on the first click immediately,
+                    // open the reader when the same click lands as a double (clickCount 2).
+                    .onTapGesture {
+                        if (NSApp.currentEvent?.clickCount ?? 1) >= 2 { vm.openReader(paper) }
+                        else { handleClick(paper) }
+                    }
                 }
                 if vm.multiSelection.count > 1 {
                     HStack {
