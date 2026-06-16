@@ -127,9 +127,12 @@ struct AnnotationController {
         // selection sits entirely left of the page centre (e.g. a 2-column left item), else right.
         let sel = selection.bounds(for: page)
         let pageBox = page.bounds(for: .mediaBox)
-        let d: CGFloat = 7, inset: CGFloat = 14
+        let d: CGFloat = 7, gap: CGFloat = 8
         let onLeft = sel.maxX < pageBox.midX
-        let dotX = onLeft ? pageBox.minX + inset : pageBox.maxX - inset - d
+        // Sit just outside the selected text on the chosen side (in the margin/gutter whitespace),
+        // clamped to the page — close to the words rather than out at the page edge.
+        let dotX = onLeft ? max(pageBox.minX + 2, sel.minX - gap - d)
+                          : min(pageBox.maxX - d - 2, sel.maxX + gap)
         let dotRect = CGRect(x: dotX, y: topLine.midY - d / 2, width: d, height: d)
         let dot = PDFAnnotation(bounds: dotRect, forType: .circle, withProperties: nil)
         dot.color = AnnotationController.noteDotColor

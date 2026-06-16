@@ -69,9 +69,10 @@ the sentence ends mid-paragraph, and the dot was inert.
   (`selection.bounds.maxX < mediaBox.midX`) → **left** margin, else → **right** margin. This yields
   left-column notes on the left, right-column notes on the right, and single-column (full-width)
   notes on the right.
-- `x` = a fixed ~14pt inset inside the page's left/right `mediaBox` edge; `y` = vertically aligned to
-  the note's **first** line. The indexed region is the union of the selection bounds and the dot rect,
-  so region-based delete still removes highlight + dot together.
+- `x` = just outside the selected text on that side (an ~8pt gap past `selection.bounds` min/maxX),
+  clamped to the page, so the dot hugs the words in the margin/gutter rather than sitting at the page
+  edge; `y` = vertically aligned to the note's **first** line. The indexed region is the union of the
+  selection bounds and the dot rect, so region-based delete still removes highlight + dot together.
 
 **Hover (grow + popover).** `AnnotatingPDFView` adds a mouse-moved tracking area. When the pointer is
 over a note dot (a `.circle` annotation), the dot grows a few points and a small read-only `NSPopover`
