@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 import NimbleScholarCore
 
 struct ThreePaneView: View {
@@ -20,16 +19,10 @@ struct ThreePaneView: View {
                         PaperStatusInline(paper: paper)
                     }
                     .tag(paper.id ?? -1)
-                    .contentShape(Rectangle())
                     .paperContextMenu(paper)
-                    // A tap gesture on a List row suppresses the List's own click selection, so we
-                    // drive it ourselves. Use ONE handler (not count:1 + count:2, which forces a
-                    // double-click wait before selecting): select on the first click immediately,
-                    // open the reader when the same click lands as a double (clickCount 2).
-                    .onTapGesture {
-                        if (NSApp.currentEvent?.clickCount ?? 1) >= 2 { vm.openReader(paper) }
-                        else { handleClick(paper) }
-                    }
+                    // No tap gesture here on purpose: any tap gesture suppresses the List's native
+                    // single-click selection (or forces a double-click wait). Native selection keeps
+                    // single-click instant. Open the reader via ⌘O / the Read button / the context menu.
                 }
                 if vm.multiSelection.count > 1 {
                     HStack {
@@ -63,20 +56,6 @@ struct ThreePaneView: View {
             // Local, cheap fade ONLY for the detail content swap (not the whole split view).
             .animation(.easeOut(duration: 0.15), value: vm.readingPaperID)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    /// Drive row selection ourselves (the tap gestures above suppress the List's native click
-    /// selection). Plain click selects one; ⌘ toggles; ⇧ adds — so the multi-select bulk bar still works.
-    private func handleClick(_ paper: Paper) {
-        guard let id = paper.id else { return }
-        let mods = NSEvent.modifierFlags
-        if mods.contains(.command) {
-            if vm.multiSelection.contains(id) { vm.multiSelection.remove(id) } else { vm.multiSelection.insert(id) }
-        } else if mods.contains(.shift) {
-            vm.multiSelection.insert(id)
-        } else {
-            vm.multiSelection = [id]
         }
     }
 }
