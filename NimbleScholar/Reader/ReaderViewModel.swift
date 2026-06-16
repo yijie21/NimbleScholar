@@ -34,8 +34,10 @@ final class ReaderViewModel: ObservableObject {
             if paper.pdfPath != url.path {
                 var p = paper; p.pdfPath = url.path; _ = try? store.update(p)
             }
-            self.document = PDFDocument(url: url)
-            self.status = document == nil ? "Could not open PDF" : "Ready"
+            // Parse the PDF off the main thread so it doesn't block the open animation.
+            let doc = await Self.loadDocument(url)
+            self.document = doc
+            self.status = doc == nil ? "Could not open PDF" : "Ready"
             if let id = paper.id { try? store.removeTag(LibraryViewModel.toReadTag, fromPaper: id) }
             refreshAnnotations()
         } catch {
@@ -45,6 +47,16 @@ final class ReaderViewModel: ObservableObject {
 
     func refreshAnnotations() {
         if let id = paper.id { annotations = (try? store.annotations(forPaper: id)) ?? [] }
+    }
+
+    /// Create the PDFDocument off the main thread (parsing can be heavy for large files),
+    /// so opening the reader doesn't stutter the transition animation.
+    nonisolated static func loadDocument(_ url: URL) async -> PDFDocument? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(returning: PDFDocument(url: url))
+            }
+        }
     }
 
     // MARK: - Debounced PDF persistence

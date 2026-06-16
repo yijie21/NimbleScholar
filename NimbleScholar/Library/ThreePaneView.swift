@@ -33,9 +33,9 @@ struct ThreePaneView: View {
                 }
             }
             // Fixed so the detail content can't make the list jitter; narrows while
-            // reading to give the PDF more room.
+            // reading to give the PDF more room. (Animated by the parent's single
+            // .animation(value: readingPaperID), so no per-view animation here.)
             .frame(width: vm.readingPaperID != nil ? 240 : 320)
-            .animation(.easeInOut(duration: 0.25), value: vm.readingPaperID)
 
             Group {
                 if vm.multiSelection.count == 1, let id = vm.multiSelection.first,
@@ -50,7 +50,6 @@ struct ThreePaneView: View {
                     ContentUnavailableView("Select a paper", systemImage: "doc.text")
                 }
             }
-            .animation(.easeInOut(duration: 0.2), value: vm.readingPaperID)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }

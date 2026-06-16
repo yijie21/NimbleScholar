@@ -35,7 +35,12 @@ struct LibraryContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @StateObject private var vm = LibraryViewModel()
     @AppStorage("libraryViewMode") private var mode: LibraryViewMode = .threePane
-    @State private var columns: NavigationSplitViewVisibility = .all   // collapse sidebar while reading
+
+    /// Sidebar collapses while reading, derived directly from readingPaperID so it animates
+    /// in the SAME transaction as the rail/list (avoids the two-tick stutter of an onChange).
+    private var columnVisibility: Binding<NavigationSplitViewVisibility> {
+        Binding(get: { vm.readingPaperID != nil ? .detailOnly : .all }, set: { _ in })
+    }
 
     private func openSelectedReader() {
         if let id = vm.currentPaperID, let paper = vm.papers.first(where: { $0.id == id }) {
@@ -53,19 +58,14 @@ struct LibraryContentView: View {
             }
             splitView
         }
-        .animation(.easeInOut(duration: 0.25), value: vm.readingPaperID)
+        .animation(.snappy(duration: 0.28), value: vm.readingPaperID)
     }
 
     @ViewBuilder private var splitView: some View {
-        NavigationSplitView(columnVisibility: $columns) {
+        NavigationSplitView(columnVisibility: columnVisibility) {
             SidebarView().environmentObject(vm).frame(minWidth: 200)
         } detail: {
             detail
-        }
-        .onChange(of: vm.readingPaperID) { _, reading in
-            withAnimation(.easeInOut(duration: 0.25)) {
-                columns = (reading != nil) ? .detailOnly : .all
-            }
         }
         .safeAreaInset(edge: .top) {
             if let e = env.startupError {
