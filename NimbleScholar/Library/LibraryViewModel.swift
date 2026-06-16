@@ -160,8 +160,10 @@ final class LibraryViewModel: ObservableObject {
 
     func openReader(_ paper: Paper) {
         guard let id = paper.id else { return }
-        multiSelection = [id]          // so the three-pane detail shows this paper
-        readingPaperID = id
+        multiSelection = [id]          // selects immediately (cheap)
+        // Defer the reader swap one runloop so the click returns instantly; the heavy
+        // EmbeddedReader build then runs on a fresh frame instead of blocking the tap.
+        DispatchQueue.main.async { self.readingPaperID = id }
     }
     func closeReader() { readingPaperID = nil }
 

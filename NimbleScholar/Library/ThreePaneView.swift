@@ -50,6 +50,8 @@ struct ThreePaneView: View {
                     ContentUnavailableView("Select a paper", systemImage: "doc.text")
                 }
             }
+            // Local, cheap fade ONLY for the detail content swap (not the whole split view).
+            .animation(.easeOut(duration: 0.15), value: vm.readingPaperID)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }

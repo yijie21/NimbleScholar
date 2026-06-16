@@ -58,7 +58,9 @@ struct LibraryContentView: View {
             }
             splitView
         }
-        .animation(.snappy(duration: 0.28), value: vm.readingPaperID)
+        // No implicit animation here: animating the whole NavigationSplitView subtree is
+        // what made open/close laggy. Structural changes (rail/sidebar/list width) are now
+        // instant; only the detail-pane content swap fades, scoped locally in ThreePaneView.
     }
 
     @ViewBuilder private var splitView: some View {
