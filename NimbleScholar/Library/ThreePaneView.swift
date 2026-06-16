@@ -32,7 +32,10 @@ struct ThreePaneView: View {
                     .background(.bar)
                 }
             }
-            .frame(width: 320)   // fixed so the detail content can't make the list jitter
+            // Fixed so the detail content can't make the list jitter; narrows while
+            // reading to give the PDF more room.
+            .frame(width: vm.readingPaperID != nil ? 240 : 320)
+            .animation(.easeInOut(duration: 0.25), value: vm.readingPaperID)
 
             Group {
                 if vm.multiSelection.count == 1, let id = vm.multiSelection.first,

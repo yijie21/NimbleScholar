@@ -35,6 +35,7 @@ struct LibraryContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @StateObject private var vm = LibraryViewModel()
     @AppStorage("libraryViewMode") private var mode: LibraryViewMode = .threePane
+    @State private var columns: NavigationSplitViewVisibility = .all   // collapse sidebar while reading
 
     private func openSelectedReader() {
         if vm.multiSelection.count == 1, let id = vm.multiSelection.first,
@@ -44,10 +45,15 @@ struct LibraryContentView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             SidebarView().environmentObject(vm).frame(minWidth: 200)
         } detail: {
             detail
+        }
+        .onChange(of: vm.readingPaperID) { _, reading in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                columns = (reading != nil) ? .detailOnly : .all
+            }
         }
         .safeAreaInset(edge: .top) {
             if let e = env.startupError {
