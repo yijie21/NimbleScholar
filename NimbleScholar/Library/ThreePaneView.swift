@@ -50,8 +50,9 @@ struct ThreePaneView: View {
                     ContentUnavailableView("Select a paper", systemImage: "doc.text")
                 }
             }
-            // Local, cheap fade ONLY for the detail content swap (not the whole split view).
-            .animation(.easeOut(duration: 0.15), value: vm.readingPaperID)
+            // Local, cheap cross-fade for the detail content swap (not the whole split view).
+            // Matched in duration to the rail/list motion so everything settles together.
+            .animation(.easeInOut(duration: 0.28), value: vm.readingPaperID)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }

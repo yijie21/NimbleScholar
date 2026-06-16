@@ -158,14 +158,23 @@ final class LibraryViewModel: ObservableObject {
 
     func select(_ paper: Paper) { if let id = paper.id { multiSelection = [id] } }
 
+    /// Timing for the open/close reading transition. Kept short + snappy so the rail slide,
+    /// list resize, and detail cross-fade read as one cohesive motion. Scoped via withAnimation
+    /// (not a broad .animation on the NavigationSplitView subtree, which caused lag — see
+    /// the views' inline notes).
+    static let readingTransition: Animation = .snappy(duration: 0.28)
+
     func openReader(_ paper: Paper) {
         guard let id = paper.id else { return }
         multiSelection = [id]          // selects immediately (cheap)
         // Defer the reader swap one runloop so the click returns instantly; the heavy
         // EmbeddedReader build then runs on a fresh frame instead of blocking the tap.
-        DispatchQueue.main.async { self.readingPaperID = id }
+        // The deferred change is animated so the rail/list/detail transition smoothly.
+        DispatchQueue.main.async {
+            withAnimation(Self.readingTransition) { self.readingPaperID = id }
+        }
     }
-    func closeReader() { readingPaperID = nil }
+    func closeReader() { withAnimation(Self.readingTransition) { readingPaperID = nil } }
 
     /// A paper counts as "unread" while it still carries the to-read tag.
     func isUnread(_ paper: Paper) -> Bool { tags(for: paper).contains(Self.toReadTag) }

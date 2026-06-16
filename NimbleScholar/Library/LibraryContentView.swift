@@ -58,9 +58,11 @@ struct LibraryContentView: View {
             }
             splitView
         }
-        // No implicit animation here: animating the whole NavigationSplitView subtree is
-        // what made open/close laggy. Structural changes (rail/sidebar/list width) are now
-        // instant; only the detail-pane content swap fades, scoped locally in ThreePaneView.
+        // No implicit .animation modifier here on purpose: animating the whole
+        // NavigationSplitView subtree via .animation(value:) is what made open/close laggy.
+        // Instead the transition is driven explicitly and scoped by withAnimation in
+        // LibraryViewModel.open/closeReader, so the rail (its .transition), the list resize,
+        // and the detail cross-fade move together as one cohesive motion.
     }
 
     @ViewBuilder private var splitView: some View {
