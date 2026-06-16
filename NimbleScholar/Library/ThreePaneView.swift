@@ -20,6 +20,9 @@ struct ThreePaneView: View {
                     }
                     .tag(paper.id ?? -1)
                     .paperContextMenu(paper)
+                    // Double-click opens the in-window reader; single click still selects (the List's
+                    // own selection), so this rides alongside as a simultaneous gesture.
+                    .simultaneousGesture(TapGesture(count: 2).onEnded { vm.openReader(paper) })
                 }
                 if vm.multiSelection.count > 1 {
                     HStack {
