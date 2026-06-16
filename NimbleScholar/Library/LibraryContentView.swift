@@ -142,6 +142,7 @@ struct LibraryContentView: View {
                     Button("Download all PDFs") { Task { await vm.downloadAllPDFs() } }
                     Button("Load missing figures & PDFs") { vm.retryAllIncomplete() }
                     Button("Re-fetch all figures") { vm.refetchAllFigures() }
+                    Button("Regenerate figures from PDF") { vm.regenerateFiguresFromPDF() }
                     Button("Check for code now") {
                         Task { await AppEnvironment.shared.codeWatcher?.sweep(force: true) }
                     }

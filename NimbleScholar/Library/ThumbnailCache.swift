@@ -20,12 +20,24 @@ final class ThumbnailCache {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }
 
-    /// Stable key that changes when a paper's image source changes (so it self-invalidates).
+    /// Bumped whenever the figure-production logic changes, so existing cards re-derive with the new
+    /// extractor on next launch (the token is folded into the cache key).
+    private static let version = 2
+
+    /// Stable key that changes when a paper's image source — or the extractor version — changes.
     private func key(for paper: Paper) -> String {
-        let src = "\(paper.teaserURL)|\(paper.pipelineURL)|\(paper.pdfPath)"
+        let src = "v\(Self.version)|\(paper.teaserURL)|\(paper.pipelineURL)|\(paper.pdfPath)"
         var h: UInt64 = 5381
         for b in src.utf8 { h = (h << 5) &+ h &+ UInt64(b) }
         return "\(paper.id ?? 0)-\(h)"
+    }
+
+    /// Drop all cached card images (memory + disk) so they re-derive with the current extractor.
+    func clearAll() {
+        memory.removeAllObjects()
+        if let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
+            for f in files { try? FileManager.default.removeItem(at: f) }
+        }
     }
 
     func image(for paper: Paper) async -> NSImage? {

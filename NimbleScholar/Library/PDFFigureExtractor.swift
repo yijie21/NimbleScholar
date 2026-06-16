@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import ImageIO
+import PDFKit
 
 /// Pulls a paper's teaser/pipeline figure straight out of the PDF when there's no online HTML
 /// figure to scrape (many arXiv papers have no HTML version).
@@ -22,6 +23,12 @@ enum PDFFigureExtractor {
         guard FileManager.default.fileExists(atPath: path),
               let doc = CGPDFDocument(URL(fileURLWithPath: path) as CFURL),
               doc.numberOfPages >= 1 else { return nil }
+
+        // Caption-anchored region first: works for vector figures (TikZ/plots) that the raster
+        // scan below can't see, by locating the "Figure N" caption and rendering the band above it.
+        if let img = captionAnchoredFigure(path: path, cgDoc: doc, maxPages: max(maxPages, 10)) {
+            return img
+        }
 
         // Teaser: the figure region on page 1.
         if let page = doc.page(at: 1),
@@ -47,6 +54,90 @@ enum PDFFigureExtractor {
             if let page = doc.page(at: p), let cg = largestImage(of: page) { return makeImage(cg) }
         }
         return nil
+    }
+
+    // MARK: - Caption-anchored figure region (vector + raster)
+
+    private static let captionRegex = try? NSRegularExpression(
+        pattern: "^(figure|fig\\.?)\\s*\\d+", options: [.caseInsensitive])
+
+    private static func isFigureCaption(_ s: String) -> Bool {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let re = captionRegex, !t.isEmpty else { return false }
+        return re.firstMatch(in: t, range: NSRange(t.startIndex..., in: t)) != nil
+    }
+
+    /// Find the first paper figure by its "Figure N" caption and render the band above it. Returns
+    /// the earliest figure (the teaser), or nil if no caption-anchored region is found.
+    private static func captionAnchoredFigure(path: String, cgDoc: CGPDFDocument, maxPages: Int) -> NSImage? {
+        guard let pdf = PDFDocument(url: URL(fileURLWithPath: path)) else { return nil }
+        let n = min(pdf.pageCount, maxPages)
+        for i in 0..<n {
+            guard let page = pdf.page(at: i),
+                  let region = figureRegionByCaption(page: page),
+                  let cgPage = cgDoc.page(at: i + 1),
+                  let img = render(region: region, of: cgPage) else { continue }
+            return img
+        }
+        return nil
+    }
+
+    /// The figure region (PDF user space) above the topmost "Figure N" caption on a page.
+    private static func figureRegionByCaption(page: PDFPage) -> CGRect? {
+        let pageRect = page.bounds(for: .mediaBox)
+        guard pageRect.width > 0, pageRect.height > 0,
+              let all = page.selection(for: pageRect) else { return nil }
+        let lines = all.selectionsByLine()
+            .map { (bounds: $0.bounds(for: page), text: $0.string ?? "") }
+            .filter { $0.bounds.width > 1 && $0.bounds.height > 1 }
+        guard !lines.isEmpty else { return nil }
+
+        // Body column from "wide" lines.
+        let W = pageRect.width
+        let wide = lines.filter { $0.bounds.width > 0.45 * W }
+        let colL = wide.map { $0.bounds.minX }.min() ?? pageRect.minX + 0.12 * W
+        let colR = wide.map { $0.bounds.maxX }.max() ?? pageRect.maxX - 0.12 * W
+        let colW = max(1, colR - colL)
+
+        // Topmost figure caption (highest on the page = largest maxY in PDF y-up space).
+        guard let caption = lines.filter({ isFigureCaption($0.text) })
+            .max(by: { $0.bounds.maxY < $1.bounds.maxY }) else { return nil }
+        let capTop = caption.bounds.maxY   // figure sits above this (larger y)
+
+        // 2pt coverage bins above the caption; a bin's coverage = widest covering line's width fraction.
+        let step: CGFloat = 2
+        let top = pageRect.maxY
+        let nb = max(1, Int((top - capTop) / step) + 1)
+        var cover = [CGFloat](repeating: 0, count: nb)
+        for ln in lines where ln.bounds.minY >= capTop - 1 {
+            let f = min(1, ln.bounds.width / colW)
+            let lo = max(0, Int((ln.bounds.minY - capTop) / step))
+            let hi = min(nb - 1, Int((ln.bounds.maxY - capTop) / step))
+            if lo <= hi { for b in lo...hi { cover[b] = max(cover[b], f) } }
+        }
+
+        // Walk up from the caption; pass through sparse figure labels, stop at a real paragraph
+        // (≥22pt of continuous wide text) — its near edge is the figure top.
+        var figTop = capTop, run: CGFloat = 0, denseStart = capTop
+        var y = capTop
+        while y < top {
+            let c = cover[min(nb - 1, max(0, Int((y - capTop) / step)))]
+            if c >= 0.55 {
+                if run == 0 { denseStart = y }
+                run += step
+                if run >= 22 { figTop = denseStart; break }
+            } else {
+                run = 0
+                figTop = y
+            }
+            y += step
+        }
+        if run < 22 { figTop = min(figTop, top - 0.05 * pageRect.height) }
+
+        var region = CGRect(x: colL, y: capTop, width: colW, height: figTop - capTop)
+        region = region.intersection(pageRect)
+        guard region.height >= 48, region.width >= 64 else { return nil }
+        return region
     }
 
     // MARK: - Figure region via content-stream image placements

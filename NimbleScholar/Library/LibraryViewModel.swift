@@ -308,6 +308,13 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
+    /// Clear cached card images and re-derive them — repairs papers whose figure is pulled from the
+    /// PDF (e.g. vector figures) after an extractor change. Toolbar "Regenerate figures from PDF".
+    func regenerateFiguresFromPDF() {
+        ThumbnailCache.shared.clearAll()
+        reload()   // re-prewarms every visible card with the current extractor
+    }
+
     /// The HTML landing page to scrape a figure from. arXiv is handled by id elsewhere; this
     /// covers non-arXiv papers: an HTML URL is used directly, and a CVF raw-PDF URL
     /// (`…/papers/Name.pdf`) is mapped to its abstract page (`…/html/Name.html`).
