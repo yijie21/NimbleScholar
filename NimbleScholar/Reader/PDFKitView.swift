@@ -82,6 +82,14 @@ final class AnnotatingPDFView: PDFView {
     var onDeleteAnnotation: ((PDFAnnotation, PDFPage) -> Void)?
     private var pendingDelete: (PDFAnnotation, PDFPage)?
 
+    // Hover state for note dots. The popover only closes when we tell it to (.applicationDefined),
+    // so we manage show/close on mouse enter/leave of a dot. `hoveredDot` keeps the dot's original
+    // bounds so the transient "grow" can be undone without ever persisting it.
+    private lazy var notePopover: NSPopover = {
+        let p = NSPopover(); p.behavior = .applicationDefined; p.animates = false; return p
+    }()
+    private var hoveredDot: (annotation: PDFAnnotation, original: CGRect)?
+
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event) ?? NSMenu()
         let viewPoint = convert(event.locationInWindow, from: nil)
@@ -115,4 +123,72 @@ final class AnnotatingPDFView: PDFView {
     @objc private func triggerHighlight() { onHighlight?() }
     @objc private func triggerNote() { onNote?() }
     @objc private func triggerDelete() { if let (a, p) = pendingDelete { onDeleteAnnotation?(a, p) } }
+
+    // MARK: - Note-dot hover (grow + popover)
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(
+            rect: .zero,
+            options: [.activeInActiveApp, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect],
+            owner: self, userInfo: nil))
+    }
+
+    /// The note dot (a small `.circle` annotation) under a view-space point, with its page.
+    private func noteDot(at viewPoint: NSPoint) -> (PDFAnnotation, PDFPage)? {
+        guard let page = page(for: viewPoint, nearest: false) else { return nil }
+        let pagePoint = convert(viewPoint, to: page)
+        guard let a = page.annotation(at: pagePoint), a.type == "Circle" else { return nil }
+        return (a, page)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        let hit = noteDot(at: convert(event.locationInWindow, from: nil))
+        if hit?.0 === hoveredDot?.annotation { return }   // no change in hovered dot
+        clearHover()
+        guard let (dot, page) = hit else { return }
+        // Grow the dot a touch — transient, restored on exit, never saved.
+        let original = dot.bounds
+        dot.bounds = original.insetBy(dx: -3, dy: -3)
+        needsDisplay = true
+        hoveredDot = (dot, original)
+        // Read-only popover with the note text, pointing inward over the page.
+        let host = NSHostingController(rootView: NoteHoverView(text: dot.contents ?? ""))
+        host.view.layoutSubtreeIfNeeded()
+        notePopover.contentViewController = host
+        notePopover.contentSize = host.view.fittingSize
+        let onLeft = original.midX < page.bounds(for: .mediaBox).midX
+        notePopover.show(relativeTo: convert(original, from: page), of: self,
+                         preferredEdge: onLeft ? .maxX : .minX)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        clearHover()
+    }
+
+    /// Restore a hovered dot's size and dismiss the popover.
+    private func clearHover() {
+        if let prev = hoveredDot {
+            prev.annotation.bounds = prev.original
+            needsDisplay = true
+            hoveredDot = nil
+        }
+        if notePopover.isShown { notePopover.close() }
+    }
+}
+
+/// Small read-only body shown in the popover when hovering a note dot.
+private struct NoteHoverView: View {
+    let text: String
+    var body: some View {
+        Text(text.isEmpty ? "Note" : text)
+            .font(.callout)
+            .textSelection(.enabled)
+            .frame(maxWidth: 280, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(10)
+    }
 }

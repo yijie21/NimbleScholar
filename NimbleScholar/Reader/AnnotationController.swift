@@ -112,7 +112,7 @@ struct AnnotationController {
         guard let page = selection.pages.first,
               let pageIndex = pdfView.document?.index(for: page) else { return }
         let color = NSColor(hex: AnnotationController.highlightHex)
-        var lastLine: CGRect?
+        var firstLine: CGRect?
         for line in selection.selectionsByLine() {
             let b = line.bounds(for: page)
             guard b.width > 0, b.height > 0 else { continue }
@@ -120,12 +120,17 @@ struct AnnotationController {
             a.color = color
             a.contents = text
             page.addAnnotation(a)
-            lastLine = b
+            if firstLine == nil { firstLine = b }
         }
-        guard let anchor = lastLine else { return }   // nothing highlightable
-        // Small filled dot at the end of the last line.
-        let d: CGFloat = 7
-        let dotRect = CGRect(x: anchor.maxX + 3, y: anchor.midY - d / 2, width: d, height: d)
+        guard let topLine = firstLine else { return }   // nothing highlightable
+        // Put the dot out in the blank side margin so it never overlaps text: left margin if the
+        // selection sits entirely left of the page centre (e.g. a 2-column left item), else right.
+        let sel = selection.bounds(for: page)
+        let pageBox = page.bounds(for: .mediaBox)
+        let d: CGFloat = 7, inset: CGFloat = 14
+        let onLeft = sel.maxX < pageBox.midX
+        let dotX = onLeft ? pageBox.minX + inset : pageBox.maxX - inset - d
+        let dotRect = CGRect(x: dotX, y: topLine.midY - d / 2, width: d, height: d)
         let dot = PDFAnnotation(bounds: dotRect, forType: .circle, withProperties: nil)
         dot.color = AnnotationController.noteDotColor
         dot.interiorColor = AnnotationController.noteDotColor
@@ -133,8 +138,9 @@ struct AnnotationController {
         dot.contents = text
         page.addAnnotation(dot)
         persist(pdfView)
+        // Index the union of the text and the margin dot so region-delete removes both together.
         index(kind: "note", color: AnnotationController.noteDotHex, snippet: text,
-              bounds: selection.bounds(for: page), on: page, pageIndex: pageIndex)
+              bounds: sel.union(dotRect), on: page, pageIndex: pageIndex)
         pdfView.clearSelection()
     }
 
