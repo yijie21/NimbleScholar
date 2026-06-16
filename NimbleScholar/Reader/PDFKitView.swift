@@ -90,6 +90,12 @@ final class AnnotatingPDFView: PDFView {
     }()
     private var hoveredDot: (annotation: PDFAnnotation, original: CGRect)?
 
+    // Quick action menu shown next to a fresh text selection. Transient so clicking away (or
+    // starting a new selection) dismisses it.
+    private lazy var selectionPopover: NSPopover = {
+        let p = NSPopover(); p.behavior = .transient; p.animates = false; return p
+    }()
+
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event) ?? NSMenu()
         let viewPoint = convert(event.locationInWindow, from: nil)
@@ -123,6 +129,29 @@ final class AnnotatingPDFView: PDFView {
     @objc private func triggerHighlight() { onHighlight?() }
     @objc private func triggerNote() { onNote?() }
     @objc private func triggerDelete() { if let (a, p) = pendingDelete { onDeleteAnnotation?(a, p) } }
+
+    // MARK: - Selection quick-menu
+
+    override func mouseUp(with event: NSEvent) {
+        super.mouseUp(with: event)
+        showSelectionMenuIfNeeded()
+    }
+
+    /// After a drag-select, float a small Highlight / Add Note menu next to the selection.
+    private func showSelectionMenuIfNeeded() {
+        guard let sel = currentSelection, !(sel.string ?? "").isEmpty, let page = sel.pages.first else {
+            if selectionPopover.isShown { selectionPopover.close() }
+            return
+        }
+        let host = NSHostingController(rootView: SelectionMenu(
+            onHighlight: { [weak self] in self?.selectionPopover.close(); self?.onHighlight?() },
+            onNote:      { [weak self] in self?.selectionPopover.close(); self?.onNote?() }))
+        host.view.layoutSubtreeIfNeeded()
+        selectionPopover.contentViewController = host
+        selectionPopover.contentSize = host.view.fittingSize
+        selectionPopover.show(relativeTo: convert(sel.bounds(for: page), from: page),
+                              of: self, preferredEdge: .maxY)
+    }
 
     // MARK: - Note-dot hover (grow + popover)
 
@@ -177,6 +206,24 @@ final class AnnotatingPDFView: PDFView {
             hoveredDot = nil
         }
         if notePopover.isShown { notePopover.close() }
+    }
+}
+
+/// Quick actions shown next to a fresh text selection.
+private struct SelectionMenu: View {
+    let onHighlight: () -> Void
+    let onNote: () -> Void
+    var body: some View {
+        HStack(spacing: 6) {
+            Button(action: onHighlight) { Label("Highlight", systemImage: "highlighter") }
+            Divider().frame(height: 16)
+            Button(action: onNote) { Label("Add Note", systemImage: "note.text") }
+        }
+        .labelStyle(.titleAndIcon)
+        .buttonStyle(.borderless)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .fixedSize()
     }
 }
 

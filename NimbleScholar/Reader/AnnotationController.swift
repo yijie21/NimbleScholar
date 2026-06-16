@@ -11,11 +11,6 @@ struct AnnotationController {
     /// Currently selected highlight color (hex), from Settings/toolbar.
     static var highlightHex: String { UserDefaults.standard.string(forKey: "highlightColorHex") ?? "#ffd966" }
 
-    /// Fixed accent for the little "has a note" dot, so it reads the same regardless of the
-    /// highlight color, and lets notes show a distinct swatch in the Annotations list.
-    static let noteDotHex = "#4a90d9"
-    static var noteDotColor: NSColor { NSColor(hex: noteDotHex) }
-
     /// Text-aware highlight: one highlight rectangle per selected line.
     func highlight(selection: PDFSelection, in pdfView: PDFView) {
         guard let page = selection.pages.first,
@@ -111,7 +106,8 @@ struct AnnotationController {
     func addNote(text: String, selection: PDFSelection, in pdfView: PDFView) {
         guard let page = selection.pages.first,
               let pageIndex = pdfView.document?.index(for: page) else { return }
-        let color = NSColor(hex: AnnotationController.highlightHex)
+        let hex = AnnotationController.highlightHex
+        let color = NSColor(hex: hex)
         var firstLine: CGRect?
         for line in selection.selectionsByLine() {
             let b = line.bounds(for: page)
@@ -135,14 +131,14 @@ struct AnnotationController {
                           : min(pageBox.maxX - d - 2, sel.maxX + gap)
         let dotRect = CGRect(x: dotX, y: topLine.midY - d / 2, width: d, height: d)
         let dot = PDFAnnotation(bounds: dotRect, forType: .circle, withProperties: nil)
-        dot.color = AnnotationController.noteDotColor
-        dot.interiorColor = AnnotationController.noteDotColor
+        dot.color = color                 // same hue as the highlight; solid fill reads more saturated
+        dot.interiorColor = color
         let border = PDFBorder(); border.lineWidth = 0.5; dot.border = border
         dot.contents = text
         page.addAnnotation(dot)
         persist(pdfView)
         // Index the union of the text and the margin dot so region-delete removes both together.
-        index(kind: "note", color: AnnotationController.noteDotHex, snippet: text,
+        index(kind: "note", color: hex, snippet: text,
               bounds: sel.union(dotRect), on: page, pageIndex: pageIndex)
         pdfView.clearSelection()
     }

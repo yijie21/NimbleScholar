@@ -79,3 +79,13 @@ over a note dot (a `.circle` annotation), the dot grows a few points and a small
 (SwiftUI `Text` via `NSHostingController`) shows the note's text, pointing inward over the page;
 moving off the dot restores its size and dismisses the popover. The grow is a transient bounds change
 that is restored on exit (not persisted). Note text is identified via the annotation's `contents`.
+
+## Revision 2026-06-16b: auto selection menu + dot matches highlight colour
+
+- **Dot colour = highlight colour.** Drop the fixed accent; the dot's fill (and the note's indexed
+  swatch colour) is the current highlight colour. Solid fill reads more saturated than the
+  translucent highlight, so it stays visible.
+- **Auto selection menu.** `AnnotatingPDFView.mouseUp` floats a transient `NSPopover` next to a fresh
+  text selection with **Highlight** and **Add Note** buttons (a SwiftUI `SelectionMenu`), reusing the
+  existing `onHighlight`/`onNote` wiring; it dismisses on click-away, a new selection, or after an
+  action. The right-click menu remains as a fallback.
