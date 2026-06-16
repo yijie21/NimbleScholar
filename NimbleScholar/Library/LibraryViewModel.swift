@@ -31,16 +31,18 @@ final class LibraryViewModel: ObservableObject {
     @Published var tagCounts: [TagCount] = []
     @Published var tagsByPaper: [Int64: [String]] = [:]   // batched once per reload (no N+1)
     @Published var query = "" { didSet { reload() } }
-    @Published var scope: LibraryScope = .all { didSet { reload() } }
+    @Published var scope: LibraryScope = .all { didSet { readingPaperID = nil; reload() } }
     @Published var sort: SortMode = .updated {
         didSet {
             UserDefaults.standard.set(sort.rawValue, forKey: "librarySort")
             papers = floatImportant(sorted(papers))
         }
     }
-    @Published var selection: Paper.ID? = nil
-    @Published var multiSelection: Set<Int64> = []   // three-pane multi-selection
+    @Published var multiSelection: Set<Int64> = []   // the one selection (3-pane multi + current)
     @Published var editingPaper: Paper? = nil
+
+    /// The single "current paper" (exactly one selected). Drives the detail pane, ⌘O, openReader.
+    var currentPaperID: Int64? { multiSelection.count == 1 ? multiSelection.first : nil }
     @Published var readingPaperID: Int64? = nil   // non-nil → in-window reading mode
 
     private let store = AppEnvironment.shared.store
@@ -76,6 +78,9 @@ final class LibraryViewModel: ObservableObject {
         }
         let ordered = (scope == .recent) ? Array(result.prefix(30)) : sorted(result)
         papers = floatImportant(ordered)
+        // Drop any selection that's no longer visible (e.g. after a scope change).
+        let visible = Set(papers.compactMap(\.id))
+        if !multiSelection.isSubset(of: visible) { multiSelection = multiSelection.intersection(visible) }
         tagCounts = (try? store.tagCounts()) ?? []
         tagsByPaper = (try? store.allTagsByPaper()) ?? [:]
         ThumbnailCache.shared.prewarm(papers)
@@ -151,9 +156,10 @@ final class LibraryViewModel: ObservableObject {
         if let id = paper.id { try? store.setImportant(paperID: id, important: !paper.isImportant); reload() }
     }
 
+    func select(_ paper: Paper) { if let id = paper.id { multiSelection = [id] } }
+
     func openReader(_ paper: Paper) {
         guard let id = paper.id else { return }
-        selection = id
         multiSelection = [id]          // so the three-pane detail shows this paper
         readingPaperID = id
     }

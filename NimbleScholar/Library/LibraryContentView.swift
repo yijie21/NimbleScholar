@@ -38,13 +38,25 @@ struct LibraryContentView: View {
     @State private var columns: NavigationSplitViewVisibility = .all   // collapse sidebar while reading
 
     private func openSelectedReader() {
-        if vm.multiSelection.count == 1, let id = vm.multiSelection.first,
-           let paper = vm.papers.first(where: { $0.id == id }) {
+        if let id = vm.currentPaperID, let paper = vm.papers.first(where: { $0.id == id }) {
             vm.openReader(paper)
         }
     }
 
     var body: some View {
+        HStack(spacing: 0) {
+            if vm.readingPaperID != nil {
+                ReadingRail()
+                    .environmentObject(vm)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+                Divider()
+            }
+            splitView
+        }
+        .animation(.easeInOut(duration: 0.25), value: vm.readingPaperID)
+    }
+
+    @ViewBuilder private var splitView: some View {
         NavigationSplitView(columnVisibility: $columns) {
             SidebarView().environmentObject(vm).frame(minWidth: 200)
         } detail: {

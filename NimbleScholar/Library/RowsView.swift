@@ -31,7 +31,7 @@ private struct RowCard: View {
     let paper: Paper
     @State private var hovering = false
 
-    private var selected: Bool { vm.selection == paper.id }
+    private var selected: Bool { vm.multiSelection.contains(paper.id ?? -1) }
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -69,7 +69,7 @@ private struct RowCard: View {
         .contentShape(RoundedRectangle(cornerRadius: 12))
         .onHover { hovering = $0 }
         .onTapGesture(count: 2) { vm.openReader(paper) }
-        .onTapGesture { vm.selection = paper.id }
+        .onTapGesture { vm.select(paper) }
         .paperContextMenu(paper)
     }
 }
