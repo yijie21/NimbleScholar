@@ -42,6 +42,19 @@ struct LibraryContentView: View {
         Binding(get: { vm.readingPaperID != nil ? .detailOnly : .all }, set: { _ in })
     }
 
+    /// Drives the view-mode picker. While reading, the layout is forced to three-pane (the reader
+    /// lives in its detail pane), so the picker reflects .threePane; picking Card/Item then closes
+    /// the reader and switches to that view. Outside reading it's just the stored `mode`.
+    private var modeSelection: Binding<LibraryViewMode> {
+        Binding(
+            get: { vm.readingPaperID != nil ? .threePane : mode },
+            set: { newMode in
+                if vm.readingPaperID != nil { vm.closeReader() }
+                mode = newMode
+            }
+        )
+    }
+
     private func openSelectedReader() {
         if let id = vm.currentPaperID, let paper = vm.papers.first(where: { $0.id == id }) {
             vm.openReader(paper)
@@ -114,7 +127,7 @@ struct LibraryContentView: View {
         )
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Picker("View", selection: $mode) {
+                Picker("View", selection: modeSelection) {
                     ForEach(LibraryViewMode.allCases) { Label($0.label, systemImage: $0.symbol).tag($0) }
                 }
                 .pickerStyle(.segmented)
