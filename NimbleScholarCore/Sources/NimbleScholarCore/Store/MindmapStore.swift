@@ -113,4 +113,50 @@ public final class MindmapStore: @unchecked Sendable {
     public func deleteEdge(id: Int64) throws {
         _ = try dbQueue.write { try MindmapEdge.deleteOne($0, key: id) }
     }
+
+    // MARK: - Papers + graph
+
+    public func attachPaper(nodeID: Int64, paperID: Int64) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "INSERT OR IGNORE INTO mindmap_node_papers(node_id, paper_id) VALUES (?, ?)",
+                           arguments: [nodeID, paperID])
+        }
+    }
+
+    public func detachPaper(nodeID: Int64, paperID: Int64) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM mindmap_node_papers WHERE node_id = ? AND paper_id = ?",
+                           arguments: [nodeID, paperID])
+        }
+    }
+
+    public func paperIDs(forNode nodeID: Int64) throws -> [Int64] {
+        try dbQueue.read { db in
+            try Int64.fetchAll(db, sql: "SELECT paper_id FROM mindmap_node_papers WHERE node_id = ? ORDER BY paper_id ASC",
+                               arguments: [nodeID])
+        }
+    }
+
+    /// Load a whole map (nodes + edges + node→paper links) in a few queries (no N+1).
+    public func graph(forMap mapID: Int64) throws -> MindmapGraph {
+        try dbQueue.read { db in
+            let nodes = try MindmapNode.filter(sql: "mindmap_id = ?", arguments: [mapID])
+                .order(sql: "created_at ASC, id ASC").fetchAll(db)
+            let edges = try MindmapEdge.filter(sql: "mindmap_id = ?", arguments: [mapID])
+                .order(sql: "id ASC").fetchAll(db)
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT np.node_id AS nid, np.paper_id AS pid
+                FROM mindmap_node_papers np
+                JOIN mindmap_nodes n ON n.id = np.node_id
+                WHERE n.mindmap_id = ?
+                ORDER BY np.paper_id ASC
+                """, arguments: [mapID])
+            var byNode: [Int64: [Int64]] = [:]
+            for r in rows {
+                let nid: Int64 = r["nid"]
+                byNode[nid, default: []].append(r["pid"])
+            }
+            return MindmapGraph(nodes: nodes, edges: edges, paperIDsByNode: byNode)
+        }
+    }
 }

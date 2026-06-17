@@ -72,4 +72,52 @@ final class MindmapStoreTests: XCTestCase {
         try store.deleteNode(id: a.id!)
         XCTAssertEqual(try store.edges(forMap: m.id!).count, 0)   // cascade
     }
+
+    func testAttachDetachAndGraph() throws {
+        let (lib, store) = try makeStores()
+        let paperA = try lib.create(Paper(title: "Backbone Net"))
+        let paperB = try lib.create(Paper(title: "Big Dataset"))
+        let m = try store.createMindmap(name: "Idea")
+        let n1 = try store.createNode(mapID: m.id!, text: "backbone", x: 0, y: 0)
+        let n2 = try store.createNode(mapID: m.id!, text: "dataset", x: 50, y: 0)
+        _ = try store.addEdge(mapID: m.id!, from: n1.id!, to: n2.id!)
+
+        try store.attachPaper(nodeID: n1.id!, paperID: paperA.id!)
+        try store.attachPaper(nodeID: n1.id!, paperID: paperA.id!)   // idempotent
+        try store.attachPaper(nodeID: n2.id!, paperID: paperB.id!)
+        XCTAssertEqual(try store.paperIDs(forNode: n1.id!), [paperA.id!])
+
+        let g = try store.graph(forMap: m.id!)
+        XCTAssertEqual(g.nodes.count, 2)
+        XCTAssertEqual(g.edges.count, 1)
+        XCTAssertEqual(g.paperIDsByNode[n1.id!], [paperA.id!])
+        XCTAssertEqual(g.paperIDsByNode[n2.id!], [paperB.id!])
+
+        try store.detachPaper(nodeID: n1.id!, paperID: paperA.id!)
+        XCTAssertEqual(try store.paperIDs(forNode: n1.id!), [])
+    }
+
+    func testDeletingPaperDetachesFromNodes() throws {
+        let (lib, store) = try makeStores()
+        let p = try lib.create(Paper(title: "P"))
+        let m = try store.createMindmap(name: "M")
+        let n = try store.createNode(mapID: m.id!, text: "x", x: 0, y: 0)
+        try store.attachPaper(nodeID: n.id!, paperID: p.id!)
+        try lib.deletePaper(id: p.id!)                       // FK cascade
+        XCTAssertEqual(try store.paperIDs(forNode: n.id!), [])
+    }
+
+    func testDeletingMapRemovesEverything() throws {
+        let (lib, store) = try makeStores()
+        let p = try lib.create(Paper(title: "P"))
+        let m = try store.createMindmap(name: "M")
+        let a = try store.createNode(mapID: m.id!, text: "a", x: 0, y: 0)
+        let b = try store.createNode(mapID: m.id!, text: "b", x: 1, y: 1)
+        _ = try store.addEdge(mapID: m.id!, from: a.id!, to: b.id!)
+        try store.attachPaper(nodeID: a.id!, paperID: p.id!)
+        try store.deleteMindmap(id: m.id!)
+        XCTAssertEqual(try store.nodes(forMap: m.id!).count, 0)
+        XCTAssertEqual(try store.edges(forMap: m.id!).count, 0)
+        XCTAssertEqual(try lib.allPapers().count, 1)         // the paper itself survives
+    }
 }
