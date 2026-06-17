@@ -2,9 +2,14 @@ import SwiftUI
 import CoreGraphics
 import NimbleScholarCore
 
-/// Transient drag state shared with the canvas overlay (the dragged node + its current
-/// canvas-space point), so the canvas can draw a drop indicator while the node moves locally.
-struct NodeDragInfo: Equatable { var nodeID: Int64; var canvasPoint: CGPoint }
+/// Transient drag state shared with the canvas (the dragged node, its live canvas center, and the
+/// current re-parent target). The connectors layer reads `center` so edges follow the drag in real
+/// time; the drop indicator reads `target`.
+struct NodeDragInfo: Equatable {
+    var nodeID: Int64
+    var center: CGPoint
+    var target: MindmapViewModel.DropTarget?
+}
 
 /// One tree node card: selectable, inline-editable, collapsible, drag-to-reparent, with attached
 /// paper chips. Equatable so moving/selecting one node doesn't re-render its siblings.
@@ -15,23 +20,27 @@ struct NodeView: View, Equatable {
     let node: MindmapNode
     let size: CGSize
     let selected: Bool
-    let editing: Bool
+    let editingField: NodeField?
     let paperIDs: [Int64]
-    let hasChildren: Bool
+    let canCollapse: Bool
     @Binding var dragInfo: NodeDragInfo?
     let coordSpace: String
 
     @GestureState private var dragOffset: CGSize = .zero
     @State private var draft = ""
-    @FocusState private var fieldFocused: Bool
+    @State private var contentDraft = ""
+    @FocusState private var headingFocused: Bool
+    @FocusState private var contentFocused: Bool
     @State private var dropTargeted = false
 
     private let reparentThreshold: CGFloat = 24   // min drag distance (screen pts) to re-parent
     private var nodeID: Int64 { node.id ?? -1 }
+    private var isEditingHeading: Bool { editingField == .heading }
+    private var isEditingContent: Bool { editingField == .content }
 
     static func == (l: NodeView, r: NodeView) -> Bool {
         l.node == r.node && l.size == r.size && l.selected == r.selected
-            && l.editing == r.editing && l.paperIDs == r.paperIDs && l.hasChildren == r.hasChildren
+            && l.editingField == r.editingField && l.paperIDs == r.paperIDs && l.canCollapse == r.canCollapse
     }
 
     private var attachedPapers: [Paper] {
@@ -44,30 +53,47 @@ struct NodeView: View, Equatable {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                if hasChildren {
+                if canCollapse {
                     Button { vm.toggleCollapse(nodeID) } label: {
                         Image(systemName: node.collapsed ? "chevron.right" : "chevron.down")
                             .font(.caption2).foregroundStyle(.secondary)
                     }.buttonStyle(.plain)
                 }
-                if editing {
+                if isEditingHeading {
                     TextField("Idea", text: $draft)
                         .textFieldStyle(.plain).font(.callout.bold())
-                        .focused($fieldFocused)
-                        .onSubmit { vm.commitEdit(draft) }
+                        .focused($headingFocused)
+                        .onSubmit { vm.commitHeading(draft) }
                         .onExitCommand { vm.cancelEdit() }
-                        .onChange(of: fieldFocused) { _, focused in if !focused { vm.commitEdit(draft) } }
-                        .onAppear { draft = node.text; fieldFocused = true }
+                        .onChange(of: headingFocused) { _, f in if !f { vm.commitHeading(draft) } }
+                        .onAppear { draft = node.text; headingFocused = true }
                 } else {
                     Text(node.text.isEmpty ? "Untitled" : node.text)
                         .font(.callout.bold())
                         .foregroundStyle(node.text.isEmpty ? .secondary : .primary)
+                        .onTapGesture(count: 2) { vm.beginEdit(nodeID) }
                 }
             }
-            ForEach(attachedPapers) { p in
-                NodePaperChip(paper: p,
-                              onOpen: { libraryVM.openReader(p) },
-                              onRemove: { if let pid = p.id { vm.detach(pid, from: nodeID) } })
+            if !node.collapsed {
+                if isEditingContent {
+                    TextField("Note", text: $contentDraft, axis: .vertical)
+                        .textFieldStyle(.plain).font(.caption)
+                        .focused($contentFocused)
+                        .onExitCommand { vm.cancelEdit() }
+                        .onChange(of: contentFocused) { _, f in if !f { vm.commitContent(contentDraft) } }
+                        .onAppear { contentDraft = node.content; contentFocused = true }
+                } else {
+                    Text(node.content.isEmpty ? "Add note…" : node.content)
+                        .font(.caption)
+                        .foregroundStyle(node.content.isEmpty ? .tertiary : .secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .onTapGesture(count: 2) { vm.beginEditContent(nodeID) }
+                }
+                ForEach(attachedPapers) { p in
+                    NodePaperChip(paper: p,
+                                  onOpen: { libraryVM.openReader(p) },
+                                  onRemove: { if let pid = p.id { vm.detach(pid, from: nodeID) } })
+                }
             }
         }
         .padding(10)
@@ -80,7 +106,6 @@ struct NodeView: View, Equatable {
         .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
         .offset(dragOffset)
         .gesture(moveOrReparentGesture)
-        .onTapGesture(count: 2) { vm.beginEdit(nodeID) }
         .onTapGesture { vm.select(nodeID) }
         .dropDestination(for: String.self) { items, _ in
             guard let s = items.first, let pid = Int64(s) else { return false }
@@ -89,8 +114,9 @@ struct NodeView: View, Equatable {
         .contextMenu {
             Button("Add Child") { vm.addChild(to: nodeID) }
             if nodeID != vm.rootID { Button("Add Sibling") { vm.addSibling(of: nodeID) } }
-            Button("Rename") { vm.beginEdit(nodeID) }
-            if hasChildren {
+            Button("Edit Heading") { vm.beginEdit(nodeID) }
+            Button("Edit Note") { vm.beginEditContent(nodeID) }
+            if canCollapse {
                 Button(node.collapsed ? "Expand" : "Collapse") { vm.toggleCollapse(nodeID) }
             }
             if nodeID != vm.rootID {
@@ -114,15 +140,16 @@ struct NodeView: View, Equatable {
         DragGesture(coordinateSpace: .named(coordSpace))
             .updating($dragOffset) { value, state, _ in state = value.translation }
             .onChanged { value in
-                // Show the drop indicator only while hovering a valid re-parent target.
+                let zoom = vm.transform.zoom
+                let old = vm.layout[nodeID] ?? .zero
+                let center = CGPoint(x: old.x + value.translation.width / zoom,
+                                     y: old.y + value.translation.height / zoom)
                 let dragged = hypot(value.translation.width, value.translation.height)
                 let cursor = vm.transform.canvas(from: value.location)
-                if dragged >= reparentThreshold, nodeID != vm.rootID,
-                   vm.dropTarget(forDragged: nodeID, at: cursor) != nil {
-                    dragInfo = NodeDragInfo(nodeID: nodeID, canvasPoint: cursor)
-                } else {
-                    dragInfo = nil
-                }
+                let target: MindmapViewModel.DropTarget? =
+                    (dragged >= reparentThreshold && nodeID != vm.rootID)
+                    ? vm.dropTarget(forDragged: nodeID, at: cursor) : nil
+                dragInfo = NodeDragInfo(nodeID: nodeID, center: center, target: target)
             }
             .onEnded { value in
                 defer { dragInfo = nil }
