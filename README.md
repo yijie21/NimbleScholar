@@ -123,7 +123,7 @@ The **Mindmap** view is a fourth mode for building named idea-graphs alongside y
   node to edit its label. Drag a node to reposition it.
 - **Edges**: drag from the trailing dot of any node to another node to connect them. Hover
   an edge's midpoint and click the × to delete it.
-- **Attaching papers**: a collapsible, searchable **paper shelf** sits on the right edge of the
+- **Attaching papers**: a collapsible, searchable **paper shelf** sits on the left edge of the
   canvas. Drag a card from the shelf onto a node to attach it — or onto empty canvas to create
   a new node pre-attached. Each attached paper appears as a chip on the node; click a chip to
   open that paper in the reader. Click × on a chip to detach it. Deleting a paper from the

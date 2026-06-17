@@ -46,7 +46,7 @@ UI, and the boundary keeps business logic out of views.
 | `App/Mindmap/*` | Mindmap view mode: `MindmapView`, `MindmapViewModel`, `MapBar` (map picker/create/delete), `PaperShelf` (searchable collapsible paper shelf), `MindmapCanvas` (SwiftUI Canvas with pan/zoom/cull + edge drawing), `NodeView` + `NodePaperChip` (node card + attached-paper chips) |
 | `Core/Store/MindmapStore.swift` | Mindmap persistence (maps, nodes, edges, paper attachments, per-map viewport) sharing the GRDB queue; `graph(forMap:)` returns the full node+edge graph |
 | `Core/Services/CanvasTransform.swift` | Pure canvas↔screen coordinate math: pan/zoom transform, hit-testing, off-screen culling |
-| `Core/Models/Mindmap.swift` | `MindmapMap`, `MindmapNode`, `MindmapEdge` model records |
+| `Core/Models/Mindmap.swift` | `Mindmap`, `MindmapNode`, `MindmapEdge`, `MindmapGraph` model records |
 
 ## Data flow
 

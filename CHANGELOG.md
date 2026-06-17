@@ -11,7 +11,7 @@
 - **Text nodes + free-form edges** — double-click empty canvas to create a node; double-click
   a node to edit its label; drag a node to reposition it. Drag from a node's trailing dot to
   another node to connect them; hover an edge midpoint and click × to delete it.
-- **Searchable collapsible paper shelf** — a narrow shelf on the right edge lists your
+- **Searchable collapsible paper shelf** — a narrow shelf on the left edge lists your
   library papers (filterable by title). Drag a shelf card onto a node to attach it, or onto
   empty canvas to create a new node pre-attached. Click a paper chip on a node to open it in
   the reader; click × on a chip to detach it. Deleting a paper from the main library removes
