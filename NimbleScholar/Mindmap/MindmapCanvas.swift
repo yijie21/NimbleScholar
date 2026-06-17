@@ -12,6 +12,7 @@ struct MindmapCanvas: View {
     @State private var panBase: CGSize?
     @State private var zoomBase: CGFloat?
     @State private var dragInfo: NodeDragInfo?
+    @State private var didFitMapID: Int64?
     @FocusState private var focused: Bool
 
     private let coordSpace = "mindmapTreeCanvas"
@@ -31,6 +32,8 @@ struct MindmapCanvas: View {
             .focusEffectDisabled()
             .onAppear { focused = true }
             .onChange(of: vm.editingNodeID) { _, editing in if editing == nil { focused = true } }
+            .onChange(of: vm.activeMapID, initial: true) { _, _ in didFitMapID = nil; fitIfNeeded(geo.size) }
+            .onChange(of: vm.layout) { _, _ in fitIfNeeded(geo.size) }
             .overlay(alignment: .bottomTrailing) { zoomControls(viewport: geo.size) }
             .background(keyShortcuts)
             .simultaneousGesture(magnifyGesture)
@@ -44,6 +47,14 @@ struct MindmapCanvas: View {
             .onKeyPress(.leftArrow) { guard vm.editingNodeID == nil else { return .ignored }; vm.navigate(.left); return .handled }
             .onKeyPress(.rightArrow) { guard vm.editingNodeID == nil else { return .ignored }; vm.navigate(.right); return .handled }
         }
+    }
+
+    /// Frame the tree once per map open (when its layout is ready), so a map doesn't open
+    /// stuck in the top-left corner. Guarded so it never fights the user's pan/zoom afterward.
+    private func fitIfNeeded(_ size: CGSize) {
+        guard size.width > 0, let mapID = vm.activeMapID, !vm.layout.isEmpty, didFitMapID != mapID else { return }
+        didFitMapID = mapID
+        vm.fit(in: size)
     }
 
     // MARK: Background (pan)

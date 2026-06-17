@@ -65,6 +65,8 @@ struct CanvasToolbar: View {
                 .disabled(!hasSelection || selectionIsRoot)
             Button { if let s = vm.selectedNodeID { vm.toggleCollapse(s) } } label: { Label("Collapse", systemImage: "rectangle.compress.vertical") }
                 .disabled(!hasSelection)
+            Button { vm.tidy() } label: { Label("Tidy", systemImage: "wand.and.stars") }
+                .disabled(vm.rootID == nil)
             Divider().frame(height: 16)
             Button { vm.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(!vm.canUndo)
             Button { vm.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(!vm.canRedo)
