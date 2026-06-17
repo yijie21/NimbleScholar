@@ -1,5 +1,28 @@
 # Changelog
 
+## Milestone 8 — Mindmap view mode (2026-06-17, `v8.0.0`)
+
+### Added
+- **Mindmap** — a 4th library view mode beside Three-pane / Gallery / Rows. Build named
+  idea-graphs on a native SwiftUI infinite canvas with smooth pan and zoom; off-screen
+  nodes are culled for performance.
+- **Named maps** — create, rename, and delete maps via the map bar; each map has its own
+  canvas and its own pan/zoom viewport, persisted across relaunches.
+- **Text nodes + free-form edges** — double-click empty canvas to create a node; double-click
+  a node to edit its label; drag a node to reposition it. Drag from a node's trailing dot to
+  another node to connect them; hover an edge midpoint and click × to delete it.
+- **Searchable collapsible paper shelf** — a narrow shelf on the right edge lists your
+  library papers (filterable by title). Drag a shelf card onto a node to attach it, or onto
+  empty canvas to create a new node pre-attached. Click a paper chip on a node to open it in
+  the reader; click × on a chip to detach it. Deleting a paper from the main library removes
+  its chip from every node automatically (FK cascade).
+- **`v9-mindmap` migration** — adds tables `mindmaps`, `mindmap_nodes`, `mindmap_edges`,
+  `mindmap_node_papers` (all FK cascade) to the existing GRDB store.
+- **`MindmapStore`** (Core) — CRUD for maps/nodes/edges/attachments + `graph(forMap:)`;
+  shares the existing GRDB queue.
+- **`CanvasTransform`** (Core, unit-tested) — pure canvas↔screen coordinate math: pan/zoom
+  transform, hit-testing, and off-screen culling.
+
 ## Milestone 7 — In-window PDF reader (2026-06-15, `v7.0.0`)
 
 ### Changed

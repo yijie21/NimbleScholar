@@ -87,7 +87,8 @@ Save the page you're reading straight into Nimble Scholar.
 ## Organizing your library
 
 - **View modes** (toolbar segmented control): **Three-pane** (list + detail), **Gallery**
-  (figure grid), **Rows** (wide cards with inline editing). Your choice is remembered.
+  (figure grid), **Rows** (wide cards with inline editing), **Mindmap** (idea graph — see
+  below). Your choice is remembered.
 - **Sidebar**: **All papers**, **Unread**, **Recently added**, **Untagged**, and one entry per tag
   (with a colored dot + count). Right-click a tag to **Rename** or **Delete** it.
 - **Read / Unread**: new papers show a blue dot; opening a paper marks it read. Toggle via
@@ -110,6 +111,23 @@ Save the page you're reading straight into Nimble Scholar.
 
 Newly captured papers complete themselves automatically: the app fetches each missing
 figure and PDF in the background, so a paper goes spinner → ready on its own.
+
+### Mindmap
+
+The **Mindmap** view is a fourth mode for building named idea-graphs alongside your library.
+
+- **Maps**: create as many named maps as you like; switch between them via the map bar at the
+  top of the view. Each map has its own infinite canvas with its own pan/zoom viewport
+  (remembered across relaunches).
+- **Nodes**: double-click an empty spot on the canvas to create a text node. Double-click a
+  node to edit its label. Drag a node to reposition it.
+- **Edges**: drag from the trailing dot of any node to another node to connect them. Hover
+  an edge's midpoint and click the × to delete it.
+- **Attaching papers**: a collapsible, searchable **paper shelf** sits on the right edge of the
+  canvas. Drag a card from the shelf onto a node to attach it — or onto empty canvas to create
+  a new node pre-attached. Each attached paper appears as a chip on the node; click a chip to
+  open that paper in the reader. Click × on a chip to detach it. Deleting a paper from the
+  main library removes its chip automatically (FK cascade).
 
 **Bulk actions** (toolbar **⋯** menu): Download all PDFs · Load missing figures & PDFs ·
 Re-fetch all figures (force a fresh scrape, repairing any paper stuck on its PDF first page) ·
