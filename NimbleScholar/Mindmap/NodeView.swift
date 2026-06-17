@@ -26,6 +26,7 @@ struct NodeView: View, Equatable {
     @FocusState private var fieldFocused: Bool
     @State private var dropTargeted = false
 
+    private let reparentThreshold: CGFloat = 24   // min drag distance (screen pts) to re-parent
     private var nodeID: Int64 { node.id ?? -1 }
 
     static func == (l: NodeView, r: NodeView) -> Bool {
@@ -114,8 +115,10 @@ struct NodeView: View, Equatable {
             .updating($dragOffset) { value, state, _ in state = value.translation }
             .onChanged { value in
                 // Show the drop indicator only while hovering a valid re-parent target.
+                let dragged = hypot(value.translation.width, value.translation.height)
                 let cursor = vm.transform.canvas(from: value.location)
-                if nodeID != vm.rootID, vm.dropTarget(forDragged: nodeID, at: cursor) != nil {
+                if dragged >= reparentThreshold, nodeID != vm.rootID,
+                   vm.dropTarget(forDragged: nodeID, at: cursor) != nil {
                     dragInfo = NodeDragInfo(nodeID: nodeID, canvasPoint: cursor)
                 } else {
                     dragInfo = nil
@@ -128,8 +131,9 @@ struct NodeView: View, Equatable {
                 // New position preserves the grab offset (move by the drag delta in canvas units).
                 let dropPoint = CGPoint(x: old.x + value.translation.width / zoom,
                                         y: old.y + value.translation.height / zoom)
+                let dragged = hypot(value.translation.width, value.translation.height)
                 let cursor = vm.transform.canvas(from: value.location)
-                if nodeID != vm.rootID, let target = vm.dropTarget(forDragged: nodeID, at: cursor) {
+                if dragged >= reparentThreshold, nodeID != vm.rootID, let target = vm.dropTarget(forDragged: nodeID, at: cursor) {
                     vm.reparent(nodeID, to: target.parentID, index: target.index, at: dropPoint)
                 } else {
                     vm.move(nodeID, to: dropPoint)
