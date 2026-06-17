@@ -114,20 +114,32 @@ figure and PDF in the background, so a paper goes spinner → ready on its own.
 
 ### Mindmap
 
-The **Mindmap** view is a fourth mode for building named idea-graphs alongside your library.
+The **Mindmap** view is a fourth mode for building named, auto-layout idea-trees alongside your library.
 
 - **Maps**: create as many named maps as you like; switch between them via the map bar at the
-  top of the view. Each map has its own infinite canvas with its own pan/zoom viewport
-  (remembered across relaunches).
-- **Nodes**: double-click an empty spot on the canvas to create a text node. Double-click a
-  node to edit its label. Drag a node to reposition it.
-- **Edges**: drag from the trailing dot of any node to another node to connect them. Hover
-  an edge's midpoint and click the × to delete it.
+  top of the view. Each map starts with a single **root** node; the tree is laid out
+  automatically — you never position nodes by hand.
+- **Building the tree**: select any node, then press **Tab** to add a child or **Return** to
+  add a sibling. The new node opens in edit mode immediately; press **Return** or **Esc** to
+  finish editing.
+- **Navigating**: **↑ / ↓** move between siblings; **←** jumps to the parent; **→** jumps to
+  the first child. **Space** collapses or expands a node (hides/shows its subtree; the tree
+  re-tidies). **Delete** removes the selected node and its entire subtree (the root is
+  protected).
+- **Undo / Redo**: **⌘Z / ⌘⇧Z** step back and forward through all structural changes,
+  including restoring deleted subtrees with their attached papers.
+- **Re-parenting**: drag a node onto another node to move it in the tree. A dashed drop
+  indicator shows the target; dropping a node onto its own descendant is rejected. Dragging is
+  smooth — no flicker.
+- **Toolbar & context menu**: the **CanvasToolbar** (Child / Sibling / Delete / Collapse /
+  Undo / Redo) and the node right-click context menu mirror every keyboard shortcut — use
+  whichever you prefer.
 - **Attaching papers**: a collapsible, searchable **paper shelf** sits on the left edge of the
-  canvas. Drag a card from the shelf onto a node to attach it — or onto empty canvas to create
-  a new node pre-attached. Each attached paper appears as a chip on the node; click a chip to
-  open that paper in the reader. Click × on a chip to detach it. Deleting a paper from the
-  main library removes its chip automatically (FK cascade).
+  canvas. Drag a card from the shelf onto a node to attach it. Each attached paper appears as
+  a chip on the node; click a chip to open that paper in the reader. Click × on a chip to
+  detach it. Deleting a paper from the main library removes its chip automatically (FK cascade).
+- **Pan / zoom**: drag the background to pan; pinch or use **+ / −** to zoom; the **Fit**
+  button (scope icon) frames the whole tree. The viewport is remembered across relaunches.
 
 **Bulk actions** (toolbar **⋯** menu): Download all PDFs · Load missing figures & PDFs ·
 Re-fetch all figures (force a fresh scrape, repairing any paper stuck on its PDF first page) ·

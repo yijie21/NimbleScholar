@@ -1,5 +1,35 @@
 # Changelog
 
+## Milestone 9 — Mindmap redesigned as auto-layout tree (2026-06-17, `v9.0.0`)
+
+### Changed
+- **Mindmap is now an auto-layout tree.** The free-form canvas (drag-to-position nodes,
+  drag-a-dot edges) is replaced by a classic tidy left-to-right tree rooted at a single
+  **root** node per map. Layout is computed automatically — no manual positioning.
+- **Keyboard model**: **Tab** adds a child; **Return** adds a sibling; **↑ / ↓** navigate
+  between siblings; **←** goes to the parent; **→** goes to the first child; **Space**
+  collapses/expands a node and its subtree; **Delete** removes the selected node and subtree
+  (root protected); **⌘Z / ⌘⇧Z** undo/redo (restores deleted subtrees with attached papers).
+- **Drag-to-reparent**: drag any node onto another to move it in the tree; a dashed drop
+  indicator shows the target; dropping onto a descendant is rejected.
+- **CanvasToolbar & context menu** mirror every shortcut (Child / Sibling / Delete /
+  Collapse / Undo / Redo) for full mouse-only usability.
+
+### Fixed
+- **Node-drag flicker eliminated.** Layout positions are computed by `TreeLayout` at render
+  time and never persisted; a node drag commits a single structural reparent on release
+  (no per-frame model writes). Rendering is two-layer: a committed SwiftUI `Canvas` for
+  connectors and nodes, plus an interactive overlay for the drop indicator.
+
+### Added
+- **`TreeLayout`** (Core, unit-tested) — pure tidy left-to-right layout service; takes the
+  node tree and returns render positions without touching the database.
+- **`MindmapNodeSizing`** (Core, unit-tested) — estimates node label sizes for `TreeLayout`.
+- **`v10-mindmap-tree` migration** — adds `parent_id`, `sort_order`, and `collapsed` to
+  `mindmap_nodes`; tree structure lives in `parent_id`. `mindmap_edges` is now dormant.
+- **`MindmapStore` tree ops** — add/move/delete node, collapse, sibling reorder, and
+  id-stable snapshot/restore used by undo.
+
 ## Milestone 8 — Mindmap view mode (2026-06-17, `v8.0.0`)
 
 ### Added
