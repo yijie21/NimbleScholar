@@ -174,7 +174,8 @@ struct NodeView: View, Equatable {
     }
 }
 
-/// A compact paper attached to a node. Click opens it in the reader; hover reveals remove.
+/// A paper attached to a node, shown as a small card with its figure so it's recognizable at a
+/// glance. Click opens it in the reader; hover reveals the remove button.
 struct NodePaperChip: View {
     let paper: Paper
     let onOpen: () -> Void
@@ -182,17 +183,35 @@ struct NodePaperChip: View {
     @State private var hovering = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "doc.text").font(.caption).foregroundStyle(.secondary)
-            Text(paper.title).font(.subheadline).lineLimit(1)
-            Spacer(minLength: 0)
-            if hovering {
-                Button(action: onRemove) { Image(systemName: "xmark.circle.fill").font(.caption) }
-                    .buttonStyle(.plain).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .frame(height: 76)
+                .overlay(PaperThumbnail(paper: paper))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(alignment: .topTrailing) {
+                    if hovering {
+                        Button(action: onRemove) {
+                            Image(systemName: "xmark")
+                                .font(.caption2.bold())
+                                .foregroundStyle(.white)
+                                .padding(4)
+                                .background(Circle().fill(.black.opacity(0.55)))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(4)
+                    }
+                }
+            Text(paper.title).font(.caption).bold().lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if !paper.authors.isEmpty {
+                Text(paper.authors).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(.horizontal, 6).padding(.vertical, 3)
-        .background(RoundedRectangle(cornerRadius: 5).fill(Color.accentColor.opacity(0.12)))
+        .padding(6)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.10)))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.black.opacity(0.06)))
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .onTapGesture { onOpen() }

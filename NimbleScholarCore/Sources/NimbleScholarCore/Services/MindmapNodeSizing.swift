@@ -7,7 +7,7 @@ public enum MindmapNodeSizing {
     private static let charsPerLine = 20
     private static let lineHeight: CGFloat = 24
     private static let verticalPadding: CGFloat = 20
-    private static let chipHeight: CGFloat = 28
+    private static let chipHeight: CGFloat = 130   // each attached paper renders as a figure card
 
     private static func lines(_ s: String) -> Int {
         max(1, Int((Double(s.count) / Double(charsPerLine)).rounded(.up)))
