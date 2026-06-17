@@ -85,6 +85,7 @@ struct NodeView: View {
     private func startEditing() { draft = node.text; editing = true }
 
     private func commit() {
+        guard editing else { return }
         editing = false
         vm.setNodeText(nodeID, draft.trimmingCharacters(in: .whitespacesAndNewlines))
     }
