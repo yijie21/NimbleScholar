@@ -73,7 +73,6 @@ struct NodeView: View, Equatable {
                     Text(node.text.isEmpty ? "Untitled" : node.text)
                         .font(.title.bold())
                         .foregroundStyle(node.text.isEmpty ? .secondary : .primary)
-                        .onTapGesture(count: 2) { vm.beginEdit(nodeID) }
                 }
             }
             if !node.collapsed {
@@ -89,7 +88,9 @@ struct NodeView: View, Equatable {
                         .font(.title3)
                         .foregroundStyle(node.content.isEmpty ? .tertiary : .secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .onTapGesture(count: 2) { vm.beginEditContent(nodeID) }
+                        // High priority so a double-click on the note edits the note, beating the
+                        // node-wide double-click (which edits the heading).
+                        .highPriorityGesture(TapGesture(count: 2).onEnded { vm.beginEditContent(nodeID) })
                 }
                 ForEach(attachedPapers) { p in
                     NodePaperChip(paper: p,
@@ -108,6 +109,10 @@ struct NodeView: View, Equatable {
         .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
         .offset(dragOffset)
         .gesture(moveOrReparentGesture)
+        // Double-click anywhere on the node edits its heading; single-click selects. Both taps live
+        // on the node body (count:2 before count:1) so SwiftUI disambiguates them reliably — putting
+        // the edit tap on the small heading Text let the body's select/drag gestures swallow it.
+        .onTapGesture(count: 2) { vm.beginEdit(nodeID) }
         .onTapGesture { vm.select(nodeID) }
         .dropDestination(for: String.self) { items, _ in
             guard let s = items.first, let pid = Int64(s) else { return false }
