@@ -71,6 +71,13 @@ public final class MindmapStore: @unchecked Sendable {
         }
     }
 
+    public func updateNodeContent(id: Int64, content: String) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "UPDATE mindmap_nodes SET content = ?, updated_at = ? WHERE id = ?",
+                           arguments: [content, now(), id])
+        }
+    }
+
     public func moveNode(id: Int64, x: Double, y: Double) throws {
         try dbQueue.write { db in
             try db.execute(sql: "UPDATE mindmap_nodes SET x = ?, y = ?, updated_at = ? WHERE id = ?",
@@ -323,9 +330,9 @@ public final class MindmapStore: @unchecked Sendable {
             try db.execute(sql: "DELETE FROM mindmap_nodes WHERE mindmap_id = ?", arguments: [mapID])
             for n in snapshot.nodes {
                 try db.execute(sql: """
-                    INSERT INTO mindmap_nodes (id, mindmap_id, text, x, y, parent_id, sort_order, collapsed, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
-                    """, arguments: [n.id, mapID, n.text, n.x, n.y, n.sortOrder, n.collapsed ? 1 : 0, n.createdAt, n.updatedAt])
+                    INSERT INTO mindmap_nodes (id, mindmap_id, text, content, x, y, parent_id, sort_order, collapsed, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
+                    """, arguments: [n.id, mapID, n.text, n.content, n.x, n.y, n.sortOrder, n.collapsed ? 1 : 0, n.createdAt, n.updatedAt])
             }
             for n in snapshot.nodes where n.parentID != nil {
                 try db.execute(sql: "UPDATE mindmap_nodes SET parent_id = ? WHERE id = ?", arguments: [n.parentID, n.id])

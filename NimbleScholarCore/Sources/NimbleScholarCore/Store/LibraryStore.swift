@@ -155,6 +155,11 @@ public final class LibraryStore: @unchecked Sendable {
                 t.add(column: "collapsed", .integer).notNull().defaults(to: 0)
             }
         }
+        m.registerMigration("v11-mindmap-content") { db in
+            try db.alter(table: "mindmap_nodes") { t in
+                t.add(column: "content", .text).notNull().defaults(to: "")
+            }
+        }
         return m
     }
 

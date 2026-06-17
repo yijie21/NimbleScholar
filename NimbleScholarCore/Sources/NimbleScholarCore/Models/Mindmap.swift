@@ -31,12 +31,13 @@ public struct MindmapNode: Codable, Identifiable, Hashable, FetchableRecord, Mut
     public var parentID: Int64?
     public var sortOrder: Int = 0
     public var collapsed: Bool = false
+    public var content: String = ""
     public var createdAt: Int64 = 0
     public var updatedAt: Int64 = 0
 
     public static let databaseTableName = "mindmap_nodes"
     enum CodingKeys: String, CodingKey {
-        case id, text, x, y, collapsed
+        case id, text, x, y, collapsed, content
         case mindmapID = "mindmap_id"
         case parentID = "parent_id", sortOrder = "sort_order"
         case createdAt = "created_at", updatedAt = "updated_at"

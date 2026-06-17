@@ -263,4 +263,20 @@ final class MindmapStoreTests: XCTestCase {
         let aa = tree.nodes.first { $0.id == a.id! }!
         XCTAssertEqual(aa.x, 12.5, accuracy: 0.0001)
     }
+
+    func testNodeContentAndSnapshot() throws {
+        let (_, store) = try makeStores()
+        let m = try store.createMindmap(name: "M")
+        let root = try store.ensureRoot(mapID: m.id!, title: "M")
+        let a = try store.addChild(parentID: root.id!, text: "A")
+        try store.updateNodeContent(id: a.id!, content: "a long note about A")
+        let aBack = try store.tree(forMap: m.id!).nodes.first { $0.id == a.id! }!
+        XCTAssertEqual(aBack.content, "a long note about A")
+
+        let snap = try store.snapshot(mapID: m.id!)
+        try store.updateNodeContent(id: a.id!, content: "changed")   // mutate
+        try store.restore(mapID: m.id!, snap)                        // undo
+        let restored = try store.tree(forMap: m.id!).nodes.first { $0.id == a.id! }!
+        XCTAssertEqual(restored.content, "a long note about A")      // content survives undo
+    }
 }
