@@ -1,5 +1,28 @@
 # Changelog
 
+## Milestone 11 — Mindmap refinements: heading/content, collapse-to-heading, live edges, seed (2026-06-17, `v11.0.0`)
+
+### Added
+- **Node heading + optional note.** Each mindmap node now has a **heading** (the existing
+  label) and an **optional note** (free-text content). Double-click the heading to edit the
+  title; double-click the body ("Add note…") to edit the note. Both fields participate in
+  undo/redo and are persisted via the new `v11-mindmap-content` migration.
+- **`v11-mindmap-content` migration** — adds a `content` column (TEXT, nullable) to
+  `mindmap_nodes`; existing nodes upgrade in place with `content = NULL`.
+
+### Changed
+- **Collapse now means collapse-to-heading.** Collapsing a node (Space / chevron) shows only
+  its heading, hiding the note, all attached paper chips, and the entire child subtree.
+  Expanding restores everything. The collapse chevron appears on any node that has something
+  to hide — children, a note, or attached papers (not just nodes with children).
+- **Connector lines follow node drags in real time.** The connectors Canvas reads the
+  dragging node's live center on every `.onChanged` tick and redraws edges to it — no lag,
+  no flicker. Edges snap clean on drag release.
+- **Tab-children spawn beside their parent.** New nodes (Tab / Return) appear at a sensible
+  position relative to their parent. The dominant fix is a fit-zoom cap at 1.0×: a
+  lone-root map previously zoomed to ~2.5×, which exaggerated the seed offset and made
+  children appear far away.
+
 ## Milestone 10 — Mindmap free positioning + Tidy (2026-06-17, `v10.0.0`)
 
 ### Changed

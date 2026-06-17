@@ -120,18 +120,27 @@ The **Mindmap** view is a fourth mode for building named idea-trees alongside yo
   top of the view. Each map starts with a single **root** node and **opens centered** so the
   tree is immediately in view.
 - **Free positioning**: every node — including the root — is **draggable anywhere** on the
-  canvas. Positions are saved automatically and persist across relaunches.
+  canvas. Positions are saved automatically and persist across relaunches. **Connector lines
+  follow a dragged node in real time** — no lag or flicker; they snap clean on release.
 - **One drag, two actions**: drop a node onto **empty space** to move it there; drop a node
   onto **another node** to re-parent it (the node stays at the drop point). Dropping onto a
-  descendant is rejected. Dragging is smooth — no flicker.
+  descendant is rejected.
+- **Node content**: each node has a **heading** and an **optional note**. Double-click the
+  heading to edit the title; double-click the body ("Add note…") to edit the note. Return or
+  click away commits; Esc cancels. Both the heading and the note are included in undo/redo.
+- **Collapse / expand**: **Space** (or the chevron on the node) collapses a node —
+  **showing just the heading** and hiding its note, attached papers, and entire child subtree.
+  Expand (▾) shows everything again. The collapse chevron appears on any node that has
+  something to hide: children, a note, or attached papers.
 - **Building the tree**: select any node, then press **Tab** to add a child or **Return** to
   add a sibling. New nodes appear **beside their parent** as a starting point. The new node
   opens in edit mode immediately; press **Return** or **Esc** to finish editing.
 - **Navigating**: **↑ / ↓** move between siblings; **←** jumps to the parent; **→** jumps to
-  the first child. **Space** collapses or expands a node (hides/shows its subtree). **Delete**
-  removes the selected node and its entire subtree (the root is protected).
+  the first child. **Delete** removes the selected node and its entire subtree (the root is
+  protected).
 - **Undo / Redo**: **⌘Z / ⌘⇧Z** step back and forward through all structural changes,
-  including moves, reparents, tidy, and restoring deleted subtrees with their attached papers.
+  including moves, reparents, tidy, content edits, and restoring deleted subtrees with their
+  attached papers.
 - **Tidy**: the **Tidy** button (wand icon) in the canvas toolbar re-runs the auto-layout
   algorithm to arrange the whole tree cleanly on demand.
 - **Toolbar & context menu**: the **CanvasToolbar** (Child / Sibling / Delete / Collapse /
