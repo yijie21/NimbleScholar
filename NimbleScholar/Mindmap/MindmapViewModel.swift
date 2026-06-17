@@ -229,7 +229,7 @@ final class MindmapViewModel: ObservableObject {
         guard let e = editing, e.field == .content else { return }
         editing = nil
         pushUndo(); try? store.updateNodeContent(id: e.nodeID, content: text.trimmingCharacters(in: .whitespacesAndNewlines))
-        reloadTree()
+        reloadTree(); reflowAround(e.nodeID)
     }
     func cancelEdit() { editing = nil }
 
@@ -264,11 +264,22 @@ final class MindmapViewModel: ObservableObject {
 
     // MARK: Papers (kept)
 
+    /// After a node's height changes (a paper card or note added/removed), re-space its siblings so
+    /// the taller node no longer overlaps them, then re-center its own children on its new position.
+    private func reflowAround(_ nodeID: Int64) {
+        if let parentID = tree.nodes.first(where: { $0.id == nodeID })?.parentID {
+            arrangeChildren(of: parentID); reloadTree()
+        }
+        arrangeChildren(of: nodeID); reloadTree()
+    }
+
     func attach(_ paperID: Int64, to nodeID: Int64) {
-        pushUndo(); try? store.attachPaper(nodeID: nodeID, paperID: paperID); reloadTree()
+        pushUndo(); try? store.attachPaper(nodeID: nodeID, paperID: paperID)
+        reloadTree(); reflowAround(nodeID)
     }
     func detach(_ paperID: Int64, from nodeID: Int64) {
-        pushUndo(); try? store.detachPaper(nodeID: nodeID, paperID: paperID); reloadTree()
+        pushUndo(); try? store.detachPaper(nodeID: nodeID, paperID: paperID)
+        reloadTree(); reflowAround(nodeID)
     }
 
     // MARK: Undo / redo

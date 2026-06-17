@@ -61,7 +61,7 @@ struct NodeView: View, Equatable {
                 }
                 if isEditingHeading {
                     TextField("Idea", text: $draft)
-                        .textFieldStyle(.plain).font(.title3.bold())
+                        .textFieldStyle(.plain).font(.title.bold())
                         .focused($headingFocused)
                         .onSubmit { vm.commitHeading(draft) }
                         .onExitCommand { vm.cancelEdit() }
@@ -69,7 +69,7 @@ struct NodeView: View, Equatable {
                         .onAppear { draft = node.text; headingFocused = true }
                 } else {
                     Text(node.text.isEmpty ? "Untitled" : node.text)
-                        .font(.title3.bold())
+                        .font(.title.bold())
                         .foregroundStyle(node.text.isEmpty ? .secondary : .primary)
                         .onTapGesture(count: 2) { vm.beginEdit(nodeID) }
                 }
@@ -77,14 +77,14 @@ struct NodeView: View, Equatable {
             if !node.collapsed {
                 if isEditingContent {
                     TextField("Note", text: $contentDraft, axis: .vertical)
-                        .textFieldStyle(.plain).font(.subheadline)
+                        .textFieldStyle(.plain).font(.title3)
                         .focused($contentFocused)
                         .onExitCommand { vm.cancelEdit() }
                         .onChange(of: contentFocused) { _, f in if !f { vm.commitContent(contentDraft) } }
                         .onAppear { contentDraft = node.content; contentFocused = true }
                 } else {
                     Text(node.content.isEmpty ? "Add note…" : node.content)
-                        .font(.subheadline)
+                        .font(.title3)
                         .foregroundStyle(node.content.isEmpty ? .tertiary : .secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .onTapGesture(count: 2) { vm.beginEditContent(nodeID) }
