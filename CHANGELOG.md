@@ -1,5 +1,94 @@
 # Changelog
 
+## Milestone 11 — Mindmap refinements: heading/content, collapse-to-heading, live edges, seed (2026-06-17, `v11.0.0`)
+
+### Added
+- **Node heading + optional note.** Each mindmap node now has a **heading** (the existing
+  label) and an **optional note** (free-text content). Double-click the heading to edit the
+  title; double-click the body ("Add note…") to edit the note. Both fields participate in
+  undo/redo and are persisted via the new `v11-mindmap-content` migration.
+- **`v11-mindmap-content` migration** — adds a `content` column (`TEXT NOT NULL DEFAULT ''`)
+  to `mindmap_nodes`; existing nodes upgrade in place with an empty note.
+
+### Changed
+- **Collapse now means collapse-to-heading.** Collapsing a node (Space / chevron) shows only
+  its heading, hiding the note, all attached paper chips, and the entire child subtree.
+  Expanding restores everything. The collapse chevron appears on any node that has something
+  to hide — children, a note, or attached papers (not just nodes with children).
+- **Connector lines follow node drags in real time.** The connectors Canvas reads the
+  dragging node's live center on every `.onChanged` tick and redraws edges to it — no lag,
+  no flicker. Edges snap clean on drag release.
+- **Tab-children spawn beside their parent.** New nodes (Tab / Return) appear at a sensible
+  position relative to their parent. The dominant fix is a fit-zoom cap at 1.0×: a
+  lone-root map previously zoomed to ~2.5×, which exaggerated the seed offset and made
+  children appear far away.
+
+## Milestone 10 — Mindmap free positioning + Tidy (2026-06-17, `v10.0.0`)
+
+### Changed
+- **Mindmap nodes are now freely draggable.** Every node — including the root — can be
+  dragged anywhere on the canvas; positions are persisted in the existing `x`/`y` columns
+  (no schema migration). One drag does double duty: drop on **empty space** to move, drop on
+  **another node** to re-parent (the node stays at the drop point).
+- **New nodes appear beside their parent** rather than at a default corner position.
+- **Maps open centered** (fit-on-load) so the tree is in view immediately.
+- **Tidy button** (wand icon in the canvas toolbar) re-runs the auto-layout algorithm on
+  demand to arrange the whole tree cleanly. `TreeLayout` is now invoked only by Tidy, not at
+  every render. Tidy is undoable via ⌘Z.
+
+## Milestone 9 — Mindmap redesigned as auto-layout tree (2026-06-17, `v9.0.0`)
+
+### Changed
+- **Mindmap is now an auto-layout tree.** The free-form canvas (drag-to-position nodes,
+  drag-a-dot edges) is replaced by a classic tidy left-to-right tree rooted at a single
+  **root** node per map. Layout is computed automatically — no manual positioning.
+- **Keyboard model**: **Tab** adds a child; **Return** adds a sibling; **↑ / ↓** navigate
+  between siblings; **←** goes to the parent; **→** goes to the first child; **Space**
+  collapses/expands a node and its subtree; **Delete** removes the selected node and subtree
+  (root protected); **⌘Z / ⌘⇧Z** undo/redo (restores deleted subtrees with attached papers).
+- **Drag-to-reparent**: drag any node onto another to move it in the tree; a dashed drop
+  indicator shows the target; dropping onto a descendant is rejected.
+- **CanvasToolbar & context menu** mirror every shortcut (Child / Sibling / Delete /
+  Collapse / Undo / Redo) for full mouse-only usability.
+
+### Fixed
+- **Node-drag flicker eliminated.** Layout positions are computed by `TreeLayout` at render
+  time and never persisted; a node drag commits a single structural reparent on release
+  (no per-frame model writes). Rendering is two-layer: a committed SwiftUI `Canvas` for
+  connectors and nodes, plus an interactive overlay for the drop indicator.
+
+### Added
+- **`TreeLayout`** (Core, unit-tested) — pure tidy left-to-right layout service; takes the
+  node tree and returns render positions without touching the database.
+- **`MindmapNodeSizing`** (Core, unit-tested) — estimates node label sizes for `TreeLayout`.
+- **`v10-mindmap-tree` migration** — adds `parent_id`, `sort_order`, and `collapsed` to
+  `mindmap_nodes`; tree structure lives in `parent_id`. `mindmap_edges` is now dormant.
+- **`MindmapStore` tree ops** — add/move/delete node, collapse, sibling reorder, and
+  id-stable snapshot/restore used by undo.
+
+## Milestone 8 — Mindmap view mode (2026-06-17, `v8.0.0`)
+
+### Added
+- **Mindmap** — a 4th library view mode beside Three-pane / Gallery / Rows. Build named
+  idea-graphs on a native SwiftUI infinite canvas with smooth pan and zoom; off-screen
+  nodes are culled for performance.
+- **Named maps** — create, rename, and delete maps via the map bar; each map has its own
+  canvas and its own pan/zoom viewport, persisted across relaunches.
+- **Text nodes + free-form edges** — double-click empty canvas to create a node; double-click
+  a node to edit its label; drag a node to reposition it. Drag from a node's trailing dot to
+  another node to connect them; hover an edge midpoint and click × to delete it.
+- **Searchable collapsible paper shelf** — a narrow shelf on the left edge lists your
+  library papers (filterable by title). Drag a shelf card onto a node to attach it, or onto
+  empty canvas to create a new node pre-attached. Click a paper chip on a node to open it in
+  the reader; click × on a chip to detach it. Deleting a paper from the main library removes
+  its chip from every node automatically (FK cascade).
+- **`v9-mindmap` migration** — adds tables `mindmaps`, `mindmap_nodes`, `mindmap_edges`,
+  `mindmap_node_papers` (all FK cascade) to the existing GRDB store.
+- **`MindmapStore`** (Core) — CRUD for maps/nodes/edges/attachments + `graph(forMap:)`;
+  shares the existing GRDB queue.
+- **`CanvasTransform`** (Core, unit-tested) — pure canvas↔screen coordinate math: pan/zoom
+  transform, hit-testing, and off-screen culling.
+
 ## Milestone 7 — In-window PDF reader (2026-06-15, `v7.0.0`)
 
 ### Changed

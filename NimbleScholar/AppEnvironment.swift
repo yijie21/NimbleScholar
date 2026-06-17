@@ -20,6 +20,7 @@ final class AppEnvironment: ObservableObject {
     static let shared = AppEnvironment()
 
     let store: LibraryStore
+    let mindmaps: MindmapStore
     let downloader: PDFDownloader
     let figures: ArxivFigureService
     /// URLSession used for ALL downloads (PDFs, figures, metadata). Routes through the
@@ -56,6 +57,7 @@ final class AppEnvironment: ObservableObject {
             resolvedStore = (try? LibraryStore.makeInMemory()) ?? { fatalError("in-memory store failed: \(error)") }()
         }
         self.store = resolvedStore
+        self.mindmaps = MindmapStore(library: resolvedStore)
         self.startupError = err
 
         let session = AppEnvironment.makeNetworkSession()

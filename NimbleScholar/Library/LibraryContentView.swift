@@ -13,13 +13,14 @@ import NimbleScholarCore
 }
 
 enum LibraryViewMode: String, CaseIterable, Identifiable {
-    case threePane, gallery, rows
+    case threePane, gallery, rows, mindmap
     var id: String { rawValue }
     var label: String {
         switch self {
         case .threePane: return "Three-pane"
         case .gallery: return "Gallery"
         case .rows: return "Rows"
+        case .mindmap: return "Mindmap"
         }
     }
     var symbol: String {
@@ -27,6 +28,7 @@ enum LibraryViewMode: String, CaseIterable, Identifiable {
         case .threePane: return "sidebar.right"
         case .gallery: return "square.grid.2x2"
         case .rows: return "list.bullet"
+        case .mindmap: return "brain"
         }
     }
 }
@@ -62,18 +64,26 @@ struct LibraryContentView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            if vm.readingPaperID != nil {
-                ReadingRail()
-                    .environmentObject(vm)
-                    .transition(.move(edge: .leading).combined(with: .opacity))
-                Divider()
+        // StatusBar is a dedicated bottom row (not a `.safeAreaInset`): the inset didn't
+        // reliably reserve space inside the detail column's scroll view, so the translucent
+        // bar overlapped the last paper row. As a real VStack row it always spans its own
+        // space, full width, without occluding content.
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                if vm.readingPaperID != nil {
+                    ReadingRail()
+                        .environmentObject(vm)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                    Divider()
+                }
+                splitView
             }
-            splitView
+            // No implicit animation here: animating the whole NavigationSplitView subtree is
+            // what made open/close laggy. Structural changes (rail/sidebar/list width) are now
+            // instant; only the detail-pane content swap fades, scoped locally in ThreePaneView.
+            Divider()
+            StatusBar()
         }
-        // No implicit animation here: animating the whole NavigationSplitView subtree is
-        // what made open/close laggy. Structural changes (rail/sidebar/list width) are now
-        // instant; only the detail-pane content swap fades, scoped locally in ThreePaneView.
     }
 
     @ViewBuilder private var splitView: some View {
@@ -92,7 +102,6 @@ struct LibraryContentView: View {
                     .background(Color.red)
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) { StatusBar() }
         .task { vm.reload() }
         .sheet(item: $vm.editingPaper) { PaperEditSheet(paper: $0).environmentObject(vm) }
     }
@@ -108,6 +117,7 @@ struct LibraryContentView: View {
                 case .threePane: ThreePaneView()
                 case .gallery: GalleryView()
                 case .rows: RowsView()
+                case .mindmap: MindmapView()
                 }
             }
         }

@@ -87,7 +87,8 @@ Save the page you're reading straight into Nimble Scholar.
 ## Organizing your library
 
 - **View modes** (toolbar segmented control): **Three-pane** (list + detail), **Gallery**
-  (figure grid), **Rows** (wide cards with inline editing). Your choice is remembered.
+  (figure grid), **Rows** (wide cards with inline editing), **Mindmap** (idea graph — see
+  below). Your choice is remembered.
 - **Sidebar**: **All papers**, **Unread**, **Recently added**, **Untagged**, and one entry per tag
   (with a colored dot + count). Right-click a tag to **Rename** or **Delete** it.
 - **Read / Unread**: new papers show a blue dot; opening a paper marks it read. Toggle via
@@ -110,6 +111,47 @@ Save the page you're reading straight into Nimble Scholar.
 
 Newly captured papers complete themselves automatically: the app fetches each missing
 figure and PDF in the background, so a paper goes spinner → ready on its own.
+
+### Mindmap
+
+The **Mindmap** view is a fourth mode for building named idea-trees alongside your library.
+
+- **Maps**: create as many named maps as you like; switch between them via the map bar at the
+  top of the view. Each map starts with a single **root** node and **opens centered** so the
+  tree is immediately in view.
+- **Free positioning**: every node — including the root — is **draggable anywhere** on the
+  canvas. Positions are saved automatically and persist across relaunches. **Connector lines
+  follow a dragged node in real time** — no lag or flicker; they snap clean on release.
+- **One drag, two actions**: drop a node onto **empty space** to move it there; drop a node
+  onto **another node** to re-parent it (the node stays at the drop point). Dropping onto a
+  descendant is rejected.
+- **Node content**: each node has a **heading** and an **optional note**. Double-click the
+  heading to edit the title; double-click the body ("Add note…") to edit the note. Return or
+  click away commits; Esc cancels. Both the heading and the note are included in undo/redo.
+- **Collapse / expand**: **Space** (or the chevron on the node) collapses a node —
+  **showing just the heading** and hiding its note, attached papers, and entire child subtree.
+  Expand (▾) shows everything again. The collapse chevron appears on any node that has
+  something to hide: children, a note, or attached papers.
+- **Building the tree**: select any node, then press **Tab** to add a child or **Return** to
+  add a sibling. New nodes appear **beside their parent** as a starting point. The new node
+  opens in edit mode immediately; press **Return** or **Esc** to finish editing.
+- **Navigating**: **↑ / ↓** move between siblings; **←** jumps to the parent; **→** jumps to
+  the first child. **Delete** removes the selected node and its entire subtree (the root is
+  protected).
+- **Undo / Redo**: **⌘Z / ⌘⇧Z** step back and forward through all structural changes,
+  including moves, reparents, tidy, content edits, and restoring deleted subtrees with their
+  attached papers.
+- **Tidy**: the **Tidy** button (wand icon) in the canvas toolbar re-runs the auto-layout
+  algorithm to arrange the whole tree cleanly on demand.
+- **Toolbar & context menu**: the **CanvasToolbar** (Child / Sibling / Delete / Collapse /
+  Tidy / Undo / Redo) and the node right-click context menu mirror every keyboard shortcut —
+  use whichever you prefer.
+- **Attaching papers**: a collapsible, searchable **paper shelf** sits on the left edge of the
+  canvas. Drag a card from the shelf onto a node to attach it. Each attached paper appears as
+  a chip on the node; click a chip to open that paper in the reader. Click × on a chip to
+  detach it. Deleting a paper from the main library removes its chip automatically (FK cascade).
+- **Pan / zoom**: drag the background to pan; pinch or use **+ / −** to zoom; the **Fit**
+  button (scope icon) frames the whole tree. The viewport is remembered across relaunches.
 
 **Bulk actions** (toolbar **⋯** menu): Download all PDFs · Load missing figures & PDFs ·
 Re-fetch all figures (force a fresh scrape, repairing any paper stuck on its PDF first page) ·
