@@ -31,21 +31,21 @@ struct MindmapCanvas: View {
             .focused($focused)
             .focusEffectDisabled()
             .onAppear { focused = true }
-            .onChange(of: vm.editingNodeID) { _, editing in if editing == nil { focused = true } }
+            .onChange(of: vm.editing) { _, editing in if editing == nil { focused = true } }
             .onChange(of: vm.activeMapID, initial: true) { _, _ in didFitMapID = nil; fitIfNeeded(geo.size) }
             .onChange(of: vm.layout) { _, _ in fitIfNeeded(geo.size) }
             .overlay(alignment: .bottomTrailing) { zoomControls(viewport: geo.size) }
             .background(keyShortcuts)
             .simultaneousGesture(magnifyGesture)
-            .onKeyPress(.tab) { guard vm.editingNodeID == nil else { return .ignored }; vm.addChildToSelected(); return .handled }
-            .onKeyPress(.return) { if vm.editingNodeID == nil { vm.addSiblingToSelected(); return .handled }; return .ignored }
-            .onKeyPress(.deleteForward) { guard vm.editingNodeID == nil else { return .ignored }; vm.deleteSelectedSubtree(); return .handled }
-            .onKeyPress(KeyEquivalent("\u{7f}")) { guard vm.editingNodeID == nil else { return .ignored }; vm.deleteSelectedSubtree(); return .handled }   // Backspace
-            .onKeyPress(.space) { guard vm.editingNodeID == nil else { return .ignored }; if let s = vm.selectedNodeID { vm.toggleCollapse(s) }; return .handled }
-            .onKeyPress(.upArrow) { guard vm.editingNodeID == nil else { return .ignored }; vm.navigate(.up); return .handled }
-            .onKeyPress(.downArrow) { guard vm.editingNodeID == nil else { return .ignored }; vm.navigate(.down); return .handled }
-            .onKeyPress(.leftArrow) { guard vm.editingNodeID == nil else { return .ignored }; vm.navigate(.left); return .handled }
-            .onKeyPress(.rightArrow) { guard vm.editingNodeID == nil else { return .ignored }; vm.navigate(.right); return .handled }
+            .onKeyPress(.tab) { guard vm.editing == nil else { return .ignored }; vm.addChildToSelected(); return .handled }
+            .onKeyPress(.return) { if vm.editing == nil { vm.addSiblingToSelected(); return .handled }; return .ignored }
+            .onKeyPress(.deleteForward) { guard vm.editing == nil else { return .ignored }; vm.deleteSelectedSubtree(); return .handled }
+            .onKeyPress(KeyEquivalent("\u{7f}")) { guard vm.editing == nil else { return .ignored }; vm.deleteSelectedSubtree(); return .handled }   // Backspace
+            .onKeyPress(.space) { guard vm.editing == nil else { return .ignored }; if let s = vm.selectedNodeID { vm.toggleCollapse(s) }; return .handled }
+            .onKeyPress(.upArrow) { guard vm.editing == nil else { return .ignored }; vm.navigate(.up); return .handled }
+            .onKeyPress(.downArrow) { guard vm.editing == nil else { return .ignored }; vm.navigate(.down); return .handled }
+            .onKeyPress(.leftArrow) { guard vm.editing == nil else { return .ignored }; vm.navigate(.left); return .handled }
+            .onKeyPress(.rightArrow) { guard vm.editing == nil else { return .ignored }; vm.navigate(.right); return .handled }
         }
     }
 
@@ -93,9 +93,13 @@ struct MindmapCanvas: View {
 
     private var connectors: some View {
         Canvas { ctx, _ in
+            func pos(_ id: Int64) -> CGPoint? {
+                if let d = dragInfo, d.nodeID == id { return d.center }   // dragged node: live position
+                return vm.layout[id]
+            }
             for n in vm.tree.nodes {
                 guard let nid = n.id, let pid = n.parentID,
-                      let cc = vm.layout[nid], let pc = vm.layout[pid] else { continue }
+                      let cc = pos(nid), let pc = pos(pid) else { continue }
                 let p1 = vm.transform.screen(from: pc)
                 let p2 = vm.transform.screen(from: cc)
                 var path = Path()
@@ -120,9 +124,9 @@ struct MindmapCanvas: View {
             NodeView(node: n,
                      size: vm.sizes[nid] ?? CGSize(width: 200, height: 40),
                      selected: vm.selectedNodeID == nid,
-                     editing: vm.editingNodeID == nid,
+                     editingField: vm.editing?.nodeID == nid ? vm.editing?.field : nil,
                      paperIDs: vm.tree.paperIDsByNode[nid] ?? [],
-                     hasChildren: !vm.tree.children(of: nid).isEmpty,
+                     canCollapse: vm.canCollapse(nid),
                      dragInfo: $dragInfo,
                      coordSpace: coordSpace)
                 .equatable()
@@ -135,7 +139,7 @@ struct MindmapCanvas: View {
     // MARK: Interactive overlay — drop indicator
 
     @ViewBuilder private var dropIndicator: some View {
-        if let info = dragInfo, let target = vm.dropTarget(forDragged: info.nodeID, at: info.canvasPoint),
+        if let info = dragInfo, let target = info.target,
            let c = vm.layout[target.parentID], let sz = vm.sizes[target.parentID] {
             let screen = vm.transform.screen(from: c)
             RoundedRectangle(cornerRadius: 10)
