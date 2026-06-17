@@ -80,4 +80,37 @@ public final class MindmapStore: @unchecked Sendable {
     public func deleteNode(id: Int64) throws {
         _ = try dbQueue.write { try MindmapNode.deleteOne($0, key: id) }
     }
+
+    // MARK: - Edges
+
+    public func edges(forMap mapID: Int64) throws -> [MindmapEdge] {
+        try dbQueue.read {
+            try MindmapEdge.filter(sql: "mindmap_id = ?", arguments: [mapID])
+                .order(sql: "id ASC").fetchAll($0)
+        }
+    }
+
+    /// Connect two nodes. Returns nil (no-op) for a self-loop or a duplicate
+    /// (treated as undirected: A–B == B–A).
+    @discardableResult
+    public func addEdge(mapID: Int64, from: Int64, to: Int64) throws -> MindmapEdge? {
+        guard from != to else { return nil }
+        return try dbQueue.write { db -> MindmapEdge? in
+            let exists = try Bool.fetchOne(db, sql: """
+                SELECT EXISTS(
+                    SELECT 1 FROM mindmap_edges
+                    WHERE mindmap_id = ?
+                      AND ((from_node_id = ? AND to_node_id = ?)
+                        OR (from_node_id = ? AND to_node_id = ?)))
+                """, arguments: [mapID, from, to, to, from]) ?? false
+            if exists { return nil }
+            var e = MindmapEdge(mindmapID: mapID, fromNodeID: from, toNodeID: to)
+            try e.insert(db)
+            return e
+        }
+    }
+
+    public func deleteEdge(id: Int64) throws {
+        _ = try dbQueue.write { try MindmapEdge.deleteOne($0, key: id) }
+    }
 }

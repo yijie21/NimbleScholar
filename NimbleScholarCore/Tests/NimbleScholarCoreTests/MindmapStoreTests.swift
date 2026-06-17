@@ -45,4 +45,31 @@ final class MindmapStoreTests: XCTestCase {
         try store.deleteNode(id: n.id!)
         XCTAssertEqual(try store.nodes(forMap: m.id!).count, 0)
     }
+
+    func testEdgesDedupeAndSelfLoop() throws {
+        let (_, store) = try makeStores()
+        let m = try store.createMindmap(name: "M")
+        let a = try store.createNode(mapID: m.id!, text: "A", x: 0, y: 0)
+        let b = try store.createNode(mapID: m.id!, text: "B", x: 1, y: 1)
+
+        XCTAssertNil(try store.addEdge(mapID: m.id!, from: a.id!, to: a.id!))   // self-loop rejected
+        let e = try store.addEdge(mapID: m.id!, from: a.id!, to: b.id!)
+        XCTAssertNotNil(e)
+        XCTAssertNil(try store.addEdge(mapID: m.id!, from: a.id!, to: b.id!))   // duplicate
+        XCTAssertNil(try store.addEdge(mapID: m.id!, from: b.id!, to: a.id!))   // duplicate (undirected)
+        XCTAssertEqual(try store.edges(forMap: m.id!).count, 1)
+
+        try store.deleteEdge(id: e!.id!)
+        XCTAssertEqual(try store.edges(forMap: m.id!).count, 0)
+    }
+
+    func testDeletingNodeRemovesItsEdges() throws {
+        let (_, store) = try makeStores()
+        let m = try store.createMindmap(name: "M")
+        let a = try store.createNode(mapID: m.id!, text: "A", x: 0, y: 0)
+        let b = try store.createNode(mapID: m.id!, text: "B", x: 1, y: 1)
+        _ = try store.addEdge(mapID: m.id!, from: a.id!, to: b.id!)
+        try store.deleteNode(id: a.id!)
+        XCTAssertEqual(try store.edges(forMap: m.id!).count, 0)   // cascade
+    }
 }
