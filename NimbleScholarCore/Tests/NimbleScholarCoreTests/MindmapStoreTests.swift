@@ -120,4 +120,27 @@ final class MindmapStoreTests: XCTestCase {
         XCTAssertEqual(try store.edges(forMap: m.id!).count, 0)
         XCTAssertEqual(try lib.allPapers().count, 1)         // the paper itself survives
     }
+
+    func testNodeTreeColumnsRoundTrip() throws {
+        let (_, store) = try makeStores()
+        let m = try store.createMindmap(name: "M")
+        var n = MindmapNode(mindmapID: m.id!, text: "child")
+        n.parentID = nil; n.sortOrder = 3; n.collapsed = true
+        try store.dbQueue.write { try n.insert($0) }
+        let back = try store.dbQueue.read { try MindmapNode.fetchOne($0, key: n.id!) }
+        XCTAssertEqual(back?.sortOrder, 3)
+        XCTAssertEqual(back?.collapsed, true)
+        XCTAssertNil(back?.parentID)
+    }
+
+    func testMindmapTreeHelpers() {
+        var root = MindmapNode(mindmapID: 1, text: "root"); root.id = 1; root.parentID = nil
+        var a = MindmapNode(mindmapID: 1, text: "a"); a.id = 2; a.parentID = 1; a.sortOrder = 1
+        var b = MindmapNode(mindmapID: 1, text: "b"); b.id = 3; b.parentID = 1; b.sortOrder = 0; b.collapsed = true
+        let tree = MindmapTree(nodes: [root, a, b], paperIDsByNode: [2: [9]])
+        XCTAssertEqual(tree.rootID, 1)
+        XCTAssertEqual(tree.children(of: 1).map { $0.id }, [3, 2])     // sorted by sort_order
+        XCTAssertEqual(tree.childIDsByParent[1], [3, 2])
+        XCTAssertEqual(tree.collapsedSet, [3])
+    }
 }

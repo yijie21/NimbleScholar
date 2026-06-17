@@ -148,6 +148,13 @@ public final class LibraryStore: @unchecked Sendable {
                 t.primaryKey(["node_id", "paper_id"])
             }
         }
+        m.registerMigration("v10-mindmap-tree") { db in
+            try db.alter(table: "mindmap_nodes") { t in
+                t.add(column: "parent_id", .integer).references("mindmap_nodes", onDelete: .cascade)
+                t.add(column: "sort_order", .integer).notNull().defaults(to: 0)
+                t.add(column: "collapsed", .integer).notNull().defaults(to: 0)
+            }
+        }
         return m
     }
 
