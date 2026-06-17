@@ -2,6 +2,9 @@ import SwiftUI
 import CoreGraphics
 import NimbleScholarCore
 
+enum NodeField: Equatable { case heading, content }
+struct NodeEdit: Equatable { var nodeID: Int64; var field: NodeField }
+
 enum MoveDirection { case up, down, left, right }
 
 /// Drives the auto-layout tree mindmap: maps, the active map's tree, computed layout, selection,
@@ -15,15 +18,15 @@ final class MindmapViewModel: ObservableObject {
     @Published var layout: [Int64: CGPoint] = [:]
     @Published var sizes: [Int64: CGSize] = [:]
     @Published var selectedNodeID: Int64?
-    @Published var editingNodeID: Int64?
+    @Published var editing: NodeEdit?
     @Published var transform = CanvasTransform()
 
     struct DropTarget: Equatable { var parentID: Int64; var index: Int }
 
     private let store = AppEnvironment.shared.mindmaps
     private let activeKey = "activeMindmapID"
-    private let seedGapX: CGFloat = 220   // place a child this far right of its parent (node width + gap)
-    private let seedGapY: CGFloat = 70    // vertical spacing between seeded siblings
+    private let seedGapX: CGFloat = 210   // place a child just right of its parent (≈10px gap at 200px width)
+    private let seedGapY: CGFloat = 60    // vertical spacing between seeded siblings
     private var undoStack: [MapSnapshot] = []
     private var redoStack: [MapSnapshot] = []
 
@@ -98,7 +101,8 @@ final class MindmapViewModel: ObservableObject {
         var sz: [Int64: CGSize] = [:]
         for n in tree.nodes {
             guard let nid = n.id else { continue }
-            sz[nid] = MindmapNodeSizing.size(text: n.text, chipCount: tree.paperIDsByNode[nid]?.count ?? 0)
+            sz[nid] = MindmapNodeSizing.size(heading: n.text, content: n.content,
+                                             chipCount: tree.paperIDsByNode[nid]?.count ?? 0, collapsed: n.collapsed)
         }
         sizes = sz
         layout = Dictionary(uniqueKeysWithValues:
@@ -124,7 +128,7 @@ final class MindmapViewModel: ObservableObject {
         guard let n = try? store.addChild(parentID: parentID, text: ""), let nid = n.id else { return }
         let seed = seedChildPosition(parentID: parentID, siblingIndex: index)
         try? store.moveNode(id: nid, x: Double(seed.x), y: Double(seed.y))
-        reloadTree(); selectedNodeID = nid; editingNodeID = nid
+        reloadTree(); selectedNodeID = nid; editing = NodeEdit(nodeID: nid, field: .heading)
     }
     func addChildToSelected() { if let s = selectedNodeID { addChild(to: s) } }
 
@@ -134,7 +138,7 @@ final class MindmapViewModel: ObservableObject {
         guard let n = try? store.addSibling(of: nodeID, text: ""), let nid = n.id else { return }
         let ref = layout[nodeID] ?? .zero
         try? store.moveNode(id: nid, x: Double(ref.x), y: Double(ref.y + seedGapY))
-        reloadTree(); selectedNodeID = nid; editingNodeID = nid
+        reloadTree(); selectedNodeID = nid; editing = NodeEdit(nodeID: nid, field: .heading)
     }
     func addSiblingToSelected() { if let s = selectedNodeID { addSibling(of: s) } }
 
@@ -176,7 +180,8 @@ final class MindmapViewModel: ObservableObject {
         var sz: [Int64: CGSize] = [:]
         for n in tree.nodes {
             guard let nid = n.id else { continue }
-            sz[nid] = MindmapNodeSizing.size(text: n.text, chipCount: tree.paperIDsByNode[nid]?.count ?? 0)
+            sz[nid] = MindmapNodeSizing.size(heading: n.text, content: n.content,
+                                             chipCount: tree.paperIDsByNode[nid]?.count ?? 0, collapsed: n.collapsed)
         }
         let positions = TreeLayout.positions(rootID: root, childrenByParent: tree.childIDsByParent,
                                              collapsed: tree.collapsedSet, sizeOf: sz)
@@ -196,14 +201,28 @@ final class MindmapViewModel: ObservableObject {
 
     // MARK: Text edit
 
-    func beginEdit(_ nodeID: Int64) { selectedNodeID = nodeID; editingNodeID = nodeID }
-    func commitEdit(_ text: String) {
-        guard let id = editingNodeID else { return }
-        editingNodeID = nil
-        pushUndo(); try? store.updateNodeText(id: id, text: text.trimmingCharacters(in: .whitespacesAndNewlines))
+    func beginEdit(_ nodeID: Int64) { selectedNodeID = nodeID; editing = NodeEdit(nodeID: nodeID, field: .heading) }
+    func beginEditContent(_ nodeID: Int64) { selectedNodeID = nodeID; editing = NodeEdit(nodeID: nodeID, field: .content) }
+    func commitHeading(_ text: String) {
+        guard let e = editing, e.field == .heading else { return }
+        editing = nil
+        pushUndo(); try? store.updateNodeText(id: e.nodeID, text: text.trimmingCharacters(in: .whitespacesAndNewlines))
         reloadTree()
     }
-    func cancelEdit() { editingNodeID = nil }
+    func commitContent(_ text: String) {
+        guard let e = editing, e.field == .content else { return }
+        editing = nil
+        pushUndo(); try? store.updateNodeContent(id: e.nodeID, content: text.trimmingCharacters(in: .whitespacesAndNewlines))
+        reloadTree()
+    }
+    func cancelEdit() { editing = nil }
+
+    /// A node can collapse when it has anything to hide: children, content, or attached papers.
+    func canCollapse(_ id: Int64) -> Bool {
+        if tree.nodes.contains(where: { $0.parentID == id }) { return true }
+        if let n = tree.nodes.first(where: { $0.id == id }), !n.content.isEmpty { return true }
+        return !(tree.paperIDsByNode[id]?.isEmpty ?? true)
+    }
 
     // MARK: Selection / navigation
 
@@ -293,8 +312,8 @@ final class MindmapViewModel: ObservableObject {
         }
         let contentW = max(1, maxX - minX), contentH = max(1, maxY - minY)
         let margin: CGFloat = 40
-        let zoom = CanvasTransform.clampZoom(min((viewport.width - margin) / contentW,
-                                                 (viewport.height - margin) / contentH))
+        let fitScale = min((viewport.width - margin) / contentW, (viewport.height - margin) / contentH)
+        let zoom = CanvasTransform.clampZoom(min(1.0, fitScale))
         let centerX = (minX + maxX) / 2, centerY = (minY + maxY) / 2
         let pan = CGSize(width: viewport.width / 2 - centerX * zoom,
                          height: viewport.height / 2 - centerY * zoom)
