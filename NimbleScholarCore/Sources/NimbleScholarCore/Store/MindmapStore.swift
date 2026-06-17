@@ -270,4 +270,45 @@ public final class MindmapStore: @unchecked Sendable {
             return MindmapGraph(nodes: nodes, edges: edges, paperIDsByNode: byNode)
         }
     }
+
+    // MARK: - Undo snapshot/restore (id-stable)
+
+    public func snapshot(mapID: Int64) throws -> MapSnapshot {
+        try dbQueue.read { db in
+            let nodes = try MindmapNode.filter(sql: "mindmap_id = ?", arguments: [mapID])
+                .order(sql: "id ASC").fetchAll(db)
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT np.node_id AS nid, np.paper_id AS pid
+                FROM mindmap_node_papers np
+                JOIN mindmap_nodes n ON n.id = np.node_id
+                WHERE n.mindmap_id = ?
+                """, arguments: [mapID])
+            let links = rows.map { NodePaperLink(nodeID: $0["nid"], paperID: $0["pid"]) }
+            return MapSnapshot(nodes: nodes, paperLinks: links)
+        }
+    }
+
+    /// Replace the map's nodes+links with the snapshot, preserving node ids (so selection and
+    /// attachments survive an undo). Two-pass insert (parent_id set in a second pass) avoids
+    /// self-FK ordering issues; paper links for papers deleted since the snapshot are skipped.
+    public func restore(mapID: Int64, _ snapshot: MapSnapshot) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM mindmap_nodes WHERE mindmap_id = ?", arguments: [mapID])
+            for n in snapshot.nodes {
+                try db.execute(sql: """
+                    INSERT INTO mindmap_nodes (id, mindmap_id, text, x, y, parent_id, sort_order, collapsed, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
+                    """, arguments: [n.id, mapID, n.text, n.x, n.y, n.sortOrder, n.collapsed ? 1 : 0, n.createdAt, n.updatedAt])
+            }
+            for n in snapshot.nodes where n.parentID != nil {
+                try db.execute(sql: "UPDATE mindmap_nodes SET parent_id = ? WHERE id = ?", arguments: [n.parentID, n.id])
+            }
+            for l in snapshot.paperLinks {
+                let paperExists = try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM papers WHERE id = ?)", arguments: [l.paperID]) ?? false
+                if paperExists {
+                    try db.execute(sql: "INSERT OR IGNORE INTO mindmap_node_papers (node_id, paper_id) VALUES (?, ?)", arguments: [l.nodeID, l.paperID])
+                }
+            }
+        }
+    }
 }

@@ -196,4 +196,28 @@ final class MindmapStoreTests: XCTestCase {
         XCTAssertEqual(tree.children(of: a.id!).map { $0.text }, ["B"])
         _ = c
     }
+
+    func testSnapshotRestorePreservesIdsAndLinks() throws {
+        let (lib, store) = try makeStores()
+        let p = try lib.create(Paper(title: "P"))
+        let m = try store.createMindmap(name: "M")
+        let root = try store.ensureRoot(mapID: m.id!, title: "M")
+        let a = try store.addChild(parentID: root.id!, text: "A")
+        try store.attachPaper(nodeID: a.id!, paperID: p.id!)
+
+        let snap = try store.snapshot(mapID: m.id!)
+
+        // mutate: add a node, delete A
+        _ = try store.addChild(parentID: root.id!, text: "B")
+        try store.deleteNode(id: a.id!)
+        XCTAssertEqual(try store.tree(forMap: m.id!).nodes.map { $0.text }.sorted(), ["B", "M"])
+
+        // restore brings A (same id) + its paper link back, drops B
+        try store.restore(mapID: m.id!, snap)
+        let tree = try store.tree(forMap: m.id!)
+        XCTAssertEqual(tree.nodes.map { $0.text }.sorted(), ["A", "M"])
+        let aBack = tree.nodes.first { $0.text == "A" }!
+        XCTAssertEqual(aBack.id, a.id)                              // id preserved
+        XCTAssertEqual(try store.paperIDs(forNode: aBack.id!), [p.id!])   // link preserved
+    }
 }
