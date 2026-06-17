@@ -93,13 +93,15 @@ struct MindmapCanvas: View {
 
     private var connectors: some View {
         Canvas { ctx, _ in
-            func pos(_ id: Int64) -> CGPoint? {
-                if let d = dragInfo, d.nodeID == id { return d.center }   // dragged node: live position
-                return vm.layout[id]
-            }
+            // Capture main-actor state into locals (a nested func wouldn't inherit @MainActor).
+            // The dragged node uses its live center so its edges follow the drag.
+            let drag = dragInfo
+            let layout = vm.layout
             for n in vm.tree.nodes {
-                guard let nid = n.id, let pid = n.parentID,
-                      let cc = pos(nid), let pc = pos(pid) else { continue }
+                guard let nid = n.id, let pid = n.parentID else { continue }
+                let cc = (drag?.nodeID == nid) ? drag?.center : layout[nid]
+                let pc = (drag?.nodeID == pid) ? drag?.center : layout[pid]
+                guard let cc, let pc else { continue }
                 let p1 = vm.transform.screen(from: pc)
                 let p2 = vm.transform.screen(from: cc)
                 var path = Path()
