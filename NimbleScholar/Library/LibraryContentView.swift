@@ -13,13 +13,14 @@ import NimbleScholarCore
 }
 
 enum LibraryViewMode: String, CaseIterable, Identifiable {
-    case threePane, gallery, rows
+    case threePane, gallery, rows, mindmap
     var id: String { rawValue }
     var label: String {
         switch self {
         case .threePane: return "Three-pane"
         case .gallery: return "Gallery"
         case .rows: return "Rows"
+        case .mindmap: return "Mindmap"
         }
     }
     var symbol: String {
@@ -27,6 +28,7 @@ enum LibraryViewMode: String, CaseIterable, Identifiable {
         case .threePane: return "sidebar.right"
         case .gallery: return "square.grid.2x2"
         case .rows: return "list.bullet"
+        case .mindmap: return "brain"
         }
     }
 }
@@ -108,6 +110,7 @@ struct LibraryContentView: View {
                 case .threePane: ThreePaneView()
                 case .gallery: GalleryView()
                 case .rows: RowsView()
+                case .mindmap: MindmapView()
                 }
             }
         }
