@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 import GRDB
 
 /// Mindmap persistence. Shares `LibraryStore`'s `DatabaseQueue` (so the `v9-mindmap`
@@ -185,6 +186,18 @@ public final class MindmapStore: @unchecked Sendable {
         try dbQueue.write { db in
             try db.execute(sql: "UPDATE mindmap_nodes SET collapsed = ?, updated_at = ? WHERE id = ?",
                            arguments: [collapsed ? 1 : 0, now(), nodeID])
+        }
+    }
+
+    /// Write x/y for many nodes in one transaction (used by Tidy). Only nodes belonging to
+    /// `mapID` are touched.
+    public func setPositions(mapID: Int64, positions: [Int64: CGPoint]) throws {
+        let ts = now()
+        try dbQueue.write { db in
+            for (id, p) in positions {
+                try db.execute(sql: "UPDATE mindmap_nodes SET x = ?, y = ?, updated_at = ? WHERE id = ? AND mindmap_id = ?",
+                               arguments: [Double(p.x), Double(p.y), ts, id, mapID])
+            }
         }
     }
 

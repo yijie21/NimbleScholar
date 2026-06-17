@@ -1,4 +1,5 @@
 import XCTest
+import CoreGraphics
 import GRDB
 @testable import NimbleScholarCore
 
@@ -237,5 +238,29 @@ final class MindmapStoreTests: XCTestCase {
         let aBack = tree.nodes.first { $0.text == "A" }!
         XCTAssertEqual(aBack.id, a.id)                              // id preserved
         XCTAssertEqual(try store.paperIDs(forNode: aBack.id!), [p.id!])   // link preserved
+    }
+
+    func testMoveNodeAndSetPositions() throws {
+        let (_, store) = try makeStores()
+        let m = try store.createMindmap(name: "M")
+        let root = try store.ensureRoot(mapID: m.id!, title: "M")
+        let a = try store.addChild(parentID: root.id!, text: "A")
+        let b = try store.addChild(parentID: root.id!, text: "B")
+
+        try store.moveNode(id: a.id!, x: 12.5, y: -7.5)
+        let aMoved = try store.tree(forMap: m.id!).nodes.first { $0.id == a.id! }!
+        XCTAssertEqual(aMoved.x, 12.5, accuracy: 0.0001)
+        XCTAssertEqual(aMoved.y, -7.5, accuracy: 0.0001)
+
+        try store.setPositions(mapID: m.id!, positions: [root.id!: CGPoint(x: 1, y: 2),
+                                                         b.id!: CGPoint(x: 3, y: 4)])
+        let tree = try store.tree(forMap: m.id!)
+        let r = tree.nodes.first { $0.id == root.id! }!
+        let bb = tree.nodes.first { $0.id == b.id! }!
+        XCTAssertEqual(r.x, 1, accuracy: 0.0001); XCTAssertEqual(r.y, 2, accuracy: 0.0001)
+        XCTAssertEqual(bb.x, 3, accuracy: 0.0001); XCTAssertEqual(bb.y, 4, accuracy: 0.0001)
+        // a was not in the setPositions map → unchanged
+        let aa = tree.nodes.first { $0.id == a.id! }!
+        XCTAssertEqual(aa.x, 12.5, accuracy: 0.0001)
     }
 }
