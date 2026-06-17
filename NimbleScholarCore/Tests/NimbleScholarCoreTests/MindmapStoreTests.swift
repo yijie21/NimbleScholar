@@ -197,6 +197,24 @@ final class MindmapStoreTests: XCTestCase {
         _ = c
     }
 
+    func testEnsureRootAdoptsOrphanNodes() throws {
+        let (_, store) = try makeStores()
+        let m = try store.createMindmap(name: "M")
+        // simulate a v9 map upgraded to v10: three free-form nodes, all parent_id NULL
+        func insertOrphan(_ text: String) throws -> Int64 {
+            var n = MindmapNode(mindmapID: m.id!, text: text)
+            n.parentID = nil; n.sortOrder = 0
+            try store.dbQueue.write { try n.insert($0) }
+            return n.id!
+        }
+        let a = try insertOrphan("A"); _ = try insertOrphan("B"); _ = try insertOrphan("C")
+        let root = try store.ensureRoot(mapID: m.id!, title: "M")
+        XCTAssertEqual(root.id, a)                                   // first (lowest id) becomes root
+        let tree = try store.tree(forMap: m.id!)
+        XCTAssertEqual(tree.nodes.filter { $0.parentID == nil }.count, 1)   // exactly one root now
+        XCTAssertEqual(Set(tree.children(of: root.id!).map { $0.text }), ["B", "C"])  // others adopted
+    }
+
     func testSnapshotRestorePreservesIdsAndLinks() throws {
         let (lib, store) = try makeStores()
         let p = try lib.create(Paper(title: "P"))

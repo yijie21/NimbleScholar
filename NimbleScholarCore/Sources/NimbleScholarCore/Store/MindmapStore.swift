@@ -83,13 +83,27 @@ public final class MindmapStore: @unchecked Sendable {
 
     // MARK: - Tree
 
-    /// The map's root (parent_id NULL), creating it if absent.
+    /// The map's root (parent_id NULL), creating it if absent. If multiple null-parent nodes
+    /// exist (e.g. a map migrated from the old free-form layout), the first becomes the root and
+    /// the rest are adopted under it so no nodes are orphaned/hidden.
     @discardableResult
     public func ensureRoot(mapID: Int64, title: String) throws -> MindmapNode {
         try dbQueue.write { db in
-            if let root = try MindmapNode
+            let roots = try MindmapNode
                 .filter(sql: "mindmap_id = ? AND parent_id IS NULL", arguments: [mapID])
-                .order(sql: "sort_order ASC, id ASC").fetchOne(db) { return root }
+                .order(sql: "sort_order ASC, id ASC").fetchAll(db)
+            if let root = roots.first {
+                if roots.count > 1, let rootID = root.id {
+                    let maxOrder = try Int.fetchOne(db, sql: "SELECT COALESCE(MAX(sort_order), -1) FROM mindmap_nodes WHERE parent_id = ?", arguments: [rootID]) ?? -1
+                    var order = maxOrder + 1
+                    for orphan in roots.dropFirst() {
+                        try db.execute(sql: "UPDATE mindmap_nodes SET parent_id = ?, sort_order = ?, updated_at = ? WHERE id = ?",
+                                       arguments: [rootID, order, now(), orphan.id])
+                        order += 1
+                    }
+                }
+                return root
+            }
             var n = MindmapNode(mindmapID: mapID, text: title)
             n.parentID = nil; n.sortOrder = 0
             let ts = now(); n.createdAt = ts; n.updatedAt = ts

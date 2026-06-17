@@ -34,15 +34,15 @@ struct MindmapCanvas: View {
             .overlay(alignment: .bottomTrailing) { zoomControls(viewport: geo.size) }
             .background(keyShortcuts)
             .simultaneousGesture(magnifyGesture)
-            .onKeyPress(.tab) { vm.addChildToSelected(); return .handled }
+            .onKeyPress(.tab) { guard vm.editingNodeID == nil else { return .ignored }; vm.addChildToSelected(); return .handled }
             .onKeyPress(.return) { if vm.editingNodeID == nil { vm.addSiblingToSelected(); return .handled }; return .ignored }
-            .onKeyPress(.deleteForward) { vm.deleteSelectedSubtree(); return .handled }
-            .onKeyPress(KeyEquivalent("\u{7f}")) { vm.deleteSelectedSubtree(); return .handled }   // Backspace
-            .onKeyPress(.space) { if let s = vm.selectedNodeID { vm.toggleCollapse(s) }; return .handled }
-            .onKeyPress(.upArrow) { vm.navigate(.up); return .handled }
-            .onKeyPress(.downArrow) { vm.navigate(.down); return .handled }
-            .onKeyPress(.leftArrow) { vm.navigate(.left); return .handled }
-            .onKeyPress(.rightArrow) { vm.navigate(.right); return .handled }
+            .onKeyPress(.deleteForward) { guard vm.editingNodeID == nil else { return .ignored }; vm.deleteSelectedSubtree(); return .handled }
+            .onKeyPress(KeyEquivalent("\u{7f}")) { guard vm.editingNodeID == nil else { return .ignored }; vm.deleteSelectedSubtree(); return .handled }   // Backspace
+            .onKeyPress(.space) { guard vm.editingNodeID == nil else { return .ignored }; if let s = vm.selectedNodeID { vm.toggleCollapse(s) }; return .handled }
+            .onKeyPress(.upArrow) { guard vm.editingNodeID == nil else { return .ignored }; vm.navigate(.up); return .handled }
+            .onKeyPress(.downArrow) { guard vm.editingNodeID == nil else { return .ignored }; vm.navigate(.down); return .handled }
+            .onKeyPress(.leftArrow) { guard vm.editingNodeID == nil else { return .ignored }; vm.navigate(.left); return .handled }
+            .onKeyPress(.rightArrow) { guard vm.editingNodeID == nil else { return .ignored }; vm.navigate(.right); return .handled }
         }
     }
 
