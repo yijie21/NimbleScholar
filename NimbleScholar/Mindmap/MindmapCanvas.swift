@@ -43,7 +43,7 @@ struct MindmapCanvas: View {
         Color(nsColor: .textBackgroundColor)
             .contentShape(Rectangle())
             .gesture(panGesture)
-            .gesture(
+            .simultaneousGesture(
                 SpatialTapGesture(count: 2)
                     .onEnded { e in vm.addNode(at: vm.transform.canvas(from: e.location)) }
             )
