@@ -25,8 +25,10 @@ final class MindmapViewModel: ObservableObject {
 
     private let store = AppEnvironment.shared.mindmaps
     private let activeKey = "activeMindmapID"
-    private let seedGapX: CGFloat = 300   // child center 300px right of parent → ~100px gap (half a 200px node)
-    private let seedGapY: CGFloat = 100   // vertical spacing between seeded siblings (~half a node width)
+    // Derived from the node width so the gap stays exactly half a node: a child's center is
+    // 1.5·width right of its parent → (1.5−1)·width = ½-width gap between their edges.
+    private var seedGapX: CGFloat { MindmapNodeSizing.width * 1.5 }
+    private var seedGapY: CGFloat { MindmapNodeSizing.width * 0.5 }   // vertical sibling spacing (~½ node width)
     private var undoStack: [MapSnapshot] = []
     private var redoStack: [MapSnapshot] = []
 
@@ -312,7 +314,7 @@ final class MindmapViewModel: ObservableObject {
         }
         let contentW = max(1, maxX - minX), contentH = max(1, maxY - minY)
         let margin: CGFloat = 40
-        let rootAnchorX: CGFloat = 0.42   // near-center, a little to the left
+        let rootAnchorX: CGFloat = 0.30   // left of center, leaving room for the right-growing tree
         // Fit the tree into the width to the right of the anchor and the full height.
         let fitScale = min((viewport.width * (1 - rootAnchorX) - margin) / contentW,
                            (viewport.height - margin) / contentH)

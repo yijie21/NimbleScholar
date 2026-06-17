@@ -3,11 +3,11 @@ import CoreGraphics
 /// Pure node-size estimate for the tree layout (real text measurement is a later refinement).
 /// Fixed width. Collapsed → heading height only; expanded → heading + content lines + chips.
 public enum MindmapNodeSizing {
-    public static let width: CGFloat = 200
-    private static let charsPerLine = 22
-    private static let lineHeight: CGFloat = 18
-    private static let verticalPadding: CGFloat = 18
-    private static let chipHeight: CGFloat = 22
+    public static let width: CGFloat = 260
+    private static let charsPerLine = 20
+    private static let lineHeight: CGFloat = 24
+    private static let verticalPadding: CGFloat = 20
+    private static let chipHeight: CGFloat = 28
 
     private static func lines(_ s: String) -> Int {
         max(1, Int((Double(s.count) / Double(charsPerLine)).rounded(.up)))

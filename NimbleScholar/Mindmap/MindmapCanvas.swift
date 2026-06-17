@@ -97,6 +97,7 @@ struct MindmapCanvas: View {
             // The dragged node uses its live center so its edges follow the drag.
             let drag = dragInfo
             let layout = vm.layout
+            let zoom = vm.transform.zoom
             for n in vm.tree.nodes {
                 guard let nid = n.id, let pid = n.parentID else { continue }
                 let cc = (drag?.nodeID == nid) ? drag?.center : layout[nid]
@@ -108,7 +109,7 @@ struct MindmapCanvas: View {
                 path.move(to: p1)
                 let midX = (p1.x + p2.x) / 2
                 path.addCurve(to: p2, control1: CGPoint(x: midX, y: p1.y), control2: CGPoint(x: midX, y: p2.y))
-                ctx.stroke(path, with: .color(.secondary.opacity(0.7)), lineWidth: 1.5)
+                ctx.stroke(path, with: .color(.secondary.opacity(0.7)), lineWidth: 1.5 * zoom)
             }
         }
         .allowsHitTesting(false)
@@ -135,6 +136,7 @@ struct MindmapCanvas: View {
                 .equatable()
                 .environmentObject(vm)
                 .environmentObject(libraryVM)
+                .scaleEffect(vm.transform.zoom)   // true zoom: the node + its content scale, not just spacing
                 .position(vm.transform.screen(from: vm.layout[nid] ?? .zero))
         }
     }

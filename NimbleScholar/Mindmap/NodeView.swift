@@ -56,12 +56,12 @@ struct NodeView: View, Equatable {
                 if canCollapse {
                     Button { vm.toggleCollapse(nodeID) } label: {
                         Image(systemName: node.collapsed ? "chevron.right" : "chevron.down")
-                            .font(.caption2).foregroundStyle(.secondary)
+                            .font(.callout).foregroundStyle(.secondary)
                     }.buttonStyle(.plain)
                 }
                 if isEditingHeading {
                     TextField("Idea", text: $draft)
-                        .textFieldStyle(.plain).font(.callout.bold())
+                        .textFieldStyle(.plain).font(.title3.bold())
                         .focused($headingFocused)
                         .onSubmit { vm.commitHeading(draft) }
                         .onExitCommand { vm.cancelEdit() }
@@ -69,7 +69,7 @@ struct NodeView: View, Equatable {
                         .onAppear { draft = node.text; headingFocused = true }
                 } else {
                     Text(node.text.isEmpty ? "Untitled" : node.text)
-                        .font(.callout.bold())
+                        .font(.title3.bold())
                         .foregroundStyle(node.text.isEmpty ? .secondary : .primary)
                         .onTapGesture(count: 2) { vm.beginEdit(nodeID) }
                 }
@@ -77,14 +77,14 @@ struct NodeView: View, Equatable {
             if !node.collapsed {
                 if isEditingContent {
                     TextField("Note", text: $contentDraft, axis: .vertical)
-                        .textFieldStyle(.plain).font(.caption)
+                        .textFieldStyle(.plain).font(.subheadline)
                         .focused($contentFocused)
                         .onExitCommand { vm.cancelEdit() }
                         .onChange(of: contentFocused) { _, f in if !f { vm.commitContent(contentDraft) } }
                         .onAppear { contentDraft = node.content; contentFocused = true }
                 } else {
                     Text(node.content.isEmpty ? "Add note…" : node.content)
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(node.content.isEmpty ? .tertiary : .secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .onTapGesture(count: 2) { vm.beginEditContent(nodeID) }
@@ -138,7 +138,12 @@ struct NodeView: View, Equatable {
     /// Moves locally during the drag (no model write); commits move-or-reparent on release.
     private var moveOrReparentGesture: some Gesture {
         DragGesture(coordinateSpace: .named(coordSpace))
-            .updating($dragOffset) { value, state, _ in state = value.translation }
+            .updating($dragOffset) { value, state, _ in
+                // The node is rendered inside the canvas's .scaleEffect(zoom); divide by zoom so this
+                // local offset scales back up to the actual screen drag distance.
+                let z = vm.transform.zoom
+                state = CGSize(width: value.translation.width / z, height: value.translation.height / z)
+            }
             .onChanged { value in
                 let zoom = vm.transform.zoom
                 let old = vm.layout[nodeID] ?? .zero
@@ -178,11 +183,11 @@ struct NodePaperChip: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "doc.text").font(.caption2).foregroundStyle(.secondary)
-            Text(paper.title).font(.caption2).lineLimit(1)
+            Image(systemName: "doc.text").font(.caption).foregroundStyle(.secondary)
+            Text(paper.title).font(.subheadline).lineLimit(1)
             Spacer(minLength: 0)
             if hovering {
-                Button(action: onRemove) { Image(systemName: "xmark.circle.fill").font(.caption2) }
+                Button(action: onRemove) { Image(systemName: "xmark.circle.fill").font(.caption) }
                     .buttonStyle(.plain).foregroundStyle(.secondary)
             }
         }
