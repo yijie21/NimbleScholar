@@ -299,9 +299,11 @@ final class MindmapViewModel: ObservableObject {
                                 offsetX: Double(transform.pan.width), offsetY: Double(transform.pan.height))
     }
 
-    /// Frame the whole tree into `viewport` (centers + scales to fit, clamped).
+    /// Anchor the root node at the left third of the viewport, vertically centered, and scale the
+    /// tree down (never up past 1.0) so it fits the right two-thirds — a left-to-right tree then
+    /// reads from a clear starting point and grows rightward.
     func fit(in viewport: CGSize) {
-        guard !layout.isEmpty else { return }
+        guard !layout.isEmpty, let rootID = tree.rootID, let rootPos = layout[rootID] else { return }
         var minX = CGFloat.greatestFiniteMagnitude, minY = CGFloat.greatestFiniteMagnitude
         var maxX = -CGFloat.greatestFiniteMagnitude, maxY = -CGFloat.greatestFiniteMagnitude
         for (id, c) in layout {
@@ -311,11 +313,13 @@ final class MindmapViewModel: ObservableObject {
         }
         let contentW = max(1, maxX - minX), contentH = max(1, maxY - minY)
         let margin: CGFloat = 40
-        let fitScale = min((viewport.width - margin) / contentW, (viewport.height - margin) / contentH)
+        // Width budget is the right two-thirds (root sits at the left third); height is the full view.
+        let fitScale = min((viewport.width * 2 / 3 - margin) / contentW,
+                           (viewport.height - margin) / contentH)
         let zoom = CanvasTransform.clampZoom(min(1.0, fitScale))
-        let centerX = (minX + maxX) / 2, centerY = (minY + maxY) / 2
-        let pan = CGSize(width: viewport.width / 2 - centerX * zoom,
-                         height: viewport.height / 2 - centerY * zoom)
+        // Place the root's center at (1/3 width, 1/2 height): pan = targetScreen - rootCanvas·zoom.
+        let pan = CGSize(width: viewport.width / 3 - rootPos.x * zoom,
+                         height: viewport.height / 2 - rootPos.y * zoom)
         updateTransform(CanvasTransform(zoom: zoom, pan: pan))
     }
 }
