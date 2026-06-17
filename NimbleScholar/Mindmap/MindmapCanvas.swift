@@ -121,10 +121,11 @@ struct MindmapCanvas: View {
         }
         return ForEach(visible) { n in
             let nid = n.id ?? -1
+            let editField: NodeField? = vm.editing.flatMap { $0.nodeID == nid ? $0.field : nil }
             NodeView(node: n,
                      size: vm.sizes[nid] ?? CGSize(width: 200, height: 40),
                      selected: vm.selectedNodeID == nid,
-                     editingField: vm.editing?.nodeID == nid ? vm.editing?.field : nil,
+                     editingField: editField,
                      paperIDs: vm.tree.paperIDsByNode[nid] ?? [],
                      canCollapse: vm.canCollapse(nid),
                      dragInfo: $dragInfo,
