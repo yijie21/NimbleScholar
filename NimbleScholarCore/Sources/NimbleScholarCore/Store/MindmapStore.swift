@@ -45,4 +45,39 @@ public final class MindmapStore: @unchecked Sendable {
                            arguments: [zoom, offsetX, offsetY, mapID])
         }
     }
+
+    // MARK: - Nodes
+
+    public func nodes(forMap mapID: Int64) throws -> [MindmapNode] {
+        try dbQueue.read {
+            try MindmapNode.filter(sql: "mindmap_id = ?", arguments: [mapID])
+                .order(sql: "created_at ASC, id ASC").fetchAll($0)
+        }
+    }
+
+    @discardableResult
+    public func createNode(mapID: Int64, text: String = "", x: Double, y: Double) throws -> MindmapNode {
+        var n = MindmapNode(mindmapID: mapID, text: text, x: x, y: y)
+        let ts = now(); n.createdAt = ts; n.updatedAt = ts
+        try dbQueue.write { try n.insert($0) }
+        return n
+    }
+
+    public func updateNodeText(id: Int64, text: String) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "UPDATE mindmap_nodes SET text = ?, updated_at = ? WHERE id = ?",
+                           arguments: [text, now(), id])
+        }
+    }
+
+    public func moveNode(id: Int64, x: Double, y: Double) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "UPDATE mindmap_nodes SET x = ?, y = ?, updated_at = ? WHERE id = ?",
+                           arguments: [x, y, now(), id])
+        }
+    }
+
+    public func deleteNode(id: Int64) throws {
+        _ = try dbQueue.write { try MindmapNode.deleteOne($0, key: id) }
+    }
 }

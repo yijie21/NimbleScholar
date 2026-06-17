@@ -27,4 +27,22 @@ final class MindmapStoreTests: XCTestCase {
         try store.deleteMindmap(id: m.id!)
         XCTAssertEqual(try store.mindmaps().count, 0)
     }
+
+    func testNodeCRUDAndMove() throws {
+        let (_, store) = try makeStores()
+        let m = try store.createMindmap(name: "M")
+        let n = try store.createNode(mapID: m.id!, text: "Backbone", x: 5, y: 7)
+        XCTAssertNotNil(n.id)
+        XCTAssertEqual(try store.nodes(forMap: m.id!).count, 1)
+
+        try store.updateNodeText(id: n.id!, text: "Backbone v2")
+        try store.moveNode(id: n.id!, x: 100, y: 200)
+        let reloaded = try store.nodes(forMap: m.id!).first!
+        XCTAssertEqual(reloaded.text, "Backbone v2")
+        XCTAssertEqual(reloaded.x, 100, accuracy: 0.0001)
+        XCTAssertEqual(reloaded.y, 200, accuracy: 0.0001)
+
+        try store.deleteNode(id: n.id!)
+        XCTAssertEqual(try store.nodes(forMap: m.id!).count, 0)
+    }
 }
