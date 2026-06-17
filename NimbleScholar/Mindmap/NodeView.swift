@@ -78,7 +78,7 @@ struct NodeView: View, Equatable {
         )
         .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
         .offset(dragOffset)
-        .gesture(reparentGesture)
+        .gesture(moveOrReparentGesture)
         .onTapGesture(count: 2) { vm.beginEdit(nodeID) }
         .onTapGesture { vm.select(nodeID) }
         .dropDestination(for: String.self) { items, _ in
@@ -107,21 +107,32 @@ struct NodeView: View, Equatable {
         return selected ? .accentColor : .black.opacity(0.12)
     }
 
-    /// Drag the node body to re-parent. Moves locally (no model write) and reports its canvas
-    /// point to the overlay; commits the reparent only on release.
-    private var reparentGesture: some Gesture {
+    /// Drag the node body to MOVE it, or to RE-PARENT it (when released over another node).
+    /// Moves locally during the drag (no model write); commits move-or-reparent on release.
+    private var moveOrReparentGesture: some Gesture {
         DragGesture(coordinateSpace: .named(coordSpace))
             .updating($dragOffset) { value, state, _ in state = value.translation }
             .onChanged { value in
-                guard let rootID = vm.rootID, nodeID != rootID else { return }
-                dragInfo = NodeDragInfo(nodeID: nodeID, canvasPoint: vm.transform.canvas(from: value.location))
+                // Show the drop indicator only while hovering a valid re-parent target.
+                let cursor = vm.transform.canvas(from: value.location)
+                if nodeID != vm.rootID, vm.dropTarget(forDragged: nodeID, at: cursor) != nil {
+                    dragInfo = NodeDragInfo(nodeID: nodeID, canvasPoint: cursor)
+                } else {
+                    dragInfo = nil
+                }
             }
             .onEnded { value in
                 defer { dragInfo = nil }
-                guard let rootID = vm.rootID, nodeID != rootID else { return }
-                let p = vm.transform.canvas(from: value.location)
-                if let target = vm.dropTarget(forDragged: nodeID, at: p) {
-                    vm.reparent(nodeID, to: target.parentID, index: target.index)
+                let zoom = vm.transform.zoom
+                let old = vm.layout[nodeID] ?? .zero
+                // New position preserves the grab offset (move by the drag delta in canvas units).
+                let dropPoint = CGPoint(x: old.x + value.translation.width / zoom,
+                                        y: old.y + value.translation.height / zoom)
+                let cursor = vm.transform.canvas(from: value.location)
+                if nodeID != vm.rootID, let target = vm.dropTarget(forDragged: nodeID, at: cursor) {
+                    vm.reparent(nodeID, to: target.parentID, index: target.index, at: dropPoint)
+                } else {
+                    vm.move(nodeID, to: dropPoint)
                 }
             }
     }
