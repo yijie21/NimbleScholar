@@ -103,13 +103,23 @@ struct MindmapCanvas: View {
                 let cc = (drag?.nodeID == nid) ? drag?.center : layout[nid]
                 let pc = (drag?.nodeID == pid) ? drag?.center : layout[pid]
                 guard let cc, let pc else { continue }
-                let p1 = vm.transform.screen(from: pc)
-                let p2 = vm.transform.screen(from: cc)
+                let p1 = vm.transform.screen(from: pc)   // parent
+                let p2 = vm.transform.screen(from: cc)   // child
+                // Orthogonal "elbow": horizontal out of the parent → vertical at the mid-x →
+                // horizontal into the child, with rounded (filleted) corners at the two bends.
+                let midX = (p1.x + p2.x) / 2
+                let dirX: CGFloat = p2.x >= p1.x ? 1 : -1
+                let dirY: CGFloat = p2.y >= p1.y ? 1 : -1
+                let r = max(0, min(12 * zoom, abs(midX - p1.x), abs(p2.y - p1.y) / 2))
                 var path = Path()
                 path.move(to: p1)
-                let midX = (p1.x + p2.x) / 2
-                path.addCurve(to: p2, control1: CGPoint(x: midX, y: p1.y), control2: CGPoint(x: midX, y: p2.y))
-                ctx.stroke(path, with: .color(.secondary.opacity(0.7)), lineWidth: 1.5 * zoom)
+                path.addLine(to: CGPoint(x: midX - dirX * r, y: p1.y))
+                path.addQuadCurve(to: CGPoint(x: midX, y: p1.y + dirY * r), control: CGPoint(x: midX, y: p1.y))
+                path.addLine(to: CGPoint(x: midX, y: p2.y - dirY * r))
+                path.addQuadCurve(to: CGPoint(x: midX + dirX * r, y: p2.y), control: CGPoint(x: midX, y: p2.y))
+                path.addLine(to: p2)
+                ctx.stroke(path, with: .color(.secondary.opacity(0.7)),
+                           style: StrokeStyle(lineWidth: 1.5 * zoom, lineCap: .round, lineJoin: .round))
             }
         }
         .allowsHitTesting(false)

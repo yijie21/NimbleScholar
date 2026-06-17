@@ -56,7 +56,9 @@ struct NodeView: View, Equatable {
                 if canCollapse {
                     Button { vm.toggleCollapse(nodeID) } label: {
                         Image(systemName: node.collapsed ? "chevron.right" : "chevron.down")
-                            .font(.callout).foregroundStyle(.secondary)
+                            .font(.title3.bold()).foregroundStyle(.secondary)
+                            .frame(width: 30, height: 30)     // generous tap target
+                            .contentShape(Rectangle())        // the whole 30×30 is clickable, not just the glyph
                     }.buttonStyle(.plain)
                 }
                 if isEditingHeading {
