@@ -179,4 +179,21 @@ final class MindmapStoreTests: XCTestCase {
         tree = try store.tree(forMap: m.id!)
         XCTAssertEqual(tree.nodes.map { $0.text }.sorted(), ["A", "Idea"])
     }
+
+    func testSetParentKeepsSourceContiguous() throws {
+        let (_, store) = try makeStores()
+        let m = try store.createMindmap(name: "M")
+        let root = try store.ensureRoot(mapID: m.id!, title: "M")
+        let a = try store.addChild(parentID: root.id!, text: "A")   // sort_order 0
+        let b = try store.addChild(parentID: root.id!, text: "B")   // sort_order 1
+        let c = try store.addChild(parentID: root.id!, text: "C")   // sort_order 2
+        // move B out to A; root should keep A,C contiguous (0,1), not (0,2)
+        try store.setParent(nodeID: b.id!, newParentID: a.id!, index: 0)
+        let tree = try store.tree(forMap: m.id!)
+        let rootKids = tree.nodes.filter { $0.parentID == root.id! }.sorted { $0.sortOrder < $1.sortOrder }
+        XCTAssertEqual(rootKids.map { $0.text }, ["A", "C"])
+        XCTAssertEqual(rootKids.map { $0.sortOrder }, [0, 1])     // contiguous, gap closed
+        XCTAssertEqual(tree.children(of: a.id!).map { $0.text }, ["B"])
+        _ = c
+    }
 }

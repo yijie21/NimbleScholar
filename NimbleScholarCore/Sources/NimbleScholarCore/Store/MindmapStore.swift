@@ -132,10 +132,21 @@ public final class MindmapStore: @unchecked Sendable {
         }
     }
 
-    /// Move `nodeID` under `newParentID` at `index` among the destination's children.
+    /// Move `nodeID` under `newParentID` at `index` among the destination's children. Closes the
+    /// gap left at the source parent and excludes the moving node from the destination shift, so
+    /// sibling sort_order stays contiguous across repeated moves.
     public func setParent(nodeID: Int64, newParentID: Int64, index: Int) throws {
         try dbQueue.write { db in
-            try db.execute(sql: "UPDATE mindmap_nodes SET sort_order = sort_order + 1 WHERE parent_id = ? AND sort_order >= ?", arguments: [newParentID, index])
+            guard let row = try Row.fetchOne(db, sql: "SELECT parent_id, sort_order FROM mindmap_nodes WHERE id = ?", arguments: [nodeID])
+            else { return }
+            let oldParent: Int64? = row["parent_id"]
+            let oldOrder: Int = row["sort_order"]
+            // Close the gap at the source parent.
+            if let oldParent {
+                try db.execute(sql: "UPDATE mindmap_nodes SET sort_order = sort_order - 1 WHERE parent_id = ? AND sort_order > ?", arguments: [oldParent, oldOrder])
+            }
+            // Make room at the destination (don't shift the moving node itself).
+            try db.execute(sql: "UPDATE mindmap_nodes SET sort_order = sort_order + 1 WHERE parent_id = ? AND sort_order >= ? AND id <> ?", arguments: [newParentID, index, nodeID])
             try db.execute(sql: "UPDATE mindmap_nodes SET parent_id = ?, sort_order = ?, updated_at = ? WHERE id = ?", arguments: [newParentID, index, now(), nodeID])
         }
     }
