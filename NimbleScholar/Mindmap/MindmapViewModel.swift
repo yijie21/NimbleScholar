@@ -27,8 +27,7 @@ final class MindmapViewModel: ObservableObject {
     private let activeKey = "activeMindmapID"
     // Derived from the node width so the gap stays exactly half a node: a child's center is
     // 1.5·width right of its parent → (1.5−1)·width = ½-width gap between their edges.
-    private var seedGapX: CGFloat { MindmapNodeSizing.width * 1.5 }
-    private var seedGapY: CGFloat { MindmapNodeSizing.width * 0.5 }   // vertical sibling spacing (~½ node width)
+    private var seedGapX: CGFloat { MindmapNodeSizing.width * 1.5 }   // ½-node-width gap to a child's left
     private var undoStack: [MapSnapshot] = []
     private var redoStack: [MapSnapshot] = []
 
@@ -117,19 +116,34 @@ final class MindmapViewModel: ObservableObject {
         undoStack.append(snap); redoStack.removeAll()
     }
 
-    /// Seed position for a freshly created child of `parentID` (beside the parent, stacked by index).
-    private func seedChildPosition(parentID: Int64, siblingIndex: Int) -> CGPoint {
-        let p = layout[parentID] ?? .zero
-        return CGPoint(x: p.x + seedGapX, y: p.y + CGFloat(siblingIndex) * seedGapY)
+    /// Re-flow a parent's immediate children into a tidy column to its right, vertically centered
+    /// on the parent and height-aware, so siblings flank the parent (one moves up as the next is
+    /// added). Only the parent's direct children move — the rest of the (freely positioned) tree
+    /// stays put.
+    private func arrangeChildren(of parentID: Int64) {
+        guard let pc = layout[parentID] else { return }
+        let kids = tree.children(of: parentID)            // sorted by sort order
+        guard !kids.isEmpty else { return }
+        let gap: CGFloat = 24                             // vertical gap between sibling edges
+        let childX = pc.x + seedGapX                      // ½-node-width gap to the parent's right
+        let heights = kids.map { sizes[$0.id ?? -1]?.height ?? 44 }
+        let totalH = heights.reduce(0, +) + gap * CGFloat(kids.count - 1)
+        var top = pc.y - totalH / 2                       // center the whole stack on the parent
+        for (i, kid) in kids.enumerated() {
+            if let kidID = kid.id {
+                try? store.moveNode(id: kidID, x: Double(childX), y: Double(top + heights[i] / 2))
+            }
+            top += heights[i] + gap
+        }
     }
 
     func addChild(to parentID: Int64) {
         pushUndo()
-        let index = tree.children(of: parentID).count   // new child's 0-based index (pre-insert count)
         guard let n = try? store.addChild(parentID: parentID, text: ""), let nid = n.id else { return }
-        let seed = seedChildPosition(parentID: parentID, siblingIndex: index)
-        try? store.moveNode(id: nid, x: Double(seed.x), y: Double(seed.y))
-        reloadTree(); selectedNodeID = nid; editing = NodeEdit(nodeID: nid, field: .heading)
+        reloadTree()                      // include the new child (and its size) in the tree
+        arrangeChildren(of: parentID)     // re-center all of the parent's children around it
+        reloadTree()
+        selectedNodeID = nid; editing = NodeEdit(nodeID: nid, field: .heading)
     }
     func addChildToSelected() { if let s = selectedNodeID { addChild(to: s) } }
 
@@ -137,9 +151,10 @@ final class MindmapViewModel: ObservableObject {
         if nodeID == tree.rootID { addChild(to: nodeID); return }   // root has no sibling
         pushUndo()
         guard let n = try? store.addSibling(of: nodeID, text: ""), let nid = n.id else { return }
-        let ref = layout[nodeID] ?? .zero
-        try? store.moveNode(id: nid, x: Double(ref.x), y: Double(ref.y + seedGapY))
-        reloadTree(); selectedNodeID = nid; editing = NodeEdit(nodeID: nid, field: .heading)
+        reloadTree()
+        if let parentID = tree.nodes.first(where: { $0.id == nid })?.parentID { arrangeChildren(of: parentID) }
+        reloadTree()
+        selectedNodeID = nid; editing = NodeEdit(nodeID: nid, field: .heading)
     }
     func addSiblingToSelected() { if let s = selectedNodeID { addSibling(of: s) } }
 
