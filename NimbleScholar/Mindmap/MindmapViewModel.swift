@@ -25,8 +25,8 @@ final class MindmapViewModel: ObservableObject {
 
     private let store = AppEnvironment.shared.mindmaps
     private let activeKey = "activeMindmapID"
-    private let seedGapX: CGFloat = 210   // place a child just right of its parent (≈10px gap at 200px width)
-    private let seedGapY: CGFloat = 60    // vertical spacing between seeded siblings
+    private let seedGapX: CGFloat = 300   // child center 300px right of parent → ~100px gap (half a 200px node)
+    private let seedGapY: CGFloat = 100   // vertical spacing between seeded siblings (~half a node width)
     private var undoStack: [MapSnapshot] = []
     private var redoStack: [MapSnapshot] = []
 
