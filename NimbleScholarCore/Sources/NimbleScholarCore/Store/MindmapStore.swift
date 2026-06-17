@@ -81,6 +81,106 @@ public final class MindmapStore: @unchecked Sendable {
         _ = try dbQueue.write { try MindmapNode.deleteOne($0, key: id) }
     }
 
+    // MARK: - Tree
+
+    /// The map's root (parent_id NULL), creating it if absent.
+    @discardableResult
+    public func ensureRoot(mapID: Int64, title: String) throws -> MindmapNode {
+        try dbQueue.write { db in
+            if let root = try MindmapNode
+                .filter(sql: "mindmap_id = ? AND parent_id IS NULL", arguments: [mapID])
+                .order(sql: "sort_order ASC, id ASC").fetchOne(db) { return root }
+            var n = MindmapNode(mindmapID: mapID, text: title)
+            n.parentID = nil; n.sortOrder = 0
+            let ts = now(); n.createdAt = ts; n.updatedAt = ts
+            try n.insert(db)
+            return n
+        }
+    }
+
+    @discardableResult
+    public func addChild(parentID: Int64, text: String) throws -> MindmapNode {
+        try dbQueue.write { db in
+            let mapID = try Int64.fetchOne(db, sql: "SELECT mindmap_id FROM mindmap_nodes WHERE id = ?", arguments: [parentID])
+            guard let mapID else { throw DatabaseError(message: "parent node \(parentID) not found") }
+            let maxOrder = try Int.fetchOne(db, sql: "SELECT COALESCE(MAX(sort_order), -1) FROM mindmap_nodes WHERE parent_id = ?", arguments: [parentID]) ?? -1
+            var n = MindmapNode(mindmapID: mapID, text: text)
+            n.parentID = parentID; n.sortOrder = maxOrder + 1
+            let ts = now(); n.createdAt = ts; n.updatedAt = ts
+            try n.insert(db)
+            return n
+        }
+    }
+
+    /// Insert a sibling immediately after `nodeID` (shifting later siblings). Root has no
+    /// sibling — callers must not call this on the root (the view model converts it to addChild).
+    @discardableResult
+    public func addSibling(of nodeID: Int64, text: String) throws -> MindmapNode {
+        try dbQueue.write { db in
+            guard let row = try Row.fetchOne(db, sql: "SELECT mindmap_id, parent_id, sort_order FROM mindmap_nodes WHERE id = ?", arguments: [nodeID])
+            else { throw DatabaseError(message: "node \(nodeID) not found") }
+            let mapID: Int64 = row["mindmap_id"]
+            let parent: Int64? = row["parent_id"]
+            let order: Int = row["sort_order"]
+            guard let parent else { throw DatabaseError(message: "cannot add sibling to root") }
+            try db.execute(sql: "UPDATE mindmap_nodes SET sort_order = sort_order + 1 WHERE parent_id = ? AND sort_order > ?", arguments: [parent, order])
+            var n = MindmapNode(mindmapID: mapID, text: text)
+            n.parentID = parent; n.sortOrder = order + 1
+            let ts = now(); n.createdAt = ts; n.updatedAt = ts
+            try n.insert(db)
+            return n
+        }
+    }
+
+    /// Move `nodeID` under `newParentID` at `index` among the destination's children.
+    public func setParent(nodeID: Int64, newParentID: Int64, index: Int) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "UPDATE mindmap_nodes SET sort_order = sort_order + 1 WHERE parent_id = ? AND sort_order >= ?", arguments: [newParentID, index])
+            try db.execute(sql: "UPDATE mindmap_nodes SET parent_id = ?, sort_order = ?, updated_at = ? WHERE id = ?", arguments: [newParentID, index, now(), nodeID])
+        }
+    }
+
+    /// Swap `nodeID` with its previous (`before=true`) or next sibling; no-op at an edge/root.
+    public func reorderSibling(nodeID: Int64, before: Bool) throws {
+        try dbQueue.write { db in
+            guard let row = try Row.fetchOne(db, sql: "SELECT parent_id, sort_order FROM mindmap_nodes WHERE id = ?", arguments: [nodeID]),
+                  let parent = row["parent_id"] as Int64? else { return }
+            let order: Int = row["sort_order"]
+            let sql = before
+                ? "SELECT id, sort_order FROM mindmap_nodes WHERE parent_id = ? AND sort_order < ? ORDER BY sort_order DESC LIMIT 1"
+                : "SELECT id, sort_order FROM mindmap_nodes WHERE parent_id = ? AND sort_order > ? ORDER BY sort_order ASC LIMIT 1"
+            guard let nb = try Row.fetchOne(db, sql: sql, arguments: [parent, order]) else { return }
+            let nbID: Int64 = nb["id"]; let nbOrder: Int = nb["sort_order"]
+            try db.execute(sql: "UPDATE mindmap_nodes SET sort_order = ? WHERE id = ?", arguments: [nbOrder, nodeID])
+            try db.execute(sql: "UPDATE mindmap_nodes SET sort_order = ? WHERE id = ?", arguments: [order, nbID])
+        }
+    }
+
+    public func setCollapsed(nodeID: Int64, collapsed: Bool) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "UPDATE mindmap_nodes SET collapsed = ?, updated_at = ? WHERE id = ?",
+                           arguments: [collapsed ? 1 : 0, now(), nodeID])
+        }
+    }
+
+    /// Load the map as a tree (nodes ordered + per-node attached paper ids).
+    public func tree(forMap mapID: Int64) throws -> MindmapTree {
+        try dbQueue.read { db in
+            let nodes = try MindmapNode.filter(sql: "mindmap_id = ?", arguments: [mapID])
+                .order(sql: "parent_id ASC, sort_order ASC, id ASC").fetchAll(db)
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT np.node_id AS nid, np.paper_id AS pid
+                FROM mindmap_node_papers np
+                JOIN mindmap_nodes n ON n.id = np.node_id
+                WHERE n.mindmap_id = ?
+                ORDER BY np.paper_id ASC
+                """, arguments: [mapID])
+            var byNode: [Int64: [Int64]] = [:]
+            for r in rows { let nid: Int64 = r["nid"]; byNode[nid, default: []].append(r["pid"]) }
+            return MindmapTree(nodes: nodes, paperIDsByNode: byNode)
+        }
+    }
+
     // MARK: - Edges
 
     public func edges(forMap mapID: Int64) throws -> [MindmapEdge] {

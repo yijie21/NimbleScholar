@@ -143,4 +143,40 @@ final class MindmapStoreTests: XCTestCase {
         XCTAssertEqual(tree.childIDsByParent[1], [3, 2])
         XCTAssertEqual(tree.collapsedSet, [3])
     }
+
+    func testTreeOps() throws {
+        let (_, store) = try makeStores()
+        let m = try store.createMindmap(name: "Idea")
+        let root = try store.ensureRoot(mapID: m.id!, title: "Idea")
+        XCTAssertNil(root.parentID)
+        // idempotent
+        XCTAssertEqual(try store.ensureRoot(mapID: m.id!, title: "Idea").id, root.id)
+
+        let a = try store.addChild(parentID: root.id!, text: "A")
+        let b = try store.addChild(parentID: root.id!, text: "B")
+        XCTAssertEqual(a.sortOrder, 0)
+        XCTAssertEqual(b.sortOrder, 1)
+
+        // sibling inserted right after A, shifting B
+        let a2 = try store.addSibling(of: a.id!, text: "A2")
+        var tree = try store.tree(forMap: m.id!)
+        XCTAssertEqual(tree.children(of: root.id!).map { $0.text }, ["A", "A2", "B"])
+
+        // re-parent A2 under B at index 0
+        try store.setParent(nodeID: a2.id!, newParentID: b.id!, index: 0)
+        tree = try store.tree(forMap: m.id!)
+        XCTAssertEqual(tree.children(of: root.id!).map { $0.text }, ["A", "B"])
+        XCTAssertEqual(tree.children(of: b.id!).map { $0.text }, ["A2"])
+
+        // reorder B before A
+        try store.reorderSibling(nodeID: b.id!, before: true)
+        tree = try store.tree(forMap: m.id!)
+        XCTAssertEqual(tree.children(of: root.id!).map { $0.text }, ["B", "A"])
+
+        // collapse + delete subtree cascade
+        try store.setCollapsed(nodeID: b.id!, collapsed: true)
+        try store.deleteNode(id: b.id!)            // removes B and its child A2 (cascade)
+        tree = try store.tree(forMap: m.id!)
+        XCTAssertEqual(tree.nodes.map { $0.text }.sorted(), ["A", "Idea"])
+    }
 }
