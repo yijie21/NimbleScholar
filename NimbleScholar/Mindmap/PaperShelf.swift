@@ -1,13 +1,14 @@
 import SwiftUI
 import NimbleScholarCore
 
-/// Narrow shelf of papers to drag onto nodes. A search field on top (FTS, debounced,
-/// narrowed by the library's current tag scope) over collapsible cards.
+/// Narrow shelf of papers to drag onto nodes. A search field on top (FTS, debounced, narrowed by
+/// the library's current tag scope) over cards, each showing the paper's figure. Hover a figure to
+/// reveal a magnifier; clicking it opens a large preview (`previewPaper`, presented by MindmapView).
 struct PaperShelf: View {
     @EnvironmentObject var libraryVM: LibraryViewModel
+    @Binding var previewPaper: Paper?
     @State private var query = ""
     @State private var results: [Paper] = []
-    @State private var expanded: Set<Int64> = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,7 +21,7 @@ struct PaperShelf: View {
             ScrollView {
                 LazyVStack(spacing: 6) {
                     ForEach(results) { paper in
-                        ShelfCard(paper: paper, expanded: binding(for: paper))
+                        ShelfCard(paper: paper) { previewPaper = $0 }
                     }
                 }
                 .padding(8)
@@ -36,16 +37,6 @@ struct PaperShelf: View {
         .onChange(of: libraryVM.scope) { _, _ in Task { await search() } }
     }
 
-    private func binding(for paper: Paper) -> Binding<Bool> {
-        Binding(
-            get: { expanded.contains(paper.id ?? -1) },
-            set: { isOn in
-                guard let id = paper.id else { return }
-                if isOn { expanded.insert(id) } else { expanded.remove(id) }
-            }
-        )
-    }
-
     private func search() async {
         let scopeTag: String? = { if case .tag(let t) = libraryVM.scope { return t } else { return nil } }()
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -53,38 +44,38 @@ struct PaperShelf: View {
     }
 }
 
-/// One shelf card. Collapsed = thumbnail + title; expanded adds authors + a larger figure.
-/// Draggable: carries the paper id as a String for the canvas/node drop targets.
+/// One shelf card: the paper's figure + title. Hovering the figure reveals a magnifier that opens a
+/// large preview. Draggable: carries the paper id as a String for the canvas/node drop targets.
 struct ShelfCard: View {
     let paper: Paper
-    @Binding var expanded: Bool
+    let onPreview: (Paper) -> Void
+    @State private var hovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top, spacing: 8) {
-                Color.clear.frame(width: 44, height: 44)
-                    .overlay(PaperThumbnail(paper: paper))
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(paper.title).font(.caption).bold().lineLimit(expanded ? 5 : 2)
-                    if !paper.year.isEmpty {
-                        Text(paper.year).font(.caption2).foregroundStyle(.secondary)
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .frame(height: 110)
+                .overlay(PaperThumbnail(paper: paper))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay {
+                    if hovering {
+                        Button { onPreview(paper) } label: {
+                            Image(systemName: "magnifyingglass")
+                                .font(.title3)
+                                .foregroundStyle(.white)
+                                .padding(8)
+                                .background(Circle().fill(.black.opacity(0.55)))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Preview figure")
                     }
                 }
-                Spacer(minLength: 0)
-                Button { expanded.toggle() } label: {
-                    Image(systemName: expanded ? "chevron.up" : "chevron.down").font(.caption2)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-            }
-            if expanded {
-                if !paper.authors.isEmpty {
-                    Text(paper.authors).font(.caption2).foregroundStyle(.secondary).lineLimit(3)
-                }
-                Color.clear.frame(height: 90)
-                    .overlay(PaperThumbnail(paper: paper, contentMode: .fit))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                .onHover { hovering = $0 }
+            Text(paper.title).font(.caption).bold().lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if !paper.year.isEmpty {
+                Text(paper.year).font(.caption2).foregroundStyle(.secondary)
             }
         }
         .padding(8)
@@ -93,5 +84,39 @@ struct ShelfCard: View {
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.black.opacity(0.06)))
         .contentShape(RoundedRectangle(cornerRadius: 8))
         .draggable(paper.id.map(String.init) ?? "")
+    }
+}
+
+/// A large, dimmed figure preview shown over the mindmap. Click the backdrop or the ✕ to dismiss.
+struct FigurePreviewOverlay: View {
+    let paper: Paper
+    let onClose: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.55).ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { onClose() }
+            VStack(spacing: 12) {
+                PaperThumbnail(paper: paper, contentMode: .fit)
+                    .frame(maxWidth: 720, maxHeight: 520)
+                    .background(Color(nsColor: .windowBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                Text(paper.title).font(.headline).foregroundStyle(.white)
+                    .multilineTextAlignment(.center).lineLimit(3).frame(maxWidth: 720)
+            }
+            .padding(28)
+            .overlay(alignment: .topTrailing) {
+                Button(action: onClose) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.largeTitle)
+                        .foregroundStyle(.white, .black.opacity(0.45))
+                }
+                .buttonStyle(.plain)
+                .padding(12)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { }   // absorb taps on the content so they don't dismiss
+        }
     }
 }

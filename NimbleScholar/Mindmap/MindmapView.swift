@@ -5,28 +5,35 @@ import NimbleScholarCore
 struct MindmapView: View {
     @EnvironmentObject var libraryVM: LibraryViewModel
     @StateObject private var vm = MindmapViewModel()
+    @State private var previewPaper: Paper?
 
     var body: some View {
-        HStack(spacing: 0) {
-            PaperShelf()
-                .environmentObject(vm)
-                .environmentObject(libraryVM)
-                .frame(width: 250)
-            Divider()
-            VStack(spacing: 0) {
-                MapBar().environmentObject(vm)
+        ZStack {
+            HStack(spacing: 0) {
+                PaperShelf(previewPaper: $previewPaper)
+                    .environmentObject(vm)
+                    .environmentObject(libraryVM)
+                    .frame(width: 250)
                 Divider()
-                if vm.activeMapID == nil {
-                    MindmapEmptyState().environmentObject(vm)
-                } else {
-                    CanvasToolbar().environmentObject(vm)
+                VStack(spacing: 0) {
+                    MapBar().environmentObject(vm)
                     Divider()
-                    MindmapCanvas()
-                        .environmentObject(vm)
-                        .environmentObject(libraryVM)
+                    if vm.activeMapID == nil {
+                        MindmapEmptyState().environmentObject(vm)
+                    } else {
+                        CanvasToolbar().environmentObject(vm)
+                        Divider()
+                        MindmapCanvas()
+                            .environmentObject(vm)
+                            .environmentObject(libraryVM)
+                    }
                 }
             }
+            if let p = previewPaper {
+                FigurePreviewOverlay(paper: p) { previewPaper = nil }
+            }
         }
+        .animation(.easeInOut(duration: 0.15), value: previewPaper)
     }
 }
 
