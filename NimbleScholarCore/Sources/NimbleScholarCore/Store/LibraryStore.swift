@@ -111,6 +111,43 @@ public final class LibraryStore: @unchecked Sendable {
                 t.add(column: "important", .integer).notNull().defaults(to: 0)
             }
         }
+        m.registerMigration("v9-mindmap") { db in
+            try db.create(table: "mindmaps") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("name", .text).notNull().defaults(to: "")
+                t.column("zoom", .double).notNull().defaults(to: 1)
+                t.column("offset_x", .double).notNull().defaults(to: 0)
+                t.column("offset_y", .double).notNull().defaults(to: 0)
+                t.column("created_at", .integer).notNull().defaults(to: 0)
+                t.column("updated_at", .integer).notNull().defaults(to: 0)
+            }
+            try db.create(table: "mindmap_nodes") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("mindmap_id", .integer).notNull()
+                    .references("mindmaps", onDelete: .cascade)
+                t.column("text", .text).notNull().defaults(to: "")
+                t.column("x", .double).notNull().defaults(to: 0)
+                t.column("y", .double).notNull().defaults(to: 0)
+                t.column("created_at", .integer).notNull().defaults(to: 0)
+                t.column("updated_at", .integer).notNull().defaults(to: 0)
+            }
+            try db.create(table: "mindmap_edges") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("mindmap_id", .integer).notNull()
+                    .references("mindmaps", onDelete: .cascade)
+                t.column("from_node_id", .integer).notNull()
+                    .references("mindmap_nodes", onDelete: .cascade)
+                t.column("to_node_id", .integer).notNull()
+                    .references("mindmap_nodes", onDelete: .cascade)
+            }
+            try db.create(table: "mindmap_node_papers") { t in
+                t.column("node_id", .integer).notNull()
+                    .references("mindmap_nodes", onDelete: .cascade)
+                t.column("paper_id", .integer).notNull()
+                    .references("papers", onDelete: .cascade)
+                t.primaryKey(["node_id", "paper_id"])
+            }
+        }
         return m
     }
 
