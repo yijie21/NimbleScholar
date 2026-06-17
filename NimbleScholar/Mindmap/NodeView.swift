@@ -2,129 +2,128 @@ import SwiftUI
 import CoreGraphics
 import NimbleScholarCore
 
-/// One node card: editable text + attached paper chips. Drag the body to move it
-/// (debounced persist); drag the trailing handle to another node to connect; drop a
-/// paper to attach; right-click to edit/delete.
-struct NodeView: View {
+/// Transient drag state shared with the canvas overlay (the dragged node + its current
+/// canvas-space point), so the canvas can draw a drop indicator while the node moves locally.
+struct NodeDragInfo: Equatable { var nodeID: Int64; var canvasPoint: CGPoint }
+
+/// One tree node card: selectable, inline-editable, collapsible, drag-to-reparent, with attached
+/// paper chips. Equatable so moving/selecting one node doesn't re-render its siblings.
+struct NodeView: View, Equatable {
     @EnvironmentObject var vm: MindmapViewModel
     @EnvironmentObject var libraryVM: LibraryViewModel
 
     let node: MindmapNode
-    @Binding var connectFrom: Int64?
-    @Binding var connectCursor: CGPoint?
+    let size: CGSize
+    let selected: Bool
+    let editing: Bool
+    let paperIDs: [Int64]
+    let hasChildren: Bool
+    @Binding var dragInfo: NodeDragInfo?
     let coordSpace: String
 
-    @State private var editing = false
+    @GestureState private var dragOffset: CGSize = .zero
     @State private var draft = ""
-    @FocusState private var focused: Bool
-    @State private var dragBase: CGPoint?
-    @State private var hovering = false
+    @FocusState private var fieldFocused: Bool
     @State private var dropTargeted = false
 
     private var nodeID: Int64 { node.id ?? -1 }
 
+    static func == (l: NodeView, r: NodeView) -> Bool {
+        l.node == r.node && l.size == r.size && l.selected == r.selected
+            && l.editing == r.editing && l.paperIDs == r.paperIDs && l.hasChildren == r.hasChildren
+    }
+
     private var attachedPapers: [Paper] {
-        let ids = vm.graph.paperIDsByNode[nodeID] ?? []
         let byID = Dictionary(uniqueKeysWithValues: libraryVM.papers.compactMap { p in p.id.map { ($0, p) } })
-        return ids.map { id in
+        return paperIDs.map { id in
             byID[id] ?? ((try? AppEnvironment.shared.store.paper(id: id)) ?? nil) ?? Paper(title: "Paper #\(id)")
         }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if editing {
-                TextField("Idea", text: $draft)
-                    .textFieldStyle(.plain)
-                    .font(.callout.bold())
-                    .focused($focused)
-                    .onSubmit(commit)
-                    .onChange(of: focused) { _, isFocused in if !isFocused { commit() } }
-                    .onAppear { draft = node.text; focused = true }
-            } else {
-                Text(node.text.isEmpty ? "Untitled" : node.text)
-                    .font(.callout.bold())
-                    .foregroundStyle(node.text.isEmpty ? .secondary : .primary)
-            }
-            if !attachedPapers.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(attachedPapers) { p in
-                        NodePaperChip(
-                            paper: p,
-                            onOpen: { libraryVM.openReader(p) },
-                            onRemove: { if let pid = p.id { vm.detach(pid, from: nodeID) } }
-                        )
-                    }
+            HStack(spacing: 6) {
+                if hasChildren {
+                    Button { vm.toggleCollapse(nodeID) } label: {
+                        Image(systemName: node.collapsed ? "chevron.right" : "chevron.down")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }.buttonStyle(.plain)
                 }
+                if editing {
+                    TextField("Idea", text: $draft)
+                        .textFieldStyle(.plain).font(.callout.bold())
+                        .focused($fieldFocused)
+                        .onSubmit { vm.commitEdit(draft) }
+                        .onExitCommand { vm.cancelEdit() }
+                        .onChange(of: fieldFocused) { _, focused in if !focused { vm.commitEdit(draft) } }
+                        .onAppear { draft = node.text; fieldFocused = true }
+                } else {
+                    Text(node.text.isEmpty ? "Untitled" : node.text)
+                        .font(.callout.bold())
+                        .foregroundStyle(node.text.isEmpty ? .secondary : .primary)
+                }
+            }
+            ForEach(attachedPapers) { p in
+                NodePaperChip(paper: p,
+                              onOpen: { libraryVM.openReader(p) },
+                              onRemove: { if let pid = p.id { vm.detach(pid, from: nodeID) } })
             }
         }
         .padding(10)
-        .frame(width: 200, alignment: .leading)
+        .frame(width: size.width, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(dropTargeted ? Color.accentColor : .black.opacity(0.12),
-                              lineWidth: dropTargeted ? 2 : 1)
+                .strokeBorder(borderColor, lineWidth: selected || dropTargeted ? 2.5 : 1)
         )
         .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
-        .overlay(alignment: .trailing) { connectHandle }
-        .onHover { hovering = $0 }
-        .gesture(moveGesture)
-        .onTapGesture(count: 2) { startEditing() }
+        .offset(dragOffset)
+        .gesture(reparentGesture)
+        .onTapGesture { vm.select(nodeID) }
+        .onTapGesture(count: 2) { vm.beginEdit(nodeID) }
         .dropDestination(for: String.self) { items, _ in
             guard let s = items.first, let pid = Int64(s) else { return false }
-            vm.attach(pid, to: nodeID)
-            return true
+            vm.attach(pid, to: nodeID); return true
         } isTargeted: { dropTargeted = $0 }
         .contextMenu {
-            Button("Edit Text") { startEditing() }
-            Button("Delete Node", role: .destructive) { vm.deleteNode(nodeID) }
+            Button("Add Child") { vm.addChild(to: nodeID) }
+            if nodeID != vm.rootID { Button("Add Sibling") { vm.addSibling(of: nodeID) } }
+            Button("Rename") { vm.beginEdit(nodeID) }
+            if hasChildren {
+                Button(node.collapsed ? "Expand" : "Collapse") { vm.toggleCollapse(nodeID) }
+            }
+            if nodeID != vm.rootID {
+                Divider()
+                Button("Move Up") { vm.reorder(nodeID, before: true) }
+                Button("Move Down") { vm.reorder(nodeID, before: false) }
+                Divider()
+                Button("Delete", role: .destructive) { vm.deleteSubtree(nodeID) }
+            }
         }
     }
 
-    private func startEditing() { draft = node.text; editing = true }
-
-    private func commit() {
-        guard editing else { return }
-        editing = false
-        vm.setNodeText(nodeID, draft.trimmingCharacters(in: .whitespacesAndNewlines))
+    private var borderColor: Color {
+        if dropTargeted { return .accentColor }
+        return selected ? .accentColor : .black.opacity(0.12)
     }
 
-    /// Drag the card body to move the node. Translation is screen-space; divide by zoom
-    /// to convert to canvas units.
-    private var moveGesture: some Gesture {
-        DragGesture()
+    /// Drag the node body to re-parent. Moves locally (no model write) and reports its canvas
+    /// point to the overlay; commits the reparent only on release.
+    private var reparentGesture: some Gesture {
+        DragGesture(coordinateSpace: .named(coordSpace))
+            .updating($dragOffset) { value, state, _ in state = value.translation }
             .onChanged { value in
-                if dragBase == nil { dragBase = CGPoint(x: node.x, y: node.y) }
-                let base = dragBase ?? CGPoint(x: node.x, y: node.y)
-                vm.moveNode(nodeID, to: CGPoint(
-                    x: base.x + value.translation.width / vm.transform.zoom,
-                    y: base.y + value.translation.height / vm.transform.zoom))
+                guard nodeID != vm.rootID else { return }
+                dragInfo = NodeDragInfo(nodeID: nodeID, canvasPoint: vm.transform.canvas(from: value.location))
             }
-            .onEnded { _ in dragBase = nil; vm.flushMoves() }
-    }
-
-    /// Trailing dot: drag from here to another node to connect them.
-    private var connectHandle: some View {
-        Circle()
-            .fill(Color.accentColor)
-            .frame(width: 12, height: 12)
-            .opacity(hovering || connectFrom == nodeID ? 1 : 0.25)
-            .offset(x: 6)
-            .gesture(
-                DragGesture(coordinateSpace: .named(coordSpace))
-                    .onChanged { value in
-                        connectFrom = nodeID
-                        connectCursor = value.location
-                    }
-                    .onEnded { value in
-                        defer { connectFrom = nil; connectCursor = nil }
-                        if let target = vm.nodeID(at: value.location, transform: vm.transform),
-                           target != nodeID {
-                            vm.connect(nodeID, target)
-                        }
-                    }
-            )
+            .onEnded { value in
+                defer { dragInfo = nil }
+                guard nodeID != vm.rootID else { return }
+                let p = vm.transform.canvas(from: value.location)
+                if let target = vm.dropTarget(forDragged: nodeID, at: p) {
+                    vm.reparent(nodeID, to: target.parentID, index: target.index)
+                }
+            }
     }
 }
 
@@ -141,15 +140,11 @@ struct NodePaperChip: View {
             Text(paper.title).font(.caption2).lineLimit(1)
             Spacer(minLength: 0)
             if hovering {
-                Button(action: onRemove) {
-                    Image(systemName: "xmark.circle.fill").font(.caption2)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                Button(action: onRemove) { Image(systemName: "xmark.circle.fill").font(.caption2) }
+                    .buttonStyle(.plain).foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .padding(.horizontal, 6).padding(.vertical, 3)
         .background(RoundedRectangle(cornerRadius: 5).fill(Color.accentColor.opacity(0.12)))
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
