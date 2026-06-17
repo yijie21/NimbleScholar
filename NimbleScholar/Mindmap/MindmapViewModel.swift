@@ -124,7 +124,7 @@ final class MindmapViewModel: ObservableObject {
         guard let pc = layout[parentID] else { return }
         let kids = tree.children(of: parentID)            // sorted by sort order
         guard !kids.isEmpty else { return }
-        let gap: CGFloat = 24                             // vertical gap between sibling edges
+        let gap: CGFloat = 30                             // vertical gap between sibling edges (absorbs size-estimate slack)
         let childX = pc.x + seedGapX                      // ½-node-width gap to the parent's right
         let heights = kids.map { sizes[$0.id ?? -1]?.height ?? 44 }
         let totalH = heights.reduce(0, +) + gap * CGFloat(kids.count - 1)
