@@ -168,7 +168,8 @@ final class MindmapViewModel: ObservableObject {
 
     func toggleCollapse(_ nodeID: Int64) {
         guard let n = tree.nodes.first(where: { $0.id == nodeID }) else { return }
-        pushUndo(); try? store.setCollapsed(nodeID: nodeID, collapsed: !n.collapsed); reloadTree()
+        pushUndo(); try? store.setCollapsed(nodeID: nodeID, collapsed: !n.collapsed)
+        reloadTree(); reflowAround(nodeID)   // re-space siblings: close the gap when folded, spread when expanded
     }
 
     func reorder(_ nodeID: Int64, before: Bool) {
