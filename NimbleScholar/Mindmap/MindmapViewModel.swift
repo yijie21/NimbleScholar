@@ -36,7 +36,6 @@ final class MindmapViewModel: ObservableObject {
     var rootID: Int64? { tree.rootID }
     var canUndo: Bool { !undoStack.isEmpty }
     var canRedo: Bool { !redoStack.isEmpty }
-    func hasChildren(_ id: Int64) -> Bool { tree.nodes.contains { $0.parentID == id } }
     func isCollapsed(_ id: Int64) -> Bool { tree.nodes.first { $0.id == id }?.collapsed ?? false }
 
     // MARK: Maps

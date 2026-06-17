@@ -87,9 +87,9 @@ positions are **persisted** in the `x`/`y` columns introduced in `v9-mindmap`; n
 migration is needed. Positions are written on every drag commit and by Tidy (`TreeLayout`);
 they are no longer recomputed at render time. The `mindmap_edges` table is now dormant — no
 new tree code reads or writes it.
-The **`v11-mindmap-content` migration** adds a `content` column (TEXT, nullable) to
-`mindmap_nodes`, storing each node's optional note. Existing nodes upgrade in place with
-`content = NULL` (displayed as "Add note…" in the UI).
+The **`v11-mindmap-content` migration** adds a `content` column (`TEXT NOT NULL DEFAULT ''`)
+to `mindmap_nodes`, storing each node's optional note. Existing nodes upgrade in place with
+an empty note (displayed as "Add note…" in the UI).
 Migrations are **additive and idempotent** (`v1`, `v2-fts`, `v3-read`, …, `v9-mindmap`, `v10-mindmap-tree`, `v11-mindmap-content`); existing libraries upgrade in place. Search uses FTS5 with `LibraryStore.ftsQuery` quoting each token so punctuation
 can't break the query.
 

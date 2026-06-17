@@ -7,8 +7,8 @@
   label) and an **optional note** (free-text content). Double-click the heading to edit the
   title; double-click the body ("Add note…") to edit the note. Both fields participate in
   undo/redo and are persisted via the new `v11-mindmap-content` migration.
-- **`v11-mindmap-content` migration** — adds a `content` column (TEXT, nullable) to
-  `mindmap_nodes`; existing nodes upgrade in place with `content = NULL`.
+- **`v11-mindmap-content` migration** — adds a `content` column (`TEXT NOT NULL DEFAULT ''`)
+  to `mindmap_nodes`; existing nodes upgrade in place with an empty note.
 
 ### Changed
 - **Collapse now means collapse-to-heading.** Collapsing a node (Space / chevron) shows only
