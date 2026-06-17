@@ -1,5 +1,18 @@
 # Changelog
 
+## Milestone 10 — Mindmap free positioning + Tidy (2026-06-17, `v10.0.0`)
+
+### Changed
+- **Mindmap nodes are now freely draggable.** Every node — including the root — can be
+  dragged anywhere on the canvas; positions are persisted in the existing `x`/`y` columns
+  (no schema migration). One drag does double duty: drop on **empty space** to move, drop on
+  **another node** to re-parent (the node stays at the drop point).
+- **New nodes appear beside their parent** rather than at a default corner position.
+- **Maps open centered** (fit-on-load) so the tree is in view immediately.
+- **Tidy button** (wand icon in the canvas toolbar) re-runs the auto-layout algorithm on
+  demand to arrange the whole tree cleanly. `TreeLayout` is now invoked only by Tidy, not at
+  every render. Tidy is undoable via ⌘Z.
+
 ## Milestone 9 — Mindmap redesigned as auto-layout tree (2026-06-17, `v9.0.0`)
 
 ### Changed

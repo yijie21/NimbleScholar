@@ -114,26 +114,29 @@ figure and PDF in the background, so a paper goes spinner → ready on its own.
 
 ### Mindmap
 
-The **Mindmap** view is a fourth mode for building named, auto-layout idea-trees alongside your library.
+The **Mindmap** view is a fourth mode for building named idea-trees alongside your library.
 
 - **Maps**: create as many named maps as you like; switch between them via the map bar at the
-  top of the view. Each map starts with a single **root** node; the tree is laid out
-  automatically — you never position nodes by hand.
+  top of the view. Each map starts with a single **root** node and **opens centered** so the
+  tree is immediately in view.
+- **Free positioning**: every node — including the root — is **draggable anywhere** on the
+  canvas. Positions are saved automatically and persist across relaunches.
+- **One drag, two actions**: drop a node onto **empty space** to move it there; drop a node
+  onto **another node** to re-parent it (the node stays at the drop point). Dropping onto a
+  descendant is rejected. Dragging is smooth — no flicker.
 - **Building the tree**: select any node, then press **Tab** to add a child or **Return** to
-  add a sibling. The new node opens in edit mode immediately; press **Return** or **Esc** to
-  finish editing.
+  add a sibling. New nodes appear **beside their parent** as a starting point. The new node
+  opens in edit mode immediately; press **Return** or **Esc** to finish editing.
 - **Navigating**: **↑ / ↓** move between siblings; **←** jumps to the parent; **→** jumps to
-  the first child. **Space** collapses or expands a node (hides/shows its subtree; the tree
-  re-tidies). **Delete** removes the selected node and its entire subtree (the root is
-  protected).
+  the first child. **Space** collapses or expands a node (hides/shows its subtree). **Delete**
+  removes the selected node and its entire subtree (the root is protected).
 - **Undo / Redo**: **⌘Z / ⌘⇧Z** step back and forward through all structural changes,
-  including restoring deleted subtrees with their attached papers.
-- **Re-parenting**: drag a node onto another node to move it in the tree. A dashed drop
-  indicator shows the target; dropping a node onto its own descendant is rejected. Dragging is
-  smooth — no flicker.
+  including moves, reparents, tidy, and restoring deleted subtrees with their attached papers.
+- **Tidy**: the **Tidy** button (wand icon) in the canvas toolbar re-runs the auto-layout
+  algorithm to arrange the whole tree cleanly on demand.
 - **Toolbar & context menu**: the **CanvasToolbar** (Child / Sibling / Delete / Collapse /
-  Undo / Redo) and the node right-click context menu mirror every keyboard shortcut — use
-  whichever you prefer.
+  Tidy / Undo / Redo) and the node right-click context menu mirror every keyboard shortcut —
+  use whichever you prefer.
 - **Attaching papers**: a collapsible, searchable **paper shelf** sits on the left edge of the
   canvas. Drag a card from the shelf onto a node to attach it. Each attached paper appears as
   a chip on the node; click a chip to open that paper in the reader. Click × on a chip to

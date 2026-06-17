@@ -43,10 +43,10 @@ UI, and the boundary keeps business logic out of views.
 | `App/Library/BackupManager.swift` | Zip backup/restore of the data dir via `ditto` |
 | `App/Reader/*` | Reader window, `PDFKitView` (NSViewRepresentable), toolbar, inspector, `AnnotationController`, reader VM |
 | `App/Settings/SettingsView.swift` | General (capture, port, download proxy) + Reading + AI settings |
-| `App/Mindmap/*` | Mindmap view mode: `MindmapView`, `MindmapViewModel`, `MapBar` (map picker/create/delete), `PaperShelf` (searchable collapsible paper shelf), `MindmapCanvas` (two-layer rendering: committed tree Canvas + interactive drop-indicator overlay; pan/zoom/cull), `NodeView` + `NodePaperChip` (node card + attached-paper chips); auto-layout tree model with keyboard editing (Tab/Return/arrows/Space/Delete), drag-to-reparent, and undo/redo |
-| `Core/Store/MindmapStore.swift` | Mindmap persistence (maps, nodes, edges, paper attachments, per-map viewport) sharing the GRDB queue; tree ops (add/move/delete node, collapse, reorder) + id-stable snapshot/restore for undo; `graph(forMap:)` returns the full node+edge graph |
+| `App/Mindmap/*` | Mindmap view mode: `MindmapView`, `MindmapViewModel`, `MapBar` (map picker/create/delete), `PaperShelf` (searchable collapsible paper shelf), `MindmapCanvas` (two-layer rendering: committed tree Canvas + interactive drop-indicator overlay; pan/zoom/cull), `NodeView` + `NodePaperChip` (node card + attached-paper chips); free-drag positioning (drop on empty = move, drop on node = reparent), keyboard editing (Tab/Return/arrows/Space/Delete), Tidy, and undo/redo |
+| `Core/Store/MindmapStore.swift` | Mindmap persistence (maps, nodes, edges, paper attachments, per-map viewport) sharing the GRDB queue; tree ops (add/move/delete node, collapse, reorder, `setPositions` for Tidy) + id-stable snapshot/restore for undo; `graph(forMap:)` returns the full node+edge graph |
 | `Core/Services/CanvasTransform.swift` | Pure canvas↔screen coordinate math: pan/zoom transform, hit-testing, off-screen culling |
-| `Core/Services/TreeLayout.swift` | Pure tidy left-to-right tree layout: computes node positions from the tree structure; positions are never persisted |
+| `Core/Services/TreeLayout.swift` | Pure tidy left-to-right tree layout: computes node positions from the tree structure; now invoked only by the on-demand **Tidy** action — positions are stored on the nodes and persisted, not recomputed each render |
 | `Core/Services/MindmapNodeSizing.swift` | Node-size estimation used by `TreeLayout` to allocate space for each node's label |
 | `Core/Models/Mindmap.swift` | `Mindmap`, `MindmapNode`, `MindmapEdge`, `MindmapGraph` model records |
 
@@ -82,9 +82,11 @@ Tables (see `LibraryStore.migrator`): `papers` (incl. `read`), `tags`, `paper_ta
 Mindmap tables added in `v9-mindmap`: `mindmaps`, `mindmap_nodes`, `mindmap_edges`,
 `mindmap_node_papers` (all FK cascade).
 The **`v10-mindmap-tree` migration** adds `parent_id`, `sort_order`, and `collapsed` columns
-to `mindmap_nodes`. Tree structure is encoded entirely in `parent_id` (null = root); layout
-coordinates are never stored (computed at render time by `TreeLayout`). The `mindmap_edges`
-table is now dormant — no new tree code reads or writes it.
+to `mindmap_nodes`. Tree structure is encoded entirely in `parent_id` (null = root). Node
+positions are **persisted** in the `x`/`y` columns introduced in `v9-mindmap`; no additional
+migration is needed. Positions are written on every drag commit and by Tidy (`TreeLayout`);
+they are no longer recomputed at render time. The `mindmap_edges` table is now dormant — no
+new tree code reads or writes it.
 Migrations are **additive and idempotent** (`v1`, `v2-fts`, `v3-read`, …, `v9-mindmap`, `v10-mindmap-tree`); existing libraries
 upgrade in place. Search uses FTS5 with `LibraryStore.ftsQuery` quoting each token so punctuation
 can't break the query.
