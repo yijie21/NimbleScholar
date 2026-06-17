@@ -79,8 +79,8 @@ struct NodeView: View, Equatable {
         .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
         .offset(dragOffset)
         .gesture(reparentGesture)
-        .onTapGesture { vm.select(nodeID) }
         .onTapGesture(count: 2) { vm.beginEdit(nodeID) }
+        .onTapGesture { vm.select(nodeID) }
         .dropDestination(for: String.self) { items, _ in
             guard let s = items.first, let pid = Int64(s) else { return false }
             vm.attach(pid, to: nodeID); return true
@@ -113,12 +113,12 @@ struct NodeView: View, Equatable {
         DragGesture(coordinateSpace: .named(coordSpace))
             .updating($dragOffset) { value, state, _ in state = value.translation }
             .onChanged { value in
-                guard nodeID != vm.rootID else { return }
+                guard let rootID = vm.rootID, nodeID != rootID else { return }
                 dragInfo = NodeDragInfo(nodeID: nodeID, canvasPoint: vm.transform.canvas(from: value.location))
             }
             .onEnded { value in
                 defer { dragInfo = nil }
-                guard nodeID != vm.rootID else { return }
+                guard let rootID = vm.rootID, nodeID != rootID else { return }
                 let p = vm.transform.canvas(from: value.location)
                 if let target = vm.dropTarget(forDragged: nodeID, at: p) {
                     vm.reparent(nodeID, to: target.parentID, index: target.index)
