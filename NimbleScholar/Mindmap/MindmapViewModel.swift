@@ -22,6 +22,8 @@ final class MindmapViewModel: ObservableObject {
 
     private let store = AppEnvironment.shared.mindmaps
     private let activeKey = "activeMindmapID"
+    private let seedGapX: CGFloat = 220   // place a child this far right of its parent (node width + gap)
+    private let seedGapY: CGFloat = 70    // vertical spacing between seeded siblings
     private var undoStack: [MapSnapshot] = []
     private var redoStack: [MapSnapshot] = []
 
@@ -99,10 +101,8 @@ final class MindmapViewModel: ObservableObject {
             sz[nid] = MindmapNodeSizing.size(text: n.text, chipCount: tree.paperIDsByNode[nid]?.count ?? 0)
         }
         sizes = sz
-        if let root = tree.rootID {
-            layout = TreeLayout.positions(rootID: root, childrenByParent: tree.childIDsByParent,
-                                          collapsed: tree.collapsedSet, sizeOf: sz)
-        } else { layout = [:] }
+        layout = Dictionary(uniqueKeysWithValues:
+            tree.nodes.compactMap { n in n.id.map { ($0, CGPoint(x: n.x, y: n.y)) } })
     }
 
     // MARK: Structural ops (each: push undo → store → reload)
@@ -112,9 +112,18 @@ final class MindmapViewModel: ObservableObject {
         undoStack.append(snap); redoStack.removeAll()
     }
 
+    /// Seed position for a freshly created child of `parentID` (beside the parent, stacked by index).
+    private func seedChildPosition(parentID: Int64, siblingIndex: Int) -> CGPoint {
+        let p = layout[parentID] ?? .zero
+        return CGPoint(x: p.x + seedGapX, y: p.y + CGFloat(siblingIndex) * seedGapY)
+    }
+
     func addChild(to parentID: Int64) {
         pushUndo()
+        let index = tree.children(of: parentID).count   // new child's 0-based index (pre-insert count)
         guard let n = try? store.addChild(parentID: parentID, text: ""), let nid = n.id else { return }
+        let seed = seedChildPosition(parentID: parentID, siblingIndex: index)
+        try? store.moveNode(id: nid, x: Double(seed.x), y: Double(seed.y))
         reloadTree(); selectedNodeID = nid; editingNodeID = nid
     }
     func addChildToSelected() { if let s = selectedNodeID { addChild(to: s) } }
@@ -123,6 +132,8 @@ final class MindmapViewModel: ObservableObject {
         if nodeID == tree.rootID { addChild(to: nodeID); return }   // root has no sibling
         pushUndo()
         guard let n = try? store.addSibling(of: nodeID, text: ""), let nid = n.id else { return }
+        let ref = layout[nodeID] ?? .zero
+        try? store.moveNode(id: nid, x: Double(ref.x), y: Double(ref.y + seedGapY))
         reloadTree(); selectedNodeID = nid; editingNodeID = nid
     }
     func addSiblingToSelected() { if let s = selectedNodeID { addSibling(of: s) } }
@@ -144,10 +155,34 @@ final class MindmapViewModel: ObservableObject {
         pushUndo(); try? store.reorderSibling(nodeID: nodeID, before: before); reloadTree()
     }
 
-    func reparent(_ nodeID: Int64, to newParentID: Int64, index: Int) {
+    func reparent(_ nodeID: Int64, to newParentID: Int64, index: Int, at point: CGPoint) {
         guard nodeID != tree.rootID, nodeID != newParentID, !isDescendant(newParentID, of: nodeID) else { return }
-        pushUndo(); try? store.setParent(nodeID: nodeID, newParentID: newParentID, index: index)
+        pushUndo()
+        try? store.setParent(nodeID: nodeID, newParentID: newParentID, index: index)
+        try? store.moveNode(id: nodeID, x: Double(point.x), y: Double(point.y))
         reloadTree(); selectedNodeID = nodeID
+    }
+
+    /// Free-move a node to a canvas point (drag released on empty space; root included).
+    func move(_ nodeID: Int64, to point: CGPoint) {
+        pushUndo()
+        try? store.moveNode(id: nodeID, x: Double(point.x), y: Double(point.y))
+        reloadTree(); selectedNodeID = nodeID
+    }
+
+    /// Re-arrange the whole map to a clean auto-layout, writing positions back to the nodes.
+    func tidy() {
+        guard let id = activeMapID, let root = tree.rootID else { return }
+        var sz: [Int64: CGSize] = [:]
+        for n in tree.nodes {
+            guard let nid = n.id else { continue }
+            sz[nid] = MindmapNodeSizing.size(text: n.text, chipCount: tree.paperIDsByNode[nid]?.count ?? 0)
+        }
+        let positions = TreeLayout.positions(rootID: root, childrenByParent: tree.childIDsByParent,
+                                             collapsed: tree.collapsedSet, sizeOf: sz)
+        pushUndo()
+        try? store.setPositions(mapID: id, positions: positions)
+        reloadTree()
     }
 
     private func isDescendant(_ candidate: Int64, of ancestor: Int64) -> Bool {
