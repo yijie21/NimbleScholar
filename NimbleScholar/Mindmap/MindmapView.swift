@@ -19,6 +19,8 @@ struct MindmapView: View {
                 if vm.activeMapID == nil {
                     MindmapEmptyState().environmentObject(vm)
                 } else {
+                    CanvasToolbar().environmentObject(vm)
+                    Divider()
                     MindmapCanvas()
                         .environmentObject(vm)
                         .environmentObject(libraryVM)
@@ -44,5 +46,34 @@ struct MindmapEmptyState: View {
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Guaranteed-usable mirror of the keyboard ops (in case a key is captured by the system).
+struct CanvasToolbar: View {
+    @EnvironmentObject var vm: MindmapViewModel
+    private var hasSelection: Bool { vm.selectedNodeID != nil }
+    private var selectionIsRoot: Bool { vm.selectedNodeID == vm.rootID }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button { vm.addChildToSelected() } label: { Label("Child", systemImage: "arrow.turn.down.right") }
+                .disabled(!hasSelection)
+            Button { vm.addSiblingToSelected() } label: { Label("Sibling", systemImage: "arrow.down") }
+                .disabled(!hasSelection || selectionIsRoot)
+            Button { vm.deleteSelectedSubtree() } label: { Label("Delete", systemImage: "trash") }
+                .disabled(!hasSelection || selectionIsRoot)
+            Button { if let s = vm.selectedNodeID { vm.toggleCollapse(s) } } label: { Label("Collapse", systemImage: "rectangle.compress.vertical") }
+                .disabled(!hasSelection)
+            Divider().frame(height: 16)
+            Button { vm.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(!vm.canUndo)
+            Button { vm.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(!vm.canRedo)
+            Spacer()
+            Text("Tab: child · Return: sibling · arrows: move · Space: collapse")
+                .font(.caption2).foregroundStyle(.secondary)
+        }
+        .labelStyle(.iconOnly)
+        .buttonStyle(.borderless)
+        .padding(.horizontal, 12).padding(.vertical, 6)
     }
 }
