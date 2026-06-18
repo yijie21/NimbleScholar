@@ -94,6 +94,9 @@ struct NodeView: View, Equatable {
                         .font(.title3)
                         .foregroundStyle(node.content.isEmpty ? .tertiary : .secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        // Hit-test the whole full-width row, not just the glyphs, so clicking the
+                        // empty space to the right of a short note still targets it.
+                        .contentShape(Rectangle())
                         // High priority so a double-click on the note edits the note, beating the
                         // node-wide double-click (which edits the heading).
                         .highPriorityGesture(TapGesture(count: 2).onEnded { vm.beginEditContent(nodeID) })
