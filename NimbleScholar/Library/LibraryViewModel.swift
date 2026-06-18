@@ -213,18 +213,46 @@ final class LibraryViewModel: ObservableObject {
         reload()
     }
 
-    /// Import a local PDF: copy it into the cache and create a paper from its filename.
-    func importPDF(at source: URL) {
-        let cache = AppEnvironment.shared.downloader.cacheDir
+    /// Copy a PDF into the library cache, returning its stable destination path. Names the copy
+    /// after the source file; a same-named existing copy is reused (cache is content-addressed by name).
+    private static func copyIntoCache(_ source: URL, cache: URL) -> URL {
         try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
         let dest = cache.appendingPathComponent(source.lastPathComponent)
         if !FileManager.default.fileExists(atPath: dest.path) {
             try? FileManager.default.copyItem(at: source, to: dest)
         }
+        return dest
+    }
+
+    /// Import a local PDF: copy it into the cache and create a paper from its filename. Shared by the
+    /// drag-drop importer and the File ▸ Import / toolbar commands. UI refreshes via DB observation.
+    @discardableResult
+    static func importPDF(at source: URL, store: LibraryStore, cache: URL) -> Paper? {
         var p = Paper(title: source.deletingPathExtension().lastPathComponent)
-        p.pdfPath = dest.path
+        p.pdfPath = copyIntoCache(source, cache: cache).path
         p.source = "local"
-        _ = try? store.create(p)
+        return try? store.create(p)
+    }
+
+    func importPDF(at source: URL) {
+        _ = Self.importPDF(at: source, store: store, cache: AppEnvironment.shared.downloader.cacheDir)
+        reload()
+    }
+
+    /// Copy a PDF into the cache and return its stored path, WITHOUT touching the DB — for the edit
+    /// sheet, which persists pdfPath alongside the rest of the form when the user hits Save.
+    func cachePDF(_ source: URL) -> String {
+        Self.copyIntoCache(source, cache: AppEnvironment.shared.downloader.cacheDir).path
+    }
+
+    /// Attach a local PDF to an EXISTING paper (e.g. one whose capture couldn't fetch a PDF): copy it
+    /// into the cache and point the paper's pdfPath at it. The reader then opens it directly.
+    func attachPDF(at source: URL, to paper: Paper) {
+        let dest = Self.copyIntoCache(source, cache: AppEnvironment.shared.downloader.cacheDir)
+        var p = paper
+        p.pdfPath = dest.path
+        if p.source.isEmpty { p.source = "local" }
+        _ = try? store.update(p)
         reload()
     }
 

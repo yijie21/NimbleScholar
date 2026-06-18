@@ -19,6 +19,8 @@ struct NimbleScholarApp: App {
                 }
             }
             CommandGroup(after: .importExport) {
+                Button("Import PDF…") { importPDFsFromPanel() }
+                    .keyboardShortcut("i", modifiers: [.command, .shift])
                 Button("Export BibTeX…") { exportBibTeX() }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
                 Divider()
@@ -28,5 +30,15 @@ struct NimbleScholarApp: App {
         }
 
         Settings { SettingsView() }
+    }
+}
+
+/// File ▸ Import PDF…: add one or more local PDFs as new papers. The library refreshes through its
+/// GRDB change observation, so no view-model reference is needed here.
+private func importPDFsFromPanel() {
+    let store = AppEnvironment.shared.store
+    let cache = AppEnvironment.shared.downloader.cacheDir
+    for url in PDFPicker.pick(allowsMultiple: true, message: "Choose PDF(s) to add to your library") {
+        _ = LibraryViewModel.importPDF(at: url, store: store, cache: cache)
     }
 }

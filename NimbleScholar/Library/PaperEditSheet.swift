@@ -18,6 +18,22 @@ struct PaperEditSheet: View {
                 TextField("DOI / arXiv ID", text: $paper.doi)
                 TextField("URL", text: $paper.url)
                 TextField("PDF URL", text: $paper.pdfURL)
+                HStack {
+                    Button("Attach PDF…") {
+                        if let url = PDFPicker.pick(allowsMultiple: false,
+                                                    message: "Choose a PDF for this paper").first {
+                            paper.pdfPath = vm.cachePDF(url)   // copy into cache now; persisted on Save
+                        }
+                    }
+                    if !paper.pdfPath.isEmpty {
+                        Text((paper.pdfPath as NSString).lastPathComponent)
+                            .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                        Button { paper.pdfPath = "" } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.plain).foregroundStyle(.secondary).help("Detach PDF")
+                    } else {
+                        Text("No local PDF").font(.caption).foregroundStyle(.tertiary)
+                    }
+                }
                 TextField("Project URL", text: $paper.projectURL)
                 TextField("Code URL (GitHub)", text: $paper.codeURL)
                 TextField("Summary", text: $paper.summary)

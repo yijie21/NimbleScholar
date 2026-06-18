@@ -149,6 +149,12 @@ struct LibraryContentView: View {
             }
             ToolbarItem {
                 Menu {
+                    Button("Import PDF…") {
+                        for url in PDFPicker.pick(allowsMultiple: true, message: "Choose PDF(s) to add to your library") {
+                            vm.importPDF(at: url)
+                        }
+                    }
+                    Divider()
                     Button("Download all PDFs") { Task { await vm.downloadAllPDFs() } }
                     Button("Load missing figures & PDFs") { vm.retryAllIncomplete() }
                     Button("Re-fetch all figures") { vm.refetchAllFigures() }

@@ -13,6 +13,12 @@ struct PaperContextMenu: ViewModifier {
                 Label("Read", systemImage: "book")
             }
             Button { vm.editingPaper = paper } label: { Label("Edit…", systemImage: "pencil") }
+            Button {
+                if let url = PDFPicker.pick(allowsMultiple: false,
+                                            message: "Choose a PDF to attach to “\(paper.title)”").first {
+                    vm.attachPDF(at: url, to: paper)
+                }
+            } label: { Label("Attach PDF…", systemImage: "paperclip") }
             Button { vm.refetchMetadata(paper) } label: { Label("Re-fetch Metadata", systemImage: "arrow.clockwise") }
             Button { vm.toggleToRead(paper) } label: {
                 Label(vm.isUnread(paper) ? "Mark as Read" : "Mark as Unread",

@@ -19,6 +19,12 @@ public struct PDFDownloader {
 
     /// Downloads to cacheDir if not present; returns the local file path.
     public func ensureLocalPDF(for paper: Paper, overwrite: Bool = false) async throws -> URL {
+        // A manually imported/attached PDF lives at an explicit `pdfPath`. Honor it (when the file
+        // is really there) so the reader opens local PDFs instead of trying to re-download them.
+        if !overwrite, !paper.pdfPath.isEmpty {
+            let stored = URL(fileURLWithPath: paper.pdfPath)
+            if FileManager.default.fileExists(atPath: stored.path) { return stored }
+        }
         let dest = cacheDir.appendingPathComponent(Self.safeName(for: paper))
         if !overwrite, FileManager.default.fileExists(atPath: dest.path) { return dest }
         let urlString = !paper.pdfURL.isEmpty ? paper.pdfURL
