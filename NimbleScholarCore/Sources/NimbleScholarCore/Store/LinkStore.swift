@@ -59,39 +59,15 @@ extension LibraryStore {
     }
 
     public func linkTagCounts() throws -> [TagCount] {
-        try dbQueue.read { db in
-            try TagCount.fetchAll(db, sql: """
-                SELECT t.name AS name, COUNT(m.link_id) AS count
-                FROM link_tags t JOIN link_tag_map m ON m.tag_id = t.id
-                GROUP BY t.id ORDER BY t.name
-            """)
-        }
+        try dbQueue.read { try TagSQL.counts($0, .links) }
     }
 
     public func allTagsByLink() throws -> [Int64: [String]] {
-        try dbQueue.read { db in
-            let rows = try Row.fetchAll(db, sql: """
-                SELECT m.link_id AS lid, t.name AS name
-                FROM link_tag_map m JOIN link_tags t ON t.id = m.tag_id
-                ORDER BY t.name
-            """)
-            var map: [Int64: [String]] = [:]
-            for row in rows {
-                let lid: Int64 = row["lid"]
-                map[lid, default: []].append(row["name"])
-            }
-            return map
-        }
+        try dbQueue.read { try TagSQL.allByOwner($0, .links) }
     }
 
     public func tags(forLink id: Int64) throws -> [String] {
-        try dbQueue.read { db in
-            try String.fetchAll(db, sql: """
-                SELECT t.name FROM link_tags t
-                JOIN link_tag_map m ON m.tag_id = t.id
-                WHERE m.link_id = ? ORDER BY t.name
-            """, arguments: [id])
-        }
+        try dbQueue.read { try TagSQL.tags($0, .links, ownerID: id) }
     }
 
     // MARK: Writes
@@ -117,39 +93,17 @@ extension LibraryStore {
 
     public func setLinkTags(linkID: Int64, tags rawTags: [String]) throws {
         let names = TagNormalizer.normalize(rawTags)
-        try dbQueue.write { db in
-            try db.execute(sql: "DELETE FROM link_tag_map WHERE link_id = ?", arguments: [linkID])
-            for name in names {
-                try db.execute(sql: "INSERT OR IGNORE INTO link_tags(name) VALUES (?)", arguments: [name])
-                let tagID = try Int64.fetchOne(db, sql: "SELECT id FROM link_tags WHERE name = ?", arguments: [name])!
-                try db.execute(sql: "INSERT OR IGNORE INTO link_tag_map(link_id, tag_id) VALUES (?, ?)",
-                               arguments: [linkID, tagID])
-            }
-            // bump updated_at so the observation refreshes even when only tags changed
-            try db.execute(sql: "UPDATE links SET updated_at = ? WHERE id = ?", arguments: [nowTS(), linkID])
-            try db.execute(sql: "DELETE FROM link_tags WHERE id NOT IN (SELECT DISTINCT tag_id FROM link_tag_map)")
-        }
+        // bumpUpdatedAt: link change-observation tracks MAX(links.updated_at), so touch the row.
+        try dbQueue.write { try TagSQL.setTags($0, .links, ownerID: linkID, names: names, bumpUpdatedAt: true) }
     }
 
     public func renameLinkTag(_ old: String, to new: String) throws {
-        let names = TagNormalizer.normalize(new)
-        guard let n = names.first else { return }
-        try dbQueue.write { db in
-            try db.execute(sql: "INSERT OR IGNORE INTO link_tags(name) VALUES (?)", arguments: [n])
-            let newID = try Int64.fetchOne(db, sql: "SELECT id FROM link_tags WHERE name = ?", arguments: [n])!
-            guard let oldID = try Int64.fetchOne(db, sql: "SELECT id FROM link_tags WHERE name = ?", arguments: [old]),
-                  oldID != newID else { return }
-            try db.execute(sql: "UPDATE OR IGNORE link_tag_map SET tag_id = ? WHERE tag_id = ?", arguments: [newID, oldID])
-            try db.execute(sql: "DELETE FROM link_tag_map WHERE tag_id = ?", arguments: [oldID])
-            try db.execute(sql: "DELETE FROM link_tags WHERE id = ?", arguments: [oldID])
-        }
+        guard let n = TagNormalizer.normalize(new).first else { return }
+        try dbQueue.write { try TagSQL.rename($0, .links, old: old, new: n) }
     }
 
     public func deleteLinkTag(_ name: String) throws {
-        try dbQueue.write { db in
-            try db.execute(sql: "DELETE FROM link_tag_map WHERE tag_id IN (SELECT id FROM link_tags WHERE name = ?)", arguments: [name])
-            try db.execute(sql: "DELETE FROM link_tags WHERE name = ?", arguments: [name])
-        }
+        try dbQueue.write { try TagSQL.delete($0, .links, name: name) }
     }
 
     // MARK: Change observation

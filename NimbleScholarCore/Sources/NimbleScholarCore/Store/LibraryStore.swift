@@ -211,13 +211,7 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     public func tagCounts() throws -> [TagCount] {
-        try dbQueue.read { db in
-            try TagCount.fetchAll(db, sql: """
-                SELECT t.name AS name, COUNT(pt.paper_id) AS count
-                FROM tags t JOIN paper_tags pt ON pt.tag_id = t.id
-                GROUP BY t.id ORDER BY t.name
-            """)
-        }
+        try dbQueue.read { try TagSQL.counts($0, .papers) }
     }
 
     public func searchPapers(query: String?, tag: String?) throws -> [Paper] {
@@ -269,51 +263,21 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     public func renameTag(_ old: String, to new: String) throws {
-        let names = TagNormalizer.normalize(new)
-        guard let n = names.first else { return }
-        try dbQueue.write { db in
-            try db.execute(sql: "INSERT OR IGNORE INTO tags(name) VALUES (?)", arguments: [n])
-            let newID = try Int64.fetchOne(db, sql: "SELECT id FROM tags WHERE name = ?", arguments: [n])!
-            guard let oldID = try Int64.fetchOne(db, sql: "SELECT id FROM tags WHERE name = ?", arguments: [old]),
-                  oldID != newID else { return }
-            try db.execute(sql: "UPDATE OR IGNORE paper_tags SET tag_id = ? WHERE tag_id = ?", arguments: [newID, oldID])
-            try db.execute(sql: "DELETE FROM paper_tags WHERE tag_id = ?", arguments: [oldID])
-            try db.execute(sql: "DELETE FROM tags WHERE id = ?", arguments: [oldID])
-        }
+        guard let n = TagNormalizer.normalize(new).first else { return }
+        try dbQueue.write { try TagSQL.rename($0, .papers, old: old, new: n) }
     }
 
     public func deleteTag(_ name: String) throws {
-        try dbQueue.write { db in
-            try db.execute(sql: "DELETE FROM paper_tags WHERE tag_id IN (SELECT id FROM tags WHERE name = ?)", arguments: [name])
-            try db.execute(sql: "DELETE FROM tags WHERE name = ?", arguments: [name])
-        }
+        try dbQueue.write { try TagSQL.delete($0, .papers, name: name) }
     }
 
     /// All paper→tags in a single query (avoids N+1 lookups when rendering the library).
     public func allTagsByPaper() throws -> [Int64: [String]] {
-        try dbQueue.read { db in
-            let rows = try Row.fetchAll(db, sql: """
-                SELECT pt.paper_id AS pid, t.name AS name
-                FROM paper_tags pt JOIN tags t ON t.id = pt.tag_id
-                ORDER BY t.name
-            """)
-            var map: [Int64: [String]] = [:]
-            for row in rows {
-                let pid: Int64 = row["pid"]
-                map[pid, default: []].append(row["name"])
-            }
-            return map
-        }
+        try dbQueue.read { try TagSQL.allByOwner($0, .papers) }
     }
 
     public func tags(forPaper id: Int64) throws -> [String] {
-        try dbQueue.read { db in
-            try String.fetchAll(db, sql: """
-                SELECT t.name FROM tags t
-                JOIN paper_tags pt ON pt.tag_id = t.id
-                WHERE pt.paper_id = ? ORDER BY t.name
-            """, arguments: [id])
-        }
+        try dbQueue.read { try TagSQL.tags($0, .papers, ownerID: id) }
     }
 
     // MARK: - Writes
@@ -370,19 +334,7 @@ public final class LibraryStore: @unchecked Sendable {
 
     public func setTags(paperID: Int64, tags rawTags: [String]) throws {
         let names = TagNormalizer.normalize(rawTags)
-        try dbQueue.write { db in
-            try db.execute(sql: "DELETE FROM paper_tags WHERE paper_id = ?", arguments: [paperID])
-            for name in names {
-                try db.execute(sql: "INSERT OR IGNORE INTO tags(name) VALUES (?)", arguments: [name])
-                let tagID = try Int64.fetchOne(db, sql: "SELECT id FROM tags WHERE name = ?", arguments: [name])!
-                try db.execute(sql: "INSERT OR IGNORE INTO paper_tags(paper_id, tag_id) VALUES (?, ?)",
-                               arguments: [paperID, tagID])
-            }
-            // prune now-orphaned tags so the sidebar stays clean
-            try db.execute(sql: """
-                DELETE FROM tags WHERE id NOT IN (SELECT DISTINCT tag_id FROM paper_tags)
-            """)
-        }
+        try dbQueue.write { try TagSQL.setTags($0, .papers, ownerID: paperID, names: names, bumpUpdatedAt: false) }
     }
 
     // MARK: - Annotation index
