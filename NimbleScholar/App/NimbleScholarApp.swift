@@ -35,6 +35,7 @@ struct NimbleScholarApp: App {
 
 /// File ▸ Import PDF…: add one or more local PDFs as new papers. The library refreshes through its
 /// GRDB change observation, so no view-model reference is needed here.
+@MainActor
 private func importPDFsFromPanel() {
     let store = AppEnvironment.shared.store
     let cache = AppEnvironment.shared.downloader.cacheDir
