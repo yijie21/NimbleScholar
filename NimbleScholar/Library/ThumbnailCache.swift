@@ -45,31 +45,47 @@ final class ThumbnailCache {
         if let cached = memory.object(forKey: k) { return cached }
 
         let file = dir.appendingPathComponent("\(k).png")
-        if let data = try? Data(contentsOf: file), let img = NSImage(data: data) {
+        // Disk read + decode off the main thread so scrolling/typing never stutter on a cache hit.
+        if let img = await Task.detached(priority: .utility, operation: {
+            (try? Data(contentsOf: file)).flatMap { NSImage(data: $0) }
+        }).value {
             memory.setObject(img, forKey: k)
             return img
         }
 
         guard let produced = await produce(for: paper) else { return nil }
         memory.setObject(produced, forKey: k)
-        if let tiff = produced.tiffRepresentation,
-           let rep = NSBitmapImageRep(data: tiff),
-           let png = rep.representation(using: .png, properties: [:]) {
+        // Encode + write + trim off the main thread (fire-and-forget — the image is already returned).
+        let dir = self.dir, maxBytes = self.maxBytes
+        Task.detached(priority: .utility) {
+            guard let tiff = produced.tiffRepresentation,
+                  let rep = NSBitmapImageRep(data: tiff),
+                  let png = rep.representation(using: .png, properties: [:]) else { return }
             try? png.write(to: file)
-            trimDiskIfNeeded()
+            Self.trimDisk(dir: dir, maxBytes: maxBytes)
         }
         return produced
     }
 
-    /// Render + cache in the background so the first scroll is instant.
+    private var prewarmTask: Task<Void, Never>?
+
+    /// Render + cache the visible page in the background so the first scroll is instant. Cancels any
+    /// prior prewarm so rapid reloads (typing, mutations) don't stack overlapping passes.
     func prewarm(_ papers: [Paper]) {
-        Task { for p in papers { _ = await image(for: p) } }
+        prewarmTask?.cancel()
+        prewarmTask = Task { [weak self] in
+            for p in papers {
+                if Task.isCancelled { break }
+                _ = await self?.image(for: p)
+            }
+        }
     }
 
     private let maxBytes: UInt64 = 200 * 1024 * 1024  // 200 MB
 
-    /// Keep the on-disk cache bounded by evicting the oldest files.
-    private func trimDiskIfNeeded() {
+    /// Keep the on-disk cache bounded by evicting the oldest files. Static + nonisolated so it can
+    /// run on the background write task.
+    nonisolated private static func trimDisk(dir: URL, maxBytes: UInt64) {
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(
             at: dir, includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey]) else { return }

@@ -2,6 +2,12 @@ import SwiftUI
 import AppKit
 import NimbleScholarCore
 
+/// Shared in-memory cache for link card figures, keyed by image URL — so scrolling a card off and
+/// back on doesn't re-download its og:image. NSCache is thread-safe.
+enum LinkImageCache {
+    static let memory = NSCache<NSString, NSImage>()
+}
+
 /// The card figure for a saved link: its og:image (loaded through the app's network session so it
 /// honors the proxy), falling back to a placeholder tile keyed to the kind of link (a GitHub glyph
 /// or a generic link glyph) plus the host. Fills its frame; the caller sets size + clip.
@@ -24,8 +30,13 @@ struct LinkThumbnail: View {
     private func load() async -> NSImage? {
         if !link.imagePath.isEmpty, let img = NSImage(contentsOfFile: link.imagePath) { return img }
         guard !link.imageURL.isEmpty, let u = URL(string: link.imageURL) else { return nil }
+        let key = link.imageURL as NSString
+        if let cached = LinkImageCache.memory.object(forKey: key) { return cached }
         if let (data, _) = try? await AppEnvironment.shared.networkSession.data(from: u),
-           let img = NSImage(data: data) { return img }
+           let img = NSImage(data: data) {
+            LinkImageCache.memory.setObject(img, forKey: key)
+            return img
+        }
         return nil
     }
 }

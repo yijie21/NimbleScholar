@@ -30,7 +30,7 @@ final class LibraryViewModel: ObservableObject {
     @Published var papers: [Paper] = []
     @Published var tagCounts: [TagCount] = []
     @Published var tagsByPaper: [Int64: [String]] = [:]   // batched once per reload (no N+1)
-    @Published var query = "" { didSet { reload() } }
+    @Published var query = "" { didSet { if query != oldValue { scheduleSearchReload() } } }
     @Published var scope: LibraryScope = .all { didSet { readingPaperID = nil; reload() } }
     @Published var sort: SortMode = .updated {
         didSet {
@@ -47,6 +47,17 @@ final class LibraryViewModel: ObservableObject {
 
     private let store = AppEnvironment.shared.store
     private var observation: ObservationToken?
+    private var searchDebounce: Task<Void, Never>?
+
+    /// Debounce search so typing doesn't run a DB query (FTS + tag scans) on every keystroke.
+    private func scheduleSearchReload() {
+        searchDebounce?.cancel()
+        searchDebounce = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 220_000_000)
+            if Task.isCancelled { return }
+            self?.reload()
+        }
+    }
 
     init() {
         if let raw = UserDefaults.standard.string(forKey: "librarySort"),
@@ -134,7 +145,10 @@ final class LibraryViewModel: ObservableObject {
     }
     func renameTag(_ old: String, to new: String) {
         try? store.renameTag(old, to: new)
-        if case .tag(let t) = scope, t == old { scope = .tag(new) } else { reload() }
+        // Filter on the normalized name the store actually saved, not the raw text (else the sidebar
+        // scope can stop matching any row).
+        if case .tag(let t) = scope, t == old { scope = .tag(TagNormalizer.normalize(new).first ?? old) }
+        else { reload() }
     }
     func deleteTag(_ name: String) {
         try? store.deleteTag(name)
@@ -433,13 +447,6 @@ final class LibraryViewModel: ObservableObject {
     func bulkDelete() {
         for p in selectedPapers() { if let id = p.id { try? store.deletePaper(id: id) } }
         multiSelection.removeAll(); reload()
-    }
-    func bulkAddTag(_ tag: String) {
-        for p in selectedPapers() where p.id != nil {
-            let current = (try? store.tags(forPaper: p.id!)) ?? []
-            try? store.setTags(paperID: p.id!, tags: current + [tag])
-        }
-        reload()
     }
     func bulkDownloadPDFs() async {
         for p in selectedPapers() { _ = await ensurePDF(for: p) }

@@ -16,14 +16,25 @@ final class LinksViewModel: ObservableObject {
     @Published var links: [SavedLink] = []
     @Published var tagCounts: [TagCount] = []
     @Published var tagsByLink: [Int64: [String]] = [:]
-    @Published var query = "" { didSet { reload() } }
+    @Published var query = "" { didSet { if query != oldValue { scheduleSearchReload() } } }
     @Published var scope: LinkScope = .all { didSet { reload() } }
     @Published var editingLink: SavedLink? = nil
 
     private let store = AppEnvironment.shared.store
     private var observation: ObservationToken?
+    private var searchDebounce: Task<Void, Never>?
 
     init() { observation = store.observeLinkChanges { [weak self] in self?.reload() } }
+
+    /// Debounce search so typing doesn't query the DB on every keystroke.
+    private func scheduleSearchReload() {
+        searchDebounce?.cancel()
+        searchDebounce = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 220_000_000)
+            if Task.isCancelled { return }
+            self?.reload()
+        }
+    }
 
     var scopeTitle: String {
         switch scope {
@@ -57,10 +68,6 @@ final class LinksViewModel: ObservableObject {
         return allTagNames().filter { !current.contains($0) && (q.isEmpty || $0.contains(q)) }
     }
 
-    func setTags(_ tags: [String], for link: SavedLink) {
-        guard let id = link.id else { return }
-        try? store.setLinkTags(linkID: id, tags: tags); reload()
-    }
     func addTag(_ tag: String, to link: SavedLink) {
         guard let id = link.id else { return }
         try? store.setLinkTags(linkID: id, tags: tags(for: link) + [tag]); reload()
