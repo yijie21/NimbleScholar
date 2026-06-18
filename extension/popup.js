@@ -1,9 +1,12 @@
 const tagsInput = document.querySelector("#tagsInput");
 const defaultTagsInput = document.querySelector("#defaultTagsInput");
 const saveBtn = document.querySelector("#saveBtn");
+const savePaperBtn = document.querySelector("#savePaperBtn");
 const saveLinkBtn = document.querySelector("#saveLinkBtn");
 const saveSettingsBtn = document.querySelector("#saveSettingsBtn");
 const statusEl = document.querySelector("#status");
+
+const allButtons = [saveBtn, savePaperBtn, saveLinkBtn];
 
 function setStatus(message, kind = "") {
   statusEl.textContent = message;
@@ -22,43 +25,25 @@ async function saveSettings() {
   setStatus("Settings saved.", "success");
 }
 
-async function capture() {
-  saveBtn.disabled = true;
-  setStatus("Saving paper...", "");
-  const response = await chrome.runtime.sendMessage({
-    type: "capture-current-tab",
-    tags: tagsInput.value.trim(),
-  });
-  saveBtn.disabled = false;
+// Send a capture message and report the result. `type` picks auto / paper / link.
+async function save(type, label) {
+  allButtons.forEach((b) => (b.disabled = true));
+  setStatus(`Saving${label ? " " + label : ""}…`, "");
+  const response = await chrome.runtime.sendMessage({ type, tags: tagsInput.value.trim() });
+  allButtons.forEach((b) => (b.disabled = false));
 
   if (!response?.ok) {
     setStatus(response?.error || "Could not save. Open Nimble Scholar.app first.", "error");
     return;
   }
-
-  const paper = response.data?.paper;
-  setStatus(paper?.title ? `Saved: ${paper.title}` : "Saved paper.", "success");
+  const kind = response.kind === "link" ? "link" : "paper";
+  const title = response.data?.data?.paper?.title;
+  setStatus(title ? `Saved ${kind}: ${title}` : `Saved as ${kind}.`, "success");
 }
 
-async function captureLink() {
-  saveLinkBtn.disabled = true;
-  setStatus("Saving link...", "");
-  const response = await chrome.runtime.sendMessage({
-    type: "capture-link-current-tab",
-    tags: tagsInput.value.trim(),
-  });
-  saveLinkBtn.disabled = false;
-
-  if (!response?.ok) {
-    setStatus(response?.error || "Could not save. Open Nimble Scholar.app first.", "error");
-    return;
-  }
-  setStatus("Saved as link.", "success");
-}
-
-saveBtn.addEventListener("click", capture);
-saveLinkBtn.addEventListener("click", captureLink);
+saveBtn.addEventListener("click", () => save("capture-auto"));
+savePaperBtn.addEventListener("click", () => save("capture-current-tab", "as paper"));
+saveLinkBtn.addEventListener("click", () => save("capture-link-current-tab", "as link"));
 saveSettingsBtn.addEventListener("click", saveSettings);
-// Don't auto-save on open any more: the page might be a paper OR a link, so let the
-// user choose. (Previously opening the popup immediately saved the page as a paper.)
+
 loadSettings();

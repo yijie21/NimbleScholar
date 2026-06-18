@@ -176,16 +176,68 @@ async function captureLinkCurrentTab(extra = {}) {
   return response.json();
 }
 
+// --- Auto-detect: paper vs link ---------------------------------------------
+
+// Hosts that are (almost) always scholarly papers.
+const PAPER_HOSTS = [
+  "arxiv.org", "ar5iv.org", "ar5iv.labs.arxiv.org", "openreview.net",
+  "aclanthology.org", "thecvf.com", "proceedings.mlr.press", "papers.nips.cc",
+  "dl.acm.org", "ieeexplore.ieee.org", "link.springer.com", "nature.com",
+  "sciencedirect.com", "biorxiv.org", "medrxiv.org", "pubmed.ncbi.nlm.nih.gov",
+  "ncbi.nlm.nih.gov", "semanticscholar.org", "jmlr.org",
+];
+
+async function pageHasCitationMeta(tabId) {
+  try {
+    const [r] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () =>
+        !!document.querySelector(
+          'meta[name="citation_title"],meta[name="citation_pdf_url"],meta[name="citation_doi"]'
+        ),
+    });
+    return !!r?.result;
+  } catch {
+    return false;
+  }
+}
+
+// Decide whether the active tab should be saved as a paper or a link.
+async function decideKind() {
+  const tab = await getActiveTab();
+  if (/\.pdf($|\?)/i.test(tab.url)) return "paper";          // a PDF is a paper
+  let host = "";
+  try { host = new URL(tab.url).hostname.replace(/^www\./, ""); } catch {}
+  if (host.endsWith("github.com")) return "link";            // code repo → link
+  if (PAPER_HOSTS.some((h) => host === h || host.endsWith("." + h))) return "paper";
+  // Pages exposing Highwire/Scholar citation tags are papers; everything else is a link.
+  return (await pageHasCitationMeta(tab.id)) ? "paper" : "link";
+}
+
+async function captureAuto(extra = {}) {
+  const kind = await decideKind();
+  const data = kind === "paper"
+    ? await captureCurrentTab(extra)
+    : await captureLinkCurrentTab(extra);
+  return { kind, data };
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "capture-auto") {
+    captureAuto({ tags: message.tags })
+      .then((res) => sendResponse({ ok: true, kind: res.kind, data: res.data }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
   if (message?.type === "capture-current-tab") {
     captureCurrentTab({ tags: message.tags })
-      .then((data) => sendResponse({ ok: true, data }))
+      .then((data) => sendResponse({ ok: true, kind: "paper", data }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
   if (message?.type === "capture-link-current-tab") {
     captureLinkCurrentTab({ tags: message.tags })
-      .then((data) => sendResponse({ ok: true, data }))
+      .then((data) => sendResponse({ ok: true, kind: "link", data }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }

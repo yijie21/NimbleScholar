@@ -38,15 +38,12 @@ struct LinkEditSheet: View {
     @EnvironmentObject var vm: LinksViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var link: SavedLink
-    @State private var tags: [String] = []
     @State private var newTag = ""
-    @State private var loaded = false
 
     init(link: SavedLink) { _link = State(initialValue: link) }
 
-    private var suggestions: [String] {
-        vm.tagCounts.map(\.name).filter { !tags.contains($0) }
-    }
+    // Existing link tags not already on this link.
+    private var suggestions: [String] { vm.tagSuggestions(for: link) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -61,26 +58,31 @@ struct LinkEditSheet: View {
 
             field("Tags") {
                 VStack(alignment: .leading, spacing: 8) {
+                    // Tags apply immediately (the "Add" button, not Return — Return is the sheet's
+                    // Save action), so an assigned tag can never be lost by closing the sheet.
                     HStack {
                         TextField("+ tag", text: $newTag).textFieldStyle(.roundedBorder)
                             .frame(maxWidth: 200).onSubmit { addTyped() }
+                        Button("Add") { addTyped() }
+                            .disabled(newTag.trimmingCharacters(in: .whitespaces).isEmpty)
                         if !suggestions.isEmpty {
                             Menu {
                                 ForEach(suggestions, id: \.self) { t in
-                                    Button { add(t) } label: { Label(t, systemImage: "tag") }
+                                    Button { vm.addTag(t, to: link) } label: { Label(t, systemImage: "tag") }
                                 }
                             } label: { Image(systemName: "tag") }
                             .menuStyle(.borderlessButton).fixedSize().help("Add an existing tag")
                         }
                     }
-                    if !tags.isEmpty {
+                    let current = vm.tags(for: link)
+                    if !current.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
-                                ForEach(tags, id: \.self) { t in
+                                ForEach(current, id: \.self) { t in
                                     HStack(spacing: 4) {
                                         Circle().fill(TagColor.color(for: t)).frame(width: 6, height: 6)
                                         Text(t).font(.caption)
-                                        Button { tags.removeAll { $0 == t } } label: {
+                                        Button { vm.removeTag(t, from: link) } label: {
                                             Image(systemName: "xmark.circle.fill")
                                         }.buttonStyle(.plain).foregroundStyle(.secondary)
                                     }
@@ -97,14 +99,13 @@ struct LinkEditSheet: View {
                 Button("Delete", role: .destructive) { vm.delete(link); dismiss() }
                 Spacer()
                 Button("Cancel") { dismiss() }
-                Button("Save") { vm.save(link); vm.setTags(tags, for: link); dismiss() }
+                Button("Save") { vm.save(link); dismiss() }
                     .keyboardShortcut(.defaultAction)
             }
             .padding(.top, 4)
         }
         .padding(20)
         .frame(width: 520)
-        .onAppear { if !loaded { tags = vm.tags(for: link); loaded = true } }
     }
 
     @ViewBuilder private func field<Content: View>(_ label: String, @ViewBuilder _ content: () -> Content) -> some View {
@@ -114,13 +115,11 @@ struct LinkEditSheet: View {
         }
     }
 
-    private func add(_ raw: String) {
-        let n = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !n.isEmpty, !tags.contains(n) else { return }
-        tags.append(n)
-    }
     private func addTyped() {
-        for part in newTag.split(separator: ",") { add(String(part)) }
+        for part in newTag.split(separator: ",") {
+            let n = part.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !n.isEmpty { vm.addTag(n, to: link) }   // applied immediately + normalized by the store
+        }
         newTag = ""
     }
 }

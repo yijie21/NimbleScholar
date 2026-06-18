@@ -100,6 +100,18 @@ button:disabled {
   border: 1px solid var(--line);
 }
 
+.overrides {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.overrides button {
+  font-weight: 550;
+  font-size: 12px;
+  min-height: 30px;
+}
+
 #status {
   min-height: 34px;
   margin-top: 10px;

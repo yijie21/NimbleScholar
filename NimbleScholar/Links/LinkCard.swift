@@ -58,6 +58,16 @@ struct LinkCard: View {
         .contextMenu {
             Button { vm.open(link) } label: { Label("Open in Browser", systemImage: "safari") }
             Button { vm.editingLink = link } label: { Label("Edit…", systemImage: "pencil") }
+            Menu {
+                ForEach(vm.tagCounts.map(\.name), id: \.self) { t in
+                    let on = tags.contains(t)
+                    Button { on ? vm.removeTag(t, from: link) : vm.addTag(t, to: link) } label: {
+                        Label(t, systemImage: on ? "checkmark" : "tag")
+                    }
+                }
+                if !vm.tagCounts.isEmpty { Divider() }
+                Button { vm.editingLink = link } label: { Label("New Tag…", systemImage: "plus") }
+            } label: { Label("Tags", systemImage: "tag") }
             Button {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(link.url, forType: .string)
