@@ -17,7 +17,9 @@ struct LinksView: View {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 16) {
                         ForEach(vm.links) { link in
-                            LinkCard(link: link).environmentObject(vm)
+                            LinkCard(link: link, tags: vm.tags(for: link))
+                                .equatable()
+                                .environmentObject(vm)
                         }
                     }
                     .padding(16)

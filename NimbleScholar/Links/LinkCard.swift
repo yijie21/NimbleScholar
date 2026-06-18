@@ -4,11 +4,14 @@ import NimbleScholarCore
 
 /// One saved link as a card: figure, title, host, and its tags. Click opens the URL in the browser;
 /// right-click to edit/copy/delete.
-struct LinkCard: View {
+struct LinkCard: View, Equatable {
     @EnvironmentObject var vm: LinksViewModel
     let link: SavedLink
+    let tags: [String]
 
-    private var tags: [String] { vm.tags(for: link) }
+    static func == (l: LinkCard, r: LinkCard) -> Bool {
+        l.link == r.link && l.tags == r.tags
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {

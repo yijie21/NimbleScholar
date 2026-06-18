@@ -13,7 +13,9 @@ struct GalleryView: View {
             ScrollView {
                 LazyVGrid(columns: columns, alignment: .center, spacing: 18) {
                     ForEach(vm.papers) { paper in
-                        GalleryCard(paper: paper).environmentObject(vm)
+                        GalleryCard(paper: paper, selected: vm.multiSelection.contains(paper.id ?? -1))
+                            .equatable()
+                            .environmentObject(vm)
                     }
                 }
                 .padding(20)
@@ -24,12 +26,17 @@ struct GalleryView: View {
 
 /// One gallery card. Owns its own hover state so moving the mouse over it lifts the card
 /// (subtle scale + shadow); the selected card keeps an accent ring.
-private struct GalleryCard: View {
+private struct GalleryCard: View, Equatable {
     @EnvironmentObject var vm: LibraryViewModel
     let paper: Paper
+    let selected: Bool
     @State private var hovering = false
 
-    private var selected: Bool { vm.multiSelection.contains(paper.id ?? -1) }
+    // Skip re-rendering unchanged cards on selection/reload churn (vm changes don't force a render
+    // through `.equatable()` unless the paper value or selection actually changed).
+    static func == (l: GalleryCard, r: GalleryCard) -> Bool {
+        l.paper == r.paper && l.selected == r.selected
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {

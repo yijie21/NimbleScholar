@@ -16,7 +16,11 @@ struct RowsView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(vm.papers) { paper in
-                    RowCard(paper: paper).environmentObject(vm)
+                    RowCard(paper: paper,
+                            selected: vm.multiSelection.contains(paper.id ?? -1),
+                            tags: vm.tags(for: paper))
+                        .equatable()
+                        .environmentObject(vm)
                 }
             }
             .padding(20)
@@ -26,12 +30,16 @@ struct RowsView: View {
 
 /// One wide row card with inline editing. Hovering tints the card + lifts its shadow;
 /// the selected row keeps an accent ring.
-private struct RowCard: View {
+private struct RowCard: View, Equatable {
     @EnvironmentObject var vm: LibraryViewModel
     let paper: Paper
+    let selected: Bool
+    let tags: [String]   // in the equality key so the row re-renders when its tags change
     @State private var hovering = false
 
-    private var selected: Bool { vm.multiSelection.contains(paper.id ?? -1) }
+    static func == (l: RowCard, r: RowCard) -> Bool {
+        l.paper == r.paper && l.selected == r.selected && l.tags == r.tags
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
