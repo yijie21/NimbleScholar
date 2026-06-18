@@ -40,9 +40,6 @@ struct MindmapCanvas: View {
                     focus = .canvas
                 }
             }
-            // If focus leaves our scope entirely (e.g. the user clicks the shelf's search box while
-            // editing), commit the draft so the edit isn't silently lost.
-            .onChange(of: focus) { _, f in if f == nil, vm.editing != nil { vm.commitActiveEdit() } }
             .onChange(of: vm.activeMapID, initial: true) { _, _ in didFitMapID = nil; fitIfNeeded(geo.size) }
             .onChange(of: vm.layout) { _, _ in fitIfNeeded(geo.size) }
             .overlay(alignment: .bottomTrailing) { zoomControls(viewport: geo.size) }

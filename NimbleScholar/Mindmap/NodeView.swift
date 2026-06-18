@@ -74,7 +74,9 @@ struct NodeView: View, Equatable {
                         .focused(focus, equals: .heading(nodeID))
                         .onSubmit { vm.commitActiveEdit() }
                         .onExitCommand { vm.cancelEdit() }
-                        .onAppear { focus.wrappedValue = .heading(nodeID) }   // belt-and-suspenders with the canvas
+                        // Defer to the next runloop so the field is in the hierarchy before it claims
+                        // focus — otherwise the focus assignment can be dropped on recent macOS.
+                        .onAppear { DispatchQueue.main.async { focus.wrappedValue = .heading(nodeID) } }
                 } else {
                     Text(node.text.isEmpty ? "Untitled" : node.text)
                         .font(.title.bold())
@@ -88,7 +90,7 @@ struct NodeView: View, Equatable {
                         .focused(focus, equals: .content(nodeID))
                         .onSubmit { vm.commitActiveEdit() }
                         .onExitCommand { vm.cancelEdit() }
-                        .onAppear { focus.wrappedValue = .content(nodeID) }
+                        .onAppear { DispatchQueue.main.async { focus.wrappedValue = .content(nodeID) } }
                 } else {
                     Text(node.content.isEmpty ? "Add note…" : node.content)
                         .font(.title3)
@@ -117,12 +119,12 @@ struct NodeView: View, Equatable {
         )
         .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
         .offset(dragOffset)
-        .gesture(moveOrReparentGesture)
-        // Double-click anywhere on the node edits its heading; single-click selects. Both taps live
-        // on the node body (count:2 before count:1) so SwiftUI disambiguates them reliably — putting
-        // the edit tap on the small heading Text let the body's select/drag gestures swallow it.
+        // Double-click anywhere on the node edits its heading; single-click selects. The move/reparent
+        // drag is a SIMULTANEOUS gesture so it doesn't swallow the taps — on recent macOS a plain
+        // `.gesture(drag)` alongside tap gestures stops the taps from registering at all.
         .onTapGesture(count: 2) { vm.beginEdit(nodeID) }
         .onTapGesture { vm.select(nodeID) }
+        .simultaneousGesture(moveOrReparentGesture)
         .dropDestination(for: String.self) { items, _ in
             guard let s = items.first, let pid = Int64(s) else { return false }
             vm.attach(pid, to: nodeID); return true
