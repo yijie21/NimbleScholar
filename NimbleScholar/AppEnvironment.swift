@@ -108,6 +108,15 @@ final class AppEnvironment: ObservableObject {
         )
     }
 
+    /// A link-capture handler wired to this environment. Reuses the same generic <meta> resolver
+    /// (og:title / og:image) so saved links get a title and card figure automatically.
+    func makeLinkCaptureHandler() -> LinkCaptureHandler {
+        LinkCaptureHandler(
+            store: store,
+            resolve: { url in try await AppEnvironment.resolveMetadata(for: url) }
+        )
+    }
+
     /// Build the shared download session, honoring the proxy configured in Settings.
     private static func makeNetworkSession() -> URLSession {
         let d = UserDefaults.standard
@@ -147,6 +156,7 @@ final class AppEnvironment: ObservableObject {
 
     private func startCaptureServer() {
         let handler = makeCaptureHandler()
+        let linkHandler = makeLinkCaptureHandler()
         // Port comes from Settings (@AppStorage "capturePort"); default 8781.
         // If it's taken, walk forward until we find a free one, and log which we bound.
         let saved = UserDefaults.standard.integer(forKey: "capturePort")
@@ -154,7 +164,7 @@ final class AppEnvironment: ObservableObject {
         Task {
             for offset: UInt16 in 0..<20 {
                 let port = base &+ offset
-                let server = CaptureServer(port: port, handler: handler)
+                let server = CaptureServer(port: port, handler: handler, linkHandler: linkHandler)
                 let listen = Task {
                     try? await server.waitUntilListening()
                     NSLog("‼️ NimbleScholar: capture server LISTENING on http://127.0.0.1:%u", UInt(port))

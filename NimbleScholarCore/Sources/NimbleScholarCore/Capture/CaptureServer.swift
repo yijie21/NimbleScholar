@@ -11,9 +11,11 @@ struct CaptureResponse: Codable {
 public final class CaptureServer {
     let server: HTTPServer
     let handler: CaptureHandler
+    let linkHandler: LinkCaptureHandler?
 
-    public init(port: UInt16 = 8765, handler: CaptureHandler) {
+    public init(port: UInt16 = 8765, handler: CaptureHandler, linkHandler: LinkCaptureHandler? = nil) {
         self.handler = handler
+        self.linkHandler = linkHandler
         // Bind to IPv4 127.0.0.1 explicitly. FlyingFox's `.loopback` resolves to IPv6
         // `::1` only, which the browser extension / curl (both IPv4 127.0.0.1) can't reach.
         // `.inet(ip4:port:)` parses the IP string and can throw; "127.0.0.1" is always
@@ -24,6 +26,7 @@ public final class CaptureServer {
 
     private func registerRoutes() async {
         let h = handler
+        let lh = linkHandler
 
         await server.appendRoute("OPTIONS *") { _ in
             HTTPResponse(statusCode: .noContent, headers: Self.cors)
@@ -40,6 +43,24 @@ public final class CaptureServer {
                 let payload = try JSONDecoder().decode(CapturePayload.self, from: body)
                 let paper = try await h.capture(payload)
                 let json = try JSONEncoder().encode(CaptureResponse(ok: true, id: paper.id, error: nil))
+                return HTTPResponse(statusCode: .ok, headers: Self.json, body: json)
+            } catch {
+                let json = try? JSONEncoder().encode(CaptureResponse(ok: false, id: nil, error: "capture failed"))
+                return HTTPResponse(statusCode: .badRequest, headers: Self.json,
+                                    body: json ?? Data(#"{"ok":false}"#.utf8))
+            }
+        }
+
+        // Save a webpage / GitHub link (separate table + tags from papers).
+        await server.appendRoute("POST /api/capture-link") { req in
+            guard let lh else {
+                return HTTPResponse(statusCode: .notFound, headers: Self.json, body: Data(#"{"ok":false}"#.utf8))
+            }
+            do {
+                let body = try await req.bodyData
+                let payload = try JSONDecoder().decode(LinkCapturePayload.self, from: body)
+                let link = try await lh.capture(payload)
+                let json = try JSONEncoder().encode(CaptureResponse(ok: true, id: link.id, error: nil))
                 return HTTPResponse(statusCode: .ok, headers: Self.json, body: json)
             } catch {
                 let json = try? JSONEncoder().encode(CaptureResponse(ok: false, id: nil, error: "capture failed"))

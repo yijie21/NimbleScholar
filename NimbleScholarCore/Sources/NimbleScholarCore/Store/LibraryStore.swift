@@ -160,6 +160,28 @@ public final class LibraryStore: @unchecked Sendable {
                 t.add(column: "content", .text).notNull().defaults(to: "")
             }
         }
+        // Saved webpages / GitHub links, represented as cards. Their tags live in dedicated
+        // tables (`link_tags` / `link_tag_map`) so they never mix with paper tags.
+        m.registerMigration("v12-links") { db in
+            try db.create(table: "links", options: [.ifNotExists]) { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("url", .text).notNull()
+                for col in ["title", "description", "image_url", "image_path", "source"] {
+                    t.column(col, .text).notNull().defaults(to: "")
+                }
+                t.column("created_at", .integer).notNull()
+                t.column("updated_at", .integer).notNull()
+            }
+            try db.create(table: "link_tags", options: [.ifNotExists]) { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("name", .text).notNull().unique()
+            }
+            try db.create(table: "link_tag_map", options: [.ifNotExists]) { t in
+                t.column("link_id", .integer).notNull().references("links", onDelete: .cascade)
+                t.column("tag_id", .integer).notNull().references("link_tags", onDelete: .cascade)
+                t.primaryKey(["link_id", "tag_id"])
+            }
+        }
         return m
     }
 
