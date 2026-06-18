@@ -112,7 +112,8 @@ async function captureCurrentTab(extra = {}) {
   const payload = {
     ...pageMetadata,
     url: tab.url,
-    tags: extra.tags ?? settings.defaultTags,
+    // Papers fall back to the default tag when none were typed.
+    tags: extra.tags && extra.tags.trim() ? extra.tags : settings.defaultTags,
   };
   if (isPdf) {
     payload.pdf_url = tab.url;
@@ -157,12 +158,12 @@ async function collectLinkMetadata(tabId) {
 
 async function captureLinkCurrentTab(extra = {}) {
   const tab = await getActiveTab();
-  const settings = await readSettings();
   const meta = await collectLinkMetadata(tab.id);
   const payload = {
     ...meta,
     url: tab.url,
-    tags: extra.tags ?? settings.defaultTags,
+    // Links never get the default tag — only what the user explicitly typed.
+    tags: extra.tags && extra.tags.trim() ? extra.tags : "",
   };
   const base = await findBase();
   const response = await fetch(`${base}/api/capture-link`, {

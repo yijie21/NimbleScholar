@@ -15,7 +15,7 @@ function setStatus(message, kind = "") {
 
 async function loadSettings() {
   const settings = await chrome.storage.sync.get({ defaultTags: "to-read" });
-  tagsInput.value = settings.defaultTags;
+  // Leave the tags field empty: papers fall back to the default tag when blank, links never do.
   defaultTagsInput.value = settings.defaultTags;
 }
 

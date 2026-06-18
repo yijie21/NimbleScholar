@@ -9,6 +9,9 @@ struct LinkCardTags: View {
     let link: SavedLink
     @State private var newTag = ""
 
+    // Existing link tags not already on this link — for the quick-select menu.
+    private var suggestions: [String] { vm.tagSuggestions(for: link) }
+
     var body: some View {
         FlowLayout(spacing: 4) {
             ForEach(vm.tags(for: link), id: \.self) { t in
@@ -31,6 +34,23 @@ struct LinkCardTags: View {
             }
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(Capsule().strokeBorder(.quaternary, lineWidth: 1))
+
+            // Quick-select from already-used link tags.
+            if !suggestions.isEmpty {
+                Menu {
+                    ForEach(suggestions, id: \.self) { t in
+                        Button { vm.addTag(t, to: link) } label: { Label(t, systemImage: "tag") }
+                    }
+                } label: {
+                    Image(systemName: "tag").font(.system(size: 9))
+                        .padding(.horizontal, 6).padding(.vertical, 3)
+                        .background(Capsule().fill(.quaternary))
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Add an existing tag")
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture { }   // swallow taps here so editing tags doesn't open the link

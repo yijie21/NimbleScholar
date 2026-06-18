@@ -44,8 +44,11 @@ public final class LinkCaptureHandler {
         } else {
             saved = try store.createLink(link)
         }
+        // Only assign tags when some were actually provided — an empty list must not wipe the tags
+        // of a link being re-captured. (Links get no default tag; see the extension.)
         if let tags = payload.tags, let id = saved.id {
-            try store.setLinkTags(linkID: id, tags: TagNormalizer.normalize(tags))
+            let normalized = TagNormalizer.normalize(tags)
+            if !normalized.isEmpty { try store.setLinkTags(linkID: id, tags: normalized) }
         }
         return saved
     }
