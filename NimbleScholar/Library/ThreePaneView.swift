@@ -7,6 +7,17 @@ struct ThreePaneView: View {
     var body: some View {
         HSplitView {
             VStack(spacing: 0) {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Search papers, authors, DOI, tags", text: $vm.query)
+                        .textFieldStyle(.plain)
+                    if !vm.query.isEmpty {
+                        Button { vm.query = "" } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.plain).foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 8).padding(.vertical, 6)
+                Divider()
                 List(vm.papers, selection: $vm.multiSelection) { paper in
                     HStack(spacing: 6) {
                         ImportanceStar(paper: paper).font(.caption)

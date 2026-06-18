@@ -36,18 +36,7 @@ struct LinkCard: View {
             }
             .font(.caption2).foregroundStyle(.secondary)
 
-            if !tags.isEmpty {
-                HStack(spacing: 4) {
-                    ForEach(tags.prefix(4), id: \.self) { t in
-                        HStack(spacing: 3) {
-                            Circle().fill(TagColor.color(for: t)).frame(width: 5, height: 5)
-                            Text(t).font(.caption2)
-                        }
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Capsule().fill(.quaternary))
-                    }
-                }
-            }
+            LinkCardTags(link: link)
         }
         .padding(8)
         .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))

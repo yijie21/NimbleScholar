@@ -36,6 +36,17 @@ enum LibraryViewMode: String, CaseIterable, Identifiable {
 /// The two top-level sections of the window, toggled at the top of the sidebar.
 enum AppSection: String { case papers, links }
 
+/// Applies `.searchable` only when `active` — so a view can host its own search field instead.
+struct OptionalSearchable: ViewModifier {
+    let active: Bool
+    @Binding var text: String
+    let prompt: String
+    func body(content: Content) -> some View {
+        if active { content.searchable(text: $text, prompt: prompt) }
+        else { content }
+    }
+}
+
 struct LibraryContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @StateObject private var vm = LibraryViewModel()
@@ -151,7 +162,10 @@ struct LibraryContentView: View {
         }
         .environmentObject(vm)
         .navigationTitle(vm.scopeTitle)
-        .searchable(text: $vm.query, prompt: "Search papers, authors, DOI, tags")
+        // Three-pane hosts its own search field at the top of the paper-list column (see
+        // ThreePaneView); the other modes use the toolbar search. Reading also uses three-pane.
+        .modifier(OptionalSearchable(active: vm.readingPaperID == nil && mode != .threePane,
+                                     text: $vm.query, prompt: "Search papers, authors, DOI, tags"))
         .dropDestination(for: URL.self) { urls, _ in
             let pdfs = urls.filter { $0.pathExtension.lowercased() == "pdf" }
             for url in pdfs { vm.importPDF(at: url) }
