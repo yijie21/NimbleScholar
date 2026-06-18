@@ -62,6 +62,7 @@ else
   SOURCES='      - NimbleScholar/AppEnvironment.swift
       - NimbleScholar/App
       - NimbleScholar/Library
+      - NimbleScholar/Links
       - NimbleScholar/Mindmap
       - NimbleScholar/Reader
       - NimbleScholar/Settings

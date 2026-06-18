@@ -26,9 +26,9 @@ async function pingPort(port, timeoutMs = 600) {
   }
 }
 
-async function findEndpoint() {
+async function findBase() {
   if (cachedPort && (await pingPort(cachedPort))) {
-    return `http://127.0.0.1:${cachedPort}/api/capture`;
+    return `http://127.0.0.1:${cachedPort}`;
   }
   // Probe all candidates concurrently; resolve with the first that answers.
   const found = await Promise.any(
@@ -39,12 +39,16 @@ async function findEndpoint() {
   ).catch(() => null);
   if (found) {
     cachedPort = found;
-    return `http://127.0.0.1:${found}/api/capture`;
+    return `http://127.0.0.1:${found}`;
   }
   throw new Error(
     "Nimble Scholar isn't running, or the browser can't reach 127.0.0.1 (a proxy may be blocking localhost). " +
       "Open the app, and add 127.0.0.1/localhost to your proxy bypass list."
   );
+}
+
+async function findEndpoint() {
+  return `${await findBase()}/api/capture`;
 }
 
 async function readSettings() {
@@ -128,10 +132,62 @@ async function captureCurrentTab(extra = {}) {
   return response.json();
 }
 
+// --- Save as Link (webpage / GitHub) ----------------------------------------
+
+async function collectLinkMetadata(tabId) {
+  try {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const meta = (name) =>
+          document.querySelector(`meta[name="${name}"],meta[property="${name}"]`)?.content || "";
+        return {
+          title: meta("og:title") || document.title,
+          image_url: meta("og:image") || meta("twitter:image"),
+          description: meta("og:description") || meta("description"),
+          source: location.hostname,
+        };
+      },
+    });
+    return result?.result || {};
+  } catch {
+    return {};
+  }
+}
+
+async function captureLinkCurrentTab(extra = {}) {
+  const tab = await getActiveTab();
+  const settings = await readSettings();
+  const meta = await collectLinkMetadata(tab.id);
+  const payload = {
+    ...meta,
+    url: tab.url,
+    tags: extra.tags ?? settings.defaultTags,
+  };
+  const base = await findBase();
+  const response = await fetch(`${base}/api/capture-link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`Nimble Scholar returned ${response.status}.`);
+  }
+  return response.json();
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== "capture-current-tab") return false;
-  captureCurrentTab({ tags: message.tags })
-    .then((data) => sendResponse({ ok: true, data }))
-    .catch((error) => sendResponse({ ok: false, error: error.message }));
-  return true;
+  if (message?.type === "capture-current-tab") {
+    captureCurrentTab({ tags: message.tags })
+      .then((data) => sendResponse({ ok: true, data }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+  if (message?.type === "capture-link-current-tab") {
+    captureLinkCurrentTab({ tags: message.tags })
+      .then((data) => sendResponse({ ok: true, data }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+  return false;
 });

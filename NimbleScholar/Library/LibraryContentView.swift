@@ -33,10 +33,15 @@ enum LibraryViewMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// The two top-level sections of the window, toggled at the top of the sidebar.
+enum AppSection: String { case papers, links }
+
 struct LibraryContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @StateObject private var vm = LibraryViewModel()
+    @StateObject private var linksVM = LinksViewModel()
     @AppStorage("libraryViewMode") private var mode: LibraryViewMode = .threePane
+    @AppStorage("appSection") private var section: AppSection = .papers
 
     /// Sidebar collapses while reading, derived directly from readingPaperID so it animates
     /// in the SAME transaction as the rail/list (avoids the two-tick stutter of an onChange).
@@ -88,7 +93,22 @@ struct LibraryContentView: View {
 
     @ViewBuilder private var splitView: some View {
         NavigationSplitView(columnVisibility: columnVisibility) {
-            SidebarView().environmentObject(vm).frame(minWidth: 200)
+            VStack(spacing: 0) {
+                Picker("Section", selection: $section) {
+                    Label("Papers", systemImage: "doc.text").tag(AppSection.papers)
+                    Label("Links", systemImage: "link").tag(AppSection.links)
+                }
+                .pickerStyle(.segmented)
+                .labelStyle(.titleAndIcon)
+                .padding(8)
+                Divider()
+                if section == .papers {
+                    SidebarView().environmentObject(vm)
+                } else {
+                    LinkSidebarView().environmentObject(linksVM)
+                }
+            }
+            .frame(minWidth: 200)
         } detail: {
             detail
         }
@@ -107,6 +127,14 @@ struct LibraryContentView: View {
     }
 
     @ViewBuilder private var detail: some View {
+        if section == .links {
+            LinksView().environmentObject(linksVM)
+        } else {
+            papersDetail
+        }
+    }
+
+    @ViewBuilder private var papersDetail: some View {
         Group {
             // While reading, always use the three-pane layout so the reader has its
             // detail pane (with the paper list still beside it).
