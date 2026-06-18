@@ -23,6 +23,7 @@ final class LinksViewModel: ObservableObject {
     private let store = AppEnvironment.shared.store
     private var observation: ObservationToken?
     private var searchDebounce: Task<Void, Never>?
+    private var reloadCoalesce: Task<Void, Never>?
 
     init() { observation = store.observeLinkChanges { [weak self] in self?.reload() } }
 
@@ -44,7 +45,18 @@ final class LinksViewModel: ObservableObject {
         }
     }
 
+    /// Coalesce reloads within one frame so a mutation's explicit reload and the observation's reload
+    /// (fired by the same write) collapse into one DB fetch.
     func reload() {
+        reloadCoalesce?.cancel()
+        reloadCoalesce = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 25_000_000)
+            if Task.isCancelled { return }
+            self?.performReload()
+        }
+    }
+
+    private func performReload() {
         let q = query.trimmingCharacters(in: .whitespaces)
         let qq = q.isEmpty ? nil : q
         switch scope {

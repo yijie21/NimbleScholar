@@ -48,6 +48,7 @@ final class LibraryViewModel: ObservableObject {
     private let store = AppEnvironment.shared.store
     private var observation: ObservationToken?
     private var searchDebounce: Task<Void, Never>?
+    private var reloadCoalesce: Task<Void, Never>?
 
     /// Debounce search so typing doesn't run a DB query (FTS + tag scans) on every keystroke.
     private func scheduleSearchReload() {
@@ -76,7 +77,18 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
+    /// Coalesce reloads within one frame: a mutation's explicit reload and the DB observation's
+    /// reload (which fires just after the same write) collapse into a single DB fetch instead of two.
     func reload() {
+        reloadCoalesce?.cancel()
+        reloadCoalesce = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 25_000_000)
+            if Task.isCancelled { return }
+            self?.performReload()
+        }
+    }
+
+    private func performReload() {
         let result: [Paper]
         switch scope {
         case .all:           result = (try? store.searchPapers(query: query, tag: nil)) ?? []
