@@ -78,11 +78,77 @@ struct CanvasToolbar: View {
             Button { vm.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(!vm.canUndo)
             Button { vm.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(!vm.canRedo)
             Spacer()
-            Text("Tab: child · Return: sibling · arrows: move · Space: collapse")
-                .font(.caption2).foregroundStyle(.secondary)
+            KeyboardHintsButton()
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
         .padding(.horizontal, 12).padding(.vertical, 6)
+    }
+}
+
+/// A small keyboard-key chip (e.g. `Tab`, `␣`, `↩`) used in the shortcuts legend.
+struct KeyCap: View {
+    var text: String? = nil
+    var systemImage: String? = nil
+    var body: some View {
+        Group {
+            if let systemImage { Image(systemName: systemImage) }
+            else if let text { Text(text) }
+        }
+        .font(.system(.caption, design: .rounded).weight(.semibold))
+        .frame(minWidth: 16, minHeight: 16)
+        .padding(.horizontal, 6).padding(.vertical, 3)
+        .background(RoundedRectangle(cornerRadius: 5).fill(Color(nsColor: .controlBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.black.opacity(0.18)))
+        .foregroundStyle(.primary)
+    }
+}
+
+/// Replaces the plain shortcut text on the toolbar with a help button whose popover shows an
+/// illustrated legend — key chips paired with the matching action icon — to match the app's
+/// iconographic style instead of a sentence of text.
+struct KeyboardHintsButton: View {
+    @State private var show = false
+
+    var body: some View {
+        Button { show.toggle() } label: {
+            Label("Shortcuts", systemImage: "questionmark.circle")
+        }
+        .help("Keyboard & mouse shortcuts")
+        .popover(isPresented: $show, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Shortcuts").font(.headline)
+                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 12) {
+                    row(icon: "arrow.turn.down.right", label: "Add child") { KeyCap(text: "Tab") }
+                    row(icon: "arrow.down", label: "Add sibling") { KeyCap(systemImage: "return") }
+                    row(icon: "arrow.up.and.down.and.arrow.left.and.right", label: "Move selection") {
+                        KeyCap(systemImage: "arrow.up")
+                        KeyCap(systemImage: "arrow.down")
+                        KeyCap(systemImage: "arrow.left")
+                        KeyCap(systemImage: "arrow.right")
+                    }
+                    row(icon: "rectangle.compress.vertical", label: "Collapse / expand") { KeyCap(text: "Space") }
+                    row(icon: "trash", label: "Delete node") { KeyCap(systemImage: "delete.left") }
+                }
+                Divider()
+                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 12) {
+                    row(icon: "pencil", label: "Edit text") { KeyCap(systemImage: "cursorarrow.click.2") }
+                    row(icon: "arrow.up.and.down.and.arrow.left.and.right", label: "Move / reparent") {
+                        KeyCap(systemImage: "hand.draw")
+                    }
+                }
+            }
+            .padding(18)
+            .frame(width: 320)
+        }
+    }
+
+    @ViewBuilder
+    private func row<K: View>(icon: String, label: String, @ViewBuilder keys: () -> K) -> some View {
+        GridRow {
+            HStack(spacing: 4) { keys() }
+            Image(systemName: icon).foregroundStyle(.secondary)
+            Text(label).font(.callout)
+        }
     }
 }

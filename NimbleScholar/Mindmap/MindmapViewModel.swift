@@ -345,7 +345,9 @@ final class MindmapViewModel: ObservableObject {
         // Fit the tree into the width to the right of the anchor and the full height.
         let fitScale = min((viewport.width * (1 - rootAnchorX) - margin) / contentW,
                            (viewport.height - margin) / contentH)
-        let zoom = CanvasTransform.clampZoom(min(1.0, fitScale))
+        // Open one zoom-step below a tight fit (matches one click of the "−" control, factor 1/1.2),
+        // which reads as the comfortable default font size rather than oversized.
+        let zoom = CanvasTransform.clampZoom(min(1.0, fitScale) / 1.2)
         // Place the root's center at (rootAnchorX·width, 1/2 height): pan = targetScreen − rootCanvas·zoom.
         let pan = CGSize(width: viewport.width * rootAnchorX - rootPos.x * zoom,
                          height: viewport.height / 2 - rootPos.y * zoom)
