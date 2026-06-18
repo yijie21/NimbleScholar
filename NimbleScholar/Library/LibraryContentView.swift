@@ -162,9 +162,10 @@ struct LibraryContentView: View {
         }
         .environmentObject(vm)
         .navigationTitle(vm.scopeTitle)
-        // Three-pane hosts its own search field at the top of the paper-list column (see
-        // ThreePaneView); the other modes use the toolbar search. Reading also uses three-pane.
-        .modifier(OptionalSearchable(active: vm.readingPaperID == nil && mode != .threePane,
+        // Gallery/Rows use the toolbar search. Three-pane hosts its own search atop the paper-list
+        // column, and mindmap has its own paper-shelf search — so neither uses the toolbar one.
+        // (Reading also uses three-pane.)
+        .modifier(OptionalSearchable(active: vm.readingPaperID == nil && mode != .threePane && mode != .mindmap,
                                      text: $vm.query, prompt: "Search papers, authors, DOI, tags"))
         .dropDestination(for: URL.self) { urls, _ in
             let pdfs = urls.filter { $0.pathExtension.lowercased() == "pdf" }
