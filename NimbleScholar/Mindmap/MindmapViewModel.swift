@@ -19,6 +19,9 @@ final class MindmapViewModel: ObservableObject {
     @Published var sizes: [Int64: CGSize] = [:]
     @Published var selectedNodeID: Int64?
     @Published var editing: NodeEdit?
+    /// Live text of the active editor, bound directly by the editing node's TextField. The model row
+    /// isn't touched until the edit is committed (so cancel can discard cleanly).
+    @Published var draft: String = ""
     @Published var transform = CanvasTransform()
 
     struct DropTarget: Equatable { var parentID: Int64; var index: Int }
@@ -138,23 +141,25 @@ final class MindmapViewModel: ObservableObject {
     }
 
     func addChild(to parentID: Int64) {
+        commitActiveEdit()                // save any in-progress edit before spawning a new node
         pushUndo()
         guard let n = try? store.addChild(parentID: parentID, text: ""), let nid = n.id else { return }
         reloadTree()                      // include the new child (and its size) in the tree
         arrangeChildren(of: parentID)     // re-center all of the parent's children around it
         reloadTree()
-        selectedNodeID = nid; editing = NodeEdit(nodeID: nid, field: .heading)
+        selectedNodeID = nid; draft = ""; editing = NodeEdit(nodeID: nid, field: .heading)
     }
     func addChildToSelected() { if let s = selectedNodeID { addChild(to: s) } }
 
     func addSibling(of nodeID: Int64) {
         if nodeID == tree.rootID { addChild(to: nodeID); return }   // root has no sibling
+        commitActiveEdit()
         pushUndo()
         guard let n = try? store.addSibling(of: nodeID, text: ""), let nid = n.id else { return }
         reloadTree()
         if let parentID = tree.nodes.first(where: { $0.id == nid })?.parentID { arrangeChildren(of: parentID) }
         reloadTree()
-        selectedNodeID = nid; editing = NodeEdit(nodeID: nid, field: .heading)
+        selectedNodeID = nid; draft = ""; editing = NodeEdit(nodeID: nid, field: .heading)
     }
     func addSiblingToSelected() { if let s = selectedNodeID { addSibling(of: s) } }
 
@@ -218,19 +223,35 @@ final class MindmapViewModel: ObservableObject {
 
     // MARK: Text edit
 
-    func beginEdit(_ nodeID: Int64) { selectedNodeID = nodeID; editing = NodeEdit(nodeID: nodeID, field: .heading) }
-    func beginEditContent(_ nodeID: Int64) { selectedNodeID = nodeID; editing = NodeEdit(nodeID: nodeID, field: .content) }
-    func commitHeading(_ text: String) {
-        guard let e = editing, e.field == .heading else { return }
-        editing = nil
-        pushUndo(); try? store.updateNodeText(id: e.nodeID, text: text.trimmingCharacters(in: .whitespacesAndNewlines))
-        reloadTree()
+    private func text(of id: Int64) -> String { tree.nodes.first { $0.id == id }?.text ?? "" }
+    private func content(of id: Int64) -> String { tree.nodes.first { $0.id == id }?.content ?? "" }
+
+    func beginEdit(_ nodeID: Int64) {
+        commitActiveEdit()                                  // flush any in-progress edit first
+        selectedNodeID = nodeID
+        draft = text(of: nodeID)
+        editing = NodeEdit(nodeID: nodeID, field: .heading)
     }
-    func commitContent(_ text: String) {
-        guard let e = editing, e.field == .content else { return }
+    func beginEditContent(_ nodeID: Int64) {
+        commitActiveEdit()
+        selectedNodeID = nodeID
+        draft = content(of: nodeID)
+        editing = NodeEdit(nodeID: nodeID, field: .content)
+    }
+
+    /// Save the active editor's draft to its node, then leave edit mode. No-op when not editing, so
+    /// it's safe to call from any "focus left the editor" path (click another node, background, etc.).
+    func commitActiveEdit() {
+        guard let e = editing else { return }
+        let value = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         editing = nil
-        pushUndo(); try? store.updateNodeContent(id: e.nodeID, content: text.trimmingCharacters(in: .whitespacesAndNewlines))
-        reloadTree(); reflowAround(e.nodeID)
+        pushUndo()
+        switch e.field {
+        case .heading: try? store.updateNodeText(id: e.nodeID, text: value)
+        case .content: try? store.updateNodeContent(id: e.nodeID, content: value)
+        }
+        reloadTree()
+        if e.field == .content { reflowAround(e.nodeID) }
     }
     func cancelEdit() { editing = nil }
 
@@ -243,7 +264,7 @@ final class MindmapViewModel: ObservableObject {
 
     // MARK: Selection / navigation
 
-    func select(_ nodeID: Int64) { selectedNodeID = nodeID }
+    func select(_ nodeID: Int64) { commitActiveEdit(); selectedNodeID = nodeID }
 
     func navigate(_ dir: MoveDirection) {
         guard let sel = selectedNodeID, let node = tree.nodes.first(where: { $0.id == sel }) else {

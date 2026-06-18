@@ -13,7 +13,7 @@ struct MindmapCanvas: View {
     @State private var zoomBase: CGFloat?
     @State private var dragInfo: NodeDragInfo?
     @State private var didFitMapID: Int64?
-    @FocusState private var focused: Bool
+    @FocusState private var focus: MindmapFocus?
 
     private let coordSpace = "mindmapTreeCanvas"
 
@@ -28,10 +28,21 @@ struct MindmapCanvas: View {
             .coordinateSpace(name: coordSpace)
             .clipped()
             .focusable()
-            .focused($focused)
+            .focused($focus, equals: .canvas)
             .focusEffectDisabled()
-            .onAppear { focused = true }
-            .onChange(of: vm.editing) { _, editing in if editing == nil { focused = true } }
+            .onAppear { focus = .canvas }
+            // Drive keyboard focus from the edit state: entering edit focuses that node's field;
+            // leaving edit returns focus to the canvas (so arrow keys / Tab work again).
+            .onChange(of: vm.editing) { _, editing in
+                if let e = editing {
+                    focus = (e.field == .heading) ? .heading(e.nodeID) : .content(e.nodeID)
+                } else {
+                    focus = .canvas
+                }
+            }
+            // If focus leaves our scope entirely (e.g. the user clicks the shelf's search box while
+            // editing), commit the draft so the edit isn't silently lost.
+            .onChange(of: focus) { _, f in if f == nil, vm.editing != nil { vm.commitActiveEdit() } }
             .onChange(of: vm.activeMapID, initial: true) { _, _ in didFitMapID = nil; fitIfNeeded(geo.size) }
             .onChange(of: vm.layout) { _, _ in fitIfNeeded(geo.size) }
             .overlay(alignment: .bottomTrailing) { zoomControls(viewport: geo.size) }
@@ -62,7 +73,7 @@ struct MindmapCanvas: View {
     private var background: some View {
         Color(nsColor: .textBackgroundColor)
             .contentShape(Rectangle())
-            .onTapGesture { focused = true }
+            .onTapGesture { vm.commitActiveEdit(); focus = .canvas }   // click empty space: save edit, take focus
             .gesture(panGesture)
     }
 
@@ -142,7 +153,8 @@ struct MindmapCanvas: View {
                      paperIDs: vm.tree.paperIDsByNode[nid] ?? [],
                      canCollapse: vm.canCollapse(nid),
                      dragInfo: $dragInfo,
-                     coordSpace: coordSpace)
+                     coordSpace: coordSpace,
+                     focus: $focus)
                 .equatable()
                 .environmentObject(vm)
                 .environmentObject(libraryVM)

@@ -11,6 +11,16 @@ struct NodeDragInfo: Equatable {
     var target: MindmapViewModel.DropTarget?
 }
 
+/// The one keyboard-focus authority for the whole canvas: either the canvas itself (so arrow keys /
+/// Tab work) or a specific node's heading/content field. A single `@FocusState` of this type — shared
+/// by the canvas and every editable field — means edit mode deterministically claims focus instead of
+/// several independent focus flags racing (which let the paper shelf's search box steal it).
+enum MindmapFocus: Hashable {
+    case canvas
+    case heading(Int64)
+    case content(Int64)
+}
+
 /// One tree node card: selectable, inline-editable, collapsible, drag-to-reparent, with attached
 /// paper chips. Equatable so moving/selecting one node doesn't re-render its siblings.
 struct NodeView: View, Equatable {
@@ -25,12 +35,9 @@ struct NodeView: View, Equatable {
     let canCollapse: Bool
     @Binding var dragInfo: NodeDragInfo?
     let coordSpace: String
+    let focus: FocusState<MindmapFocus?>.Binding   // shared with the canvas; identifies the focused field
 
     @GestureState private var dragOffset: CGSize = .zero
-    @State private var draft = ""
-    @State private var contentDraft = ""
-    @FocusState private var headingFocused: Bool
-    @FocusState private var contentFocused: Bool
     @State private var dropTargeted = false
 
     private let reparentThreshold: CGFloat = 24   // min drag distance (screen pts) to re-parent
@@ -62,13 +69,12 @@ struct NodeView: View, Equatable {
                     }.buttonStyle(.plain)
                 }
                 if isEditingHeading {
-                    TextField("Idea", text: $draft)
+                    TextField("Idea", text: $vm.draft)
                         .textFieldStyle(.plain).font(.title.bold())
-                        .focused($headingFocused)
-                        .onSubmit { vm.commitHeading(draft) }
+                        .focused(focus, equals: .heading(nodeID))
+                        .onSubmit { vm.commitActiveEdit() }
                         .onExitCommand { vm.cancelEdit() }
-                        .onChange(of: headingFocused) { _, f in if !f { vm.commitHeading(draft) } }
-                        .onAppear { draft = node.text; headingFocused = true }
+                        .onAppear { focus.wrappedValue = .heading(nodeID) }   // belt-and-suspenders with the canvas
                 } else {
                     Text(node.text.isEmpty ? "Untitled" : node.text)
                         .font(.title.bold())
@@ -77,12 +83,12 @@ struct NodeView: View, Equatable {
             }
             if !node.collapsed {
                 if isEditingContent {
-                    TextField("Note", text: $contentDraft, axis: .vertical)
+                    TextField("Note", text: $vm.draft, axis: .vertical)
                         .textFieldStyle(.plain).font(.title3)
-                        .focused($contentFocused)
+                        .focused(focus, equals: .content(nodeID))
+                        .onSubmit { vm.commitActiveEdit() }
                         .onExitCommand { vm.cancelEdit() }
-                        .onChange(of: contentFocused) { _, f in if !f { vm.commitContent(contentDraft) } }
-                        .onAppear { contentDraft = node.content; contentFocused = true }
+                        .onAppear { focus.wrappedValue = .content(nodeID) }
                 } else {
                     Text(node.content.isEmpty ? "Add note…" : node.content)
                         .font(.title3)
