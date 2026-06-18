@@ -21,7 +21,6 @@ async function loadSettings() {
 
 async function saveSettings() {
   await chrome.storage.sync.set({ defaultTags: defaultTagsInput.value.trim() || "to-read" });
-  tagsInput.value = defaultTagsInput.value.trim() || "to-read";
   setStatus("Settings saved.", "success");
 }
 
