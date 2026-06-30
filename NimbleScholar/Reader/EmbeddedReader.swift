@@ -7,6 +7,7 @@ import NimbleScholarCore
 struct EmbeddedReader: View {
     @EnvironmentObject private var libraryVM: LibraryViewModel
     @StateObject private var vm: ReaderViewModel
+    // Continuous single-page is the only reading mode.
     @State private var displayMode: PDFDisplayMode = .singlePageContinuous
     @State private var showInspector = false
     @State private var pdfView: PDFView?
@@ -61,8 +62,7 @@ struct EmbeddedReader: View {
                     }
                     .help("Toggle the papers list")
                 }
-                ReaderToolbar(pdfView: $pdfView, displayMode: $displayMode,
-                              showInspector: $showInspector, vm: vm)
+                ReaderToolbar(pdfView: $pdfView, showInspector: $showInspector, vm: vm)
             }
             .navigationTitle(vm.paper.title)
         }

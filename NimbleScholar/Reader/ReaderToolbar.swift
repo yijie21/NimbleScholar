@@ -5,7 +5,6 @@ import NimbleScholarCore
 
 struct ReaderToolbar: ToolbarContent {
     @Binding var pdfView: PDFView?
-    @Binding var displayMode: PDFDisplayMode
     @Binding var showInspector: Bool
     @ObservedObject var vm: ReaderViewModel
     @State private var search = ""
@@ -26,13 +25,6 @@ struct ReaderToolbar: ToolbarContent {
             Button("Fit") {
                 if let pv = pdfView { pv.autoScales = true; pv.scaleFactor = pv.scaleFactorForSizeToFit }
             }
-            Picker("", selection: $displayMode) {
-                Image(systemName: "doc").tag(PDFDisplayMode.singlePage)
-                Image(systemName: "doc.on.doc").tag(PDFDisplayMode.singlePageContinuous)
-                Image(systemName: "book.pages").tag(PDFDisplayMode.twoUpContinuous)
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 120)
             Button { highlightSelection() } label: { Image(systemName: "highlighter") }
             Menu {
                 ForEach(highlightColors, id: \.hex) { c in
