@@ -44,6 +44,7 @@ final class LibraryViewModel: ObservableObject {
     /// The single "current paper" (exactly one selected). Drives the detail pane, ⌘O, openReader.
     var currentPaperID: Int64? { multiSelection.count == 1 ? multiSelection.first : nil }
     @Published var readingPaperID: Int64? = nil   // non-nil → in-window reading mode
+    @Published var showPaperList = false           // while reading, whether the left list is revealed
 
     private let store = AppEnvironment.shared.store
     private var observation: ObservationToken?
@@ -187,6 +188,7 @@ final class LibraryViewModel: ObservableObject {
     func openReader(_ paper: Paper) {
         guard let id = paper.id else { return }
         multiSelection = [id]          // selects immediately (cheap)
+        showPaperList = false          // start reading with the list folded for a wide PDF
         // Defer the reader swap one runloop so the click returns instantly; the heavy
         // EmbeddedReader build then runs on a fresh frame instead of blocking the tap.
         DispatchQueue.main.async { self.readingPaperID = id }

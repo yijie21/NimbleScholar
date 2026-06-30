@@ -5,9 +5,10 @@ import NimbleScholarCore
 /// The PDF reader hosted inside the library window (full-window reading mode).
 /// Reuses the reader internals; no page-thumbnail sidebar. `onClose` returns to the library.
 struct EmbeddedReader: View {
+    @EnvironmentObject private var libraryVM: LibraryViewModel
     @StateObject private var vm: ReaderViewModel
     @State private var displayMode: PDFDisplayMode = .singlePageContinuous
-    @State private var showInspector = true
+    @State private var showInspector = false
     @State private var pdfView: PDFView?
     let onClose: () -> Void
 
@@ -53,6 +54,12 @@ struct EmbeddedReader: View {
                         Label("Library", systemImage: "chevron.left")
                     }
                     .keyboardShortcut(.cancelAction)
+                }
+                ToolbarItem(placement: .navigation) {
+                    Button { libraryVM.showPaperList.toggle() } label: {
+                        Image(systemName: "sidebar.left")
+                    }
+                    .help("Toggle the papers list")
                 }
                 ReaderToolbar(pdfView: $pdfView, displayMode: $displayMode,
                               showInspector: $showInspector, vm: vm)

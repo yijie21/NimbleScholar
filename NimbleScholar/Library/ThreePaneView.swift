@@ -6,6 +6,7 @@ struct ThreePaneView: View {
 
     var body: some View {
         HSplitView {
+            if vm.readingPaperID == nil || vm.showPaperList {
             VStack(spacing: 0) {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -50,6 +51,7 @@ struct ThreePaneView: View {
             // reading to give the PDF more room. (Animated by the parent's single
             // .animation(value: readingPaperID), so no per-view animation here.)
             .frame(width: vm.readingPaperID != nil ? 240 : 320)
+            }
 
             Group {
                 if vm.multiSelection.count == 1, let id = vm.multiSelection.first,
