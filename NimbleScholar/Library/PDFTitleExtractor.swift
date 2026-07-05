@@ -45,6 +45,11 @@ enum PDFTitleExtractor {
         return re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)) != nil
     }
 
+    private struct Line {
+        let bounds: CGRect
+        let text: String
+    }
+
     /// The tallest run of consecutive lines in the upper part of page 1.
     private static func headlineTitle(_ doc: PDFDocument) -> String? {
         guard let page = doc.page(at: 0) else { return nil }
@@ -53,19 +58,24 @@ enum PDFTitleExtractor {
 
         // Lines top-to-bottom (PDF user space is y-up: larger y = higher on the page),
         // restricted to the upper 55% — titles never sit below that.
-        let lines = all.selectionsByLine()
-            .map { (bounds: $0.bounds(for: page),
-                    text: ($0.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)) }
-            .filter { !$0.text.isEmpty && $0.bounds.height > 4 && $0.bounds.width > 10 }
-            .filter { $0.bounds.midY > pageRect.minY + 0.45 * pageRect.height }
-            .sorted { $0.bounds.maxY > $1.bounds.maxY }
+        // (Explicit loop, not a map/filter chain: the chained tuple version sent the
+        // type-checker into "unable to type-check in reasonable time".)
+        let upperCutoff: CGFloat = pageRect.minY + 0.45 * pageRect.height
+        var lines: [Line] = []
+        for sel in all.selectionsByLine() {
+            let text = (sel.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let bounds = sel.bounds(for: page)
+            guard !text.isEmpty, bounds.height > 4, bounds.width > 10 else { continue }
+            guard bounds.midY > upperCutoff else { continue }
+            lines.append(Line(bounds: bounds, text: text))
+        }
+        lines.sort { $0.bounds.maxY > $1.bounds.maxY }
         guard lines.count >= 2 else { return nil }
 
         // Title lines are noticeably taller than the page's median (≈ body) line height.
-        // (Closure, not key path: key paths can't refer to tuple elements.)
-        let heights = lines.map { $0.bounds.height }.sorted()
-        let median = heights[heights.count / 2]
-        let threshold = max(median * 1.25, 10)
+        let heights: [CGFloat] = lines.map { $0.bounds.height }.sorted()
+        let median: CGFloat = heights[heights.count / 2]
+        let threshold: CGFloat = max(median * 1.25, 10)
 
         var picked: [String] = []
         var lastBottom: CGFloat = 0     // minY of the previously accepted line
