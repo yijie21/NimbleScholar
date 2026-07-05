@@ -100,7 +100,7 @@ final class AppEnvironment: ObservableObject {
         CaptureHandler(
             store: store,
             resolve: { url in try await AppEnvironment.resolveMetadata(for: url) },
-            fetchFigures: AppEnvironment.fetchArxivFigures,
+            fetchFigures: AppEnvironment.fetchFigures,
             reportIssue: { message in
                 NSLog("‼️ NimbleScholar capture: %@", message)
                 Notifier.notify(title: "Capture issue", body: message)
@@ -132,19 +132,42 @@ final class AppEnvironment: ObservableObject {
         return URLSession(configuration: config)
     }
 
-    /// Resolve metadata for a URL: arXiv API first, generic <meta> fallback.
+    /// Resolve metadata for a URL: arXiv API → OpenReview notes API → generic <meta> parse.
     static func resolveMetadata(for url: String) async throws -> PaperMetadata {
         let session = AppEnvironment.shared.networkSession
         if let id = ArxivService.extractID(from: url) {
             let (data, _) = try await session.data(from: ArxivService.apiURL(forID: id))
             return try MetadataService.parseArxivAtom(data)
         }
+        if let id = OpenReviewService.extractID(from: url) {
+            // The website HTML is behind a browser check, so the notes API is the only
+            // usable source — never fall through to the generic parse (it would scrape
+            // the "Verifying your browser" interstitial as the title).
+            for api in OpenReviewService.apiURLs(forID: id) {
+                if let (data, _) = try? await session.data(from: api),
+                   let meta = OpenReviewService.parseNotes(data, id: id) {
+                    return meta
+                }
+            }
+            throw NSError(domain: "NimbleScholar", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "The OpenReview API didn't return this paper",
+            ])
+        }
         guard let u = URL(string: url) else { return PaperMetadata() }
         let (data, _) = try await session.data(from: u)
         return try MetadataService.parseGenericMeta(data)
     }
 
-    /// arXiv figure scrape (by id) used to enrich captured papers with a teaser image.
+    /// Figure scrape used to enrich captured papers with a teaser image: arXiv HTML/ar5iv
+    /// by id, or the paper's own HTML landing page (CVF, publishers, …).
+    static func fetchFigures(_ source: FigureSource) async throws -> FigureChooser.Result {
+        switch source {
+        case .arxiv(let id): return try await AppEnvironment.shared.figures.figures(forID: id)
+        case .page(let url): return try await AppEnvironment.shared.figures.figures(forPageURL: url)
+        }
+    }
+
+    /// arXiv figure scrape (by id) used by the library's auto-complete pass.
     static func fetchArxivFigures(_ id: String) async throws -> FigureChooser.Result {
         try await AppEnvironment.shared.figures.figures(forID: id)
     }

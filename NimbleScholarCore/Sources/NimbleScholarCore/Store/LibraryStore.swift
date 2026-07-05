@@ -197,7 +197,8 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     /// Find an existing paper that a capture URL would duplicate: by arXiv id (matched against
-    /// url/pdf_url/doi, version-insensitive) or by exact URL. Used for duplicate detection.
+    /// url/pdf_url/doi, version-insensitive), by OpenReview note id, or by exact URL.
+    /// Used for duplicate detection.
     public func existingPaper(forCaptureURL url: String) throws -> Paper? {
         try dbQueue.read { db -> Paper? in
             if let id = ArxivService.extractID(from: url) {
@@ -205,6 +206,12 @@ public final class LibraryStore: @unchecked Sendable {
                 if let p = try Paper.fetchOne(db, sql: """
                     SELECT * FROM papers WHERE url LIKE ? OR pdf_url LIKE ? OR doi LIKE ? LIMIT 1
                 """, arguments: ["%\(bare)%", "%\(bare)%", "%\(bare)%"]) { return p }
+            }
+            // Same OpenReview paper captured from its forum page and its pdf page (`…?id=<same>`).
+            if let id = OpenReviewService.extractID(from: url) {
+                if let p = try Paper.fetchOne(db, sql: """
+                    SELECT * FROM papers WHERE url LIKE ? OR pdf_url LIKE ? LIMIT 1
+                """, arguments: ["%openreview.net%id=\(id)%", "%openreview.net%id=\(id)%"]) { return p }
             }
             return try Paper.fetchOne(db, sql: "SELECT * FROM papers WHERE url = ? LIMIT 1", arguments: [url])
         }

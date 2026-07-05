@@ -9,6 +9,9 @@ public struct PaperMetadata {
     public var abstract = ""
     public var pdfURL = ""
     public var teaserURL = ""
+    /// arXiv id harvested from the page (e.g. CVF's "Related Material → [arXiv]" link),
+    /// so non-arXiv papers can still get figures from the arXiv HTML rendering.
+    public var arxivID = ""
     public init() {}
 }
 
@@ -56,7 +59,9 @@ public enum MetadataService {
         return meta
     }
 
-    /// Parse generic publisher pages via citation_* and og: meta tags.
+    /// Parse generic publisher pages via citation_* and og: meta tags, with fallbacks for
+    /// CVF Open Access pages (openaccess.thecvf.com), whose abstract/title live in divs
+    /// (`#abstract`, `#papertitle`) rather than meta tags.
     public static func parseGenericMeta(_ data: Data) throws -> PaperMetadata {
         let html = String(decoding: data, as: UTF8.self)
         let doc = try SwiftSoup.parse(html)
@@ -69,15 +74,55 @@ public enum MetadataService {
             }
             return ""
         }
+        func divText(_ selector: String) -> String {
+            guard let el = try? doc.select(selector).first(), let text = try? el.text() else { return "" }
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         var m = PaperMetadata()
         m.title = try meta(["citation_title", "og:title"])
+        if m.title.isEmpty { m.title = divText("#papertitle") }        // CVF
         if m.title.isEmpty { m.title = try doc.title() }
         m.authors = try doc.select("meta[name=citation_author]")
             .map { try $0.attr("content") }.filter { !$0.isEmpty }.joined(separator: ", ")
+        if m.authors.isEmpty {
+            // Some sites emit a single semicolon-separated citation_authors tag instead.
+            m.authors = (try meta(["citation_authors"]))
+                .split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }.joined(separator: ", ")
+        }
+        if m.authors.isEmpty { m.authors = divText("#authors b i") }   // CVF
         m.doi = try meta(["citation_doi"])
-        m.abstract = try meta(["description", "og:description"])
+        m.year = Self.year(in: try meta([
+            "citation_publication_date", "citation_date", "citation_year", "citation_online_date",
+        ]))
+        m.abstract = try meta(["citation_abstract", "description", "og:description"])
+        if m.abstract.isEmpty { m.abstract = divText("#abstract") }    // CVF
         m.pdfURL = try meta(["citation_pdf_url"])
-        m.teaserURL = try meta(["og:image", "twitter:image"])
+        let teaser = try meta(["og:image", "twitter:image"])
+        m.teaserURL = FigureChooser.isPlaceholder(teaser) ? "" : teaser   // no site logos as teasers
+        // Harvest an arXiv id (CVF's "Related Material → [arXiv]" link) for figure scraping.
+        if let link = try doc.select("a[href*=arxiv.org/abs/]").first(),
+           let id = ArxivService.extractID(from: try link.attr("href")) {
+            m.arxivID = id
+        }
         return m
+    }
+
+    /// First plausible 4-digit year in a citation date string like "2024" or "2024/06/17".
+    static func year(in s: String) -> String {
+        guard let re = try? NSRegularExpression(pattern: #"(19|20)\d{2}"#),
+              let match = re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)),
+              let r = Range(match.range, in: s) else { return "" }
+        return String(s[r])
+    }
+
+    /// Map a CVF Open Access raw-PDF URL (`…/papers/Name_paper.pdf`) to its abstract page
+    /// (`…/html/Name_paper.html`), which carries the citation meta tags + abstract. Lets a
+    /// capture of the PDF itself still resolve full metadata without downloading the PDF.
+    public static func cvfLandingURL(forPDF url: String) -> String? {
+        let lower = url.lowercased()
+        guard lower.contains("thecvf.com"), lower.hasSuffix(".pdf"), url.contains("/papers/") else { return nil }
+        let mapped = url.replacingOccurrences(of: "/papers/", with: "/html/")
+        return String(mapped.dropLast(4)) + ".html"
     }
 }

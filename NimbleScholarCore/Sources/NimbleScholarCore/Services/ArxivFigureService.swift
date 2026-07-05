@@ -17,19 +17,41 @@ public struct ArxivFigureService {
             "https://ar5iv.org/html/\(bare)",
         ]
         for page in pages {
-            if let r = try? await figures(forPageURL: page), r.teaser != nil || r.pipeline != nil {
+            if let r = try? await scrape(pageURL: page).result, r.teaser != nil || r.pipeline != nil {
                 return r
             }
         }
         return .init(teaser: nil, pipeline: nil)
     }
 
-    /// Figures from an arbitrary paper landing page (CVF, publisher pages, etc.).
+    /// Figures from an arbitrary paper landing page (CVF, publisher pages, etc.). Pages like
+    /// CVF's abstract page carry no figures at all but do link the paper's arXiv version —
+    /// when the page itself yields nothing, follow that link and scrape the arXiv HTML.
+    /// (Link-following lives ONLY here, not in `scrape`, so it can't recurse: arXiv's own
+    /// HTML pages also link to `arxiv.org/abs/…`.)
     public func figures(forPageURL page: String) async throws -> FigureChooser.Result {
-        guard let url = URL(string: page) else { return .init(teaser: nil, pipeline: nil) }
+        let (result, html) = try await scrape(pageURL: page)
+        if result.teaser == nil, result.pipeline == nil, let id = Self.linkedArxivID(inHTML: html) {
+            return try await figures(forID: id)
+        }
+        return result
+    }
+
+    /// Fetch one page and pick figures from it (no link-following).
+    private func scrape(pageURL page: String) async throws -> (result: FigureChooser.Result, html: String) {
+        guard let url = URL(string: page) else { return (.init(teaser: nil, pipeline: nil), "") }
         let (data, resp) = try await session.data(from: url)
         let base = resp.url ?? url
-        return Self.parse(html: String(decoding: data, as: UTF8.self), baseURL: base)
+        let html = String(decoding: data, as: UTF8.self)
+        return (Self.parse(html: html, baseURL: base), html)
+    }
+
+    /// arXiv id of the first `arxiv.org/abs/…` link on a page (CVF "Related Material"), if any.
+    static func linkedArxivID(inHTML html: String) -> String? {
+        guard let doc = try? SwiftSoup.parse(html),
+              let link = try? doc.select("a[href*=arxiv.org/abs/]").first(),
+              let href = try? link.attr("href") else { return nil }
+        return ArxivService.extractID(from: href)
     }
 
     /// arXiv/ar5iv serve the HTML at `…/html/<id>` (no trailing slash) but reference figures

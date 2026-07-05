@@ -377,10 +377,11 @@ final class LibraryViewModel: ObservableObject {
     private func landingPageURL(for p: Paper) -> String? {
         let u = p.url
         guard !u.isEmpty, ArxivService.extractID(from: u) == nil else { return nil }
+        // OpenReview sits behind a browser check and renders no figures server-side; the
+        // card falls back to PDF figure extraction instead.
+        guard OpenReviewService.extractID(from: u) == nil else { return nil }
         if u.lowercased().hasSuffix(".pdf") {
-            guard u.contains("/papers/") else { return nil }
-            return u.replacingOccurrences(of: "/papers/", with: "/html/")
-                    .replacingOccurrences(of: ".pdf", with: ".html")
+            return MetadataService.cvfLandingURL(forPDF: u)
         }
         return u
     }

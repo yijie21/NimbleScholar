@@ -74,16 +74,25 @@ async function collectPageMetadata(tabId) {
       func: () => {
         const meta = (name) =>
           document.querySelector(`meta[name="${name}"],meta[property="${name}"]`)?.content || "";
-        return {
-          title: meta("citation_title") || meta("og:title") || document.title,
-          authors: [...document.querySelectorAll('meta[name="citation_author"]')]
+        // Sites emit either repeated citation_author tags or one semicolon-separated
+        // citation_authors tag (OpenReview does the latter).
+        const authors =
+          [...document.querySelectorAll('meta[name="citation_author"]')]
             .map((item) => item.content)
             .filter(Boolean)
-            .join(", "),
+            .join(", ") ||
+          meta("citation_authors")
+            .split(";")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .join(", ");
+        return {
+          title: meta("citation_title") || meta("og:title") || document.title,
+          authors,
           doi: meta("citation_doi"),
           pdf_url: meta("citation_pdf_url"),
           teaser_url: meta("og:image") || meta("twitter:image"),
-          abstract: meta("description") || meta("og:description"),
+          abstract: meta("citation_abstract") || meta("description") || meta("og:description"),
           source: location.hostname,
         };
       },

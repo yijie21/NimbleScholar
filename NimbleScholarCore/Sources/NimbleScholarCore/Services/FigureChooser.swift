@@ -25,11 +25,16 @@ public enum FigureChooser {
         "approach", "network", "model", "system",
     ]
 
+    /// True when a figure URL (or alt text) is a site chrome image — logo, badge, icon —
+    /// rather than a real paper figure. Also used to reject `og:image` teasers coming from
+    /// capture payloads (e.g. the OpenReview logo on forum pages).
+    public static func isPlaceholder(_ urlOrAlt: String) -> Bool {
+        let hay = urlOrAlt.lowercased()
+        return placeholders.contains { hay.contains($0) }
+    }
+
     public static func choose(from figures: [Figure]) -> Result {
-        let valid = figures.filter { f in
-            let hay = (f.url + " " + f.alt).lowercased()
-            return !placeholders.contains { hay.contains($0) }
-        }
+        let valid = figures.filter { !isPlaceholder($0.url + " " + $0.alt) }
         func firstMatch(_ words: [String]) -> String? {
             valid.first { f in
                 let hay = (f.alt + " " + f.caption).lowercased()

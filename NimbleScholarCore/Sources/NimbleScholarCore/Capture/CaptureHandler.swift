@@ -1,10 +1,16 @@
 import Foundation
 
+/// Where to scrape a captured paper's teaser/pipeline figure from.
+public enum FigureSource: Equatable, Sendable {
+    case arxiv(id: String)     // arxiv.org/html/<id> (then ar5iv)
+    case page(url: String)     // the paper's HTML landing page (CVF, publishers, …)
+}
+
 public final class CaptureHandler {
     public typealias Resolver = (String) async throws -> PaperMetadata
-    /// Optional arXiv figure fetcher (by arXiv id). Left nil in unit tests to stay offline.
+    /// Optional figure fetcher. Left nil in unit tests to stay offline.
     /// `@Sendable` so it can run in a background enrichment task after capture returns.
-    public typealias FigureFetcher = @Sendable (String) async throws -> FigureChooser.Result
+    public typealias FigureFetcher = @Sendable (FigureSource) async throws -> FigureChooser.Result
     /// Optional sink for human-readable capture problems (e.g. metadata couldn't be
     /// fetched). The app shows these as a macOS notification; nil in unit tests.
     public typealias IssueReporter = (String) -> Void
@@ -23,11 +29,14 @@ public final class CaptureHandler {
     @discardableResult
     public func capture(_ payload: CapturePayload) async throws -> Paper {
         // Skip the HTML metadata fetch for direct PDF links (nothing to parse, and it
-        // would otherwise download the whole PDF just to scrape <meta> tags).
+        // would otherwise download the whole PDF just to scrape <meta> tags). Exception:
+        // a CVF raw-PDF URL maps to its small abstract page, which has the full metadata.
         var meta = PaperMetadata()
         var resolveError: String?
-        if !Self.looksLikePDFURL(payload.url) {
-            do { meta = try await resolve(payload.url) }
+        let resolveURL = Self.looksLikePDFURL(payload.url)
+            ? MetadataService.cvfLandingURL(forPDF: payload.url) : payload.url
+        if let resolveURL {
+            do { meta = try await resolve(resolveURL) }
             catch { resolveError = error.localizedDescription }
         }
         // No usable title from the page payload OR the resolver ⇒ the capture landed
@@ -46,7 +55,12 @@ public final class CaptureHandler {
         p.url = payload.url
         p.abstract = payload.abstract?.nonEmpty ?? meta.abstract
         p.source = payload.source ?? ""
-        p.teaserURL = absolutize(payload.teaser_url?.nonEmpty ?? meta.teaserURL, base: payload.url)
+        // Browser payloads pass the page's og:image through, which on OpenReview/publisher
+        // pages is the site logo — drop those so real figure enrichment can fill in later.
+        let payloadTeaser = payload.teaser_url?.nonEmpty.flatMap {
+            FigureChooser.isPlaceholder($0) ? nil : $0
+        }
+        p.teaserURL = absolutize(payloadTeaser ?? meta.teaserURL, base: payload.url)
         p.pdfURL = absolutize(
             payload.pdf_url?.nonEmpty ?? ArxivService.normalizedPDFURL(absOrID: payload.url) ?? meta.pdfURL,
             base: payload.url)
@@ -67,15 +81,15 @@ public final class CaptureHandler {
             }
         }
 
-        // arXiv figure enrichment runs in the BACKGROUND so capture returns immediately;
+        // Figure enrichment runs in the BACKGROUND so capture returns immediately;
         // the teaser fills in a moment later and the UI refreshes via DB observation.
         if saved.teaserURL.isEmpty,
-           let id = ArxivService.extractID(from: payload.url),
+           let source = Self.figureSource(payloadURL: payload.url, metaArxivID: meta.arxivID),
            let fetch = fetchFigures,
            let pid = saved.id {
             let store = self.store
             Task {
-                guard let figs = try? await fetch(id),
+                guard let figs = try? await fetch(source),
                       figs.teaser != nil || figs.pipeline != nil,
                       var paper = try? store.paper(id: pid) else { return }
                 paper.teaserURL = figs.teaser ?? ""
@@ -84,6 +98,19 @@ public final class CaptureHandler {
             }
         }
         return saved
+    }
+
+    /// Where to scrape figures for a captured paper: an arXiv id (from the URL, or harvested
+    /// from the landing page — e.g. CVF's [arXiv] link), else the paper's HTML landing page.
+    /// OpenReview pages sit behind a browser check and render no figures, so they get no
+    /// source here — their cards fall back to PDF figure extraction once the PDF downloads.
+    static func figureSource(payloadURL: String, metaArxivID: String) -> FigureSource? {
+        if let id = ArxivService.extractID(from: payloadURL) { return .arxiv(id: id) }
+        if !metaArxivID.isEmpty { return .arxiv(id: metaArxivID) }
+        if OpenReviewService.extractID(from: payloadURL) != nil { return nil }
+        if let landing = MetadataService.cvfLandingURL(forPDF: payloadURL) { return .page(url: landing) }
+        if !looksLikePDFURL(payloadURL), payloadURL.hasPrefix("http") { return .page(url: payloadURL) }
+        return nil
     }
 
     static func looksLikePDFURL(_ url: String) -> Bool {

@@ -1,0 +1,29 @@
+{
+  "notes": [
+    {
+      "id": "H1reply01",
+      "forum": "BJJsrmfCZ",
+      "cdate": 1511000000000,
+      "content": {
+        "title": "Official Review",
+        "review": "Nice paper."
+      }
+    },
+    {
+      "id": "BJJsrmfCZ",
+      "forum": "BJJsrmfCZ",
+      "cdate": 1509205399102,
+      "content": {
+        "title": "Automatic differentiation in PyTorch",
+        "abstract": "In this article, we describe an automatic differentiation module of PyTorch.",
+        "pdf": "/pdf/25b8eee6c373d48b84e5e9c6e10e7cbbbce4ac73.pdf",
+        "authors": [
+          "Adam Paszke",
+          "Sam Gross",
+          "Soumith Chintala"
+        ]
+      }
+    }
+  ],
+  "count": 2
+}

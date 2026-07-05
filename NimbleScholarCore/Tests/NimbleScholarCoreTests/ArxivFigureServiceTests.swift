@@ -55,4 +55,16 @@ final class ArxivFigureServiceTests: XCTestCase {
         let r = ArxivFigureService.parse(html: html, baseURL: base)
         XCTAssertEqual(r.teaser, "https://cdn.example.com/teaser.png")
     }
+
+    func testLinkedArxivIDFoundOnCVFStylePage() {
+        // CVF abstract pages have no figures but link the paper's arXiv version.
+        let html = """
+        <html><body>
+        [<a href="/content/CVPR2024/papers/Yin_paper.pdf">pdf</a>]
+        [<a href="http://arxiv.org/abs/2312.11557">arXiv</a>]
+        </body></html>
+        """
+        XCTAssertEqual(ArxivFigureService.linkedArxivID(inHTML: html), "2312.11557")
+        XCTAssertNil(ArxivFigureService.linkedArxivID(inHTML: "<html><body>no links</body></html>"))
+    }
 }

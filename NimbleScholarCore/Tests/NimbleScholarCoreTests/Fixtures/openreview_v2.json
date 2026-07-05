@@ -1,0 +1,18 @@
+{
+  "notes": [
+    {
+      "id": "aVh9KRZdRk",
+      "forum": "aVh9KRZdRk",
+      "cdate": 1695000000000,
+      "pdate": 1705000000000,
+      "content": {
+        "title": { "value": "Vision-Language Models are Zero-Shot Reward Models" },
+        "abstract": { "value": "Reinforcement learning requires either manually specifying a reward function or learning one." },
+        "authors": { "value": ["Juan Rocamonde", "Victoriano Montesinos"] },
+        "venue": { "value": "ICLR 2024 Poster" },
+        "pdf": { "value": "/pdf/abcdef0123456789.pdf" }
+      }
+    }
+  ],
+  "count": 1
+}
