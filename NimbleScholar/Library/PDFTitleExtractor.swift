@@ -62,7 +62,8 @@ enum PDFTitleExtractor {
         guard lines.count >= 2 else { return nil }
 
         // Title lines are noticeably taller than the page's median (≈ body) line height.
-        let heights = lines.map(\.bounds.height).sorted()
+        // (Closure, not key path: key paths can't refer to tuple elements.)
+        let heights = lines.map { $0.bounds.height }.sorted()
         let median = heights[heights.count / 2]
         let threshold = max(median * 1.25, 10)
 
