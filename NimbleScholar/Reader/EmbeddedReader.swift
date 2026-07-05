@@ -25,15 +25,16 @@ struct EmbeddedReader: View {
             HStack(spacing: 0) {
                 Group {
                     if let doc = vm.document {
-                        VStack(spacing: 0) {
+                        PDFKitView(document: doc, displayMode: $displayMode, vm: vm) { pv in
+                            self.pdfView = pv
+                            AnnotationController(vm: vm).reconcile(pdfView: pv)
+                        }
+                        // Find bar floats centered over the top of the page (Preview-style).
+                        .overlay(alignment: .top) {
                             if showFind {
                                 FindBar(pdfView: pdfView, isPresented: $showFind,
                                         focusRequest: findFocusRequest)
-                                Divider()
-                            }
-                            PDFKitView(document: doc, displayMode: $displayMode, vm: vm) { pv in
-                                self.pdfView = pv
-                                AnnotationController(vm: vm).reconcile(pdfView: pv)
+                                    .padding(.top, 12)
                             }
                         }
                     } else {

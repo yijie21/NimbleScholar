@@ -2,10 +2,10 @@ import SwiftUI
 import PDFKit
 import AppKit
 
-/// In-document search bar for the PDF reader (⌘F). Finds every occurrence of the query,
-/// highlights them all in the document, shows "n of m", and steps through matches with
-/// Return / ⌘G (next) and ⇧Return-style chevrons / ⇧⌘G (previous). Esc closes the bar
-/// and clears the highlights.
+/// In-document search for the PDF reader (⌘F): a floating card centered at the top of the
+/// page. Finds every occurrence of the query (partial matches by default, whole-word via
+/// the checkbox), highlights them all, shows "n of m", and steps through matches with
+/// Return / ⌘G (next) and ⇧⌘G (previous). Esc closes it and clears the highlights.
 struct FindBar: View {
     let pdfView: PDFView?
     @Binding var isPresented: Bool
@@ -16,6 +16,8 @@ struct FindBar: View {
     @State private var matches: [PDFSelection] = []
     @State private var current = 0
     @FocusState private var focused: Bool
+    /// Match whole words only (persisted across sessions).
+    @AppStorage("findWholeWord") private var wholeWord = false
 
     /// Highlighting thousands of one-letter hits makes PDFKit crawl; cap what we mark.
     private static let maxMatches = 500
@@ -29,13 +31,18 @@ struct FindBar: View {
                 .focused($focused)
                 .onSubmit { advance(by: 1) }
                 .onExitCommand { close() }
-                .frame(maxWidth: 260)
             if !query.isEmpty {
                 Text(counterText)
                     .font(.callout)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
+                    .layoutPriority(1)
             }
+            Toggle("Whole word", isOn: $wholeWord)
+                .toggleStyle(.checkbox)
+                .font(.callout)
+                .fixedSize()
+                .help("Match whole words only")
             Button { advance(by: -1) } label: { Image(systemName: "chevron.up") }
                 .keyboardShortcut("g", modifiers: [.command, .shift])
                 .disabled(matches.count < 2)
@@ -44,17 +51,23 @@ struct FindBar: View {
                 .keyboardShortcut("g", modifiers: .command)
                 .disabled(matches.count < 2)
                 .help("Next match (⌘G)")
-            Spacer(minLength: 0)
             Button("Done") { close() }
                 .help("Close (Esc)")
         }
         .buttonStyle(.borderless)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(.bar)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .frame(width: 520)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color(nsColor: .separatorColor))
+        )
+        .shadow(color: .black.opacity(0.18), radius: 10, y: 3)
         .onAppear { focused = true }
         .onChange(of: focusRequest) { _, _ in focused = true }
         .onChange(of: query) { _, _ in runSearch() }
+        .onChange(of: wholeWord) { _, _ in runSearch() }
         .onDisappear { clearHighlights() }
     }
 
@@ -70,6 +83,7 @@ struct FindBar: View {
             return
         }
         var found = doc.findString(query, withOptions: .caseInsensitive)
+        if wholeWord { found = found.filter(Self.isWholeWord) }
         if found.count > Self.maxMatches { found = Array(found.prefix(Self.maxMatches)) }
         matches = found
         current = 0
@@ -78,6 +92,25 @@ struct FindBar: View {
         } else {
             show(index: 0, in: pv)
         }
+    }
+
+    /// PDFKit has no whole-word search option, so filter after the fact: peek one character
+    /// beyond each end of the match — a letter or digit there means it's inside a word.
+    static func isWholeWord(_ sel: PDFSelection) -> Bool {
+        let matched = sel.string ?? ""
+        if let s = sel.copy() as? PDFSelection {
+            s.extend(atStart: 1)
+            let str = s.string ?? ""
+            if str.count > matched.count, let first = str.first,
+               first.isLetter || first.isNumber { return false }
+        }
+        if let s = sel.copy() as? PDFSelection {
+            s.extend(atEnd: 1)
+            let str = s.string ?? ""
+            if str.count > matched.count, let last = str.last,
+               last.isLetter || last.isNumber { return false }
+        }
+        return true
     }
 
     /// Mark every match yellow, the current one orange, and scroll it into view.
