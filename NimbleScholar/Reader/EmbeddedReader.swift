@@ -11,6 +11,8 @@ struct EmbeddedReader: View {
     @State private var displayMode: PDFDisplayMode = .singlePageContinuous
     @State private var showInspector = false
     @State private var pdfView: PDFView?
+    @State private var showFind = false
+    @State private var findFocusRequest = 0   // bumped by ⌘F to (re)focus the find field
     let onClose: () -> Void
 
     init(paperID: Int64?, onClose: @escaping () -> Void) {
@@ -23,9 +25,16 @@ struct EmbeddedReader: View {
             HStack(spacing: 0) {
                 Group {
                     if let doc = vm.document {
-                        PDFKitView(document: doc, displayMode: $displayMode, vm: vm) { pv in
-                            self.pdfView = pv
-                            AnnotationController(vm: vm).reconcile(pdfView: pv)
+                        VStack(spacing: 0) {
+                            if showFind {
+                                FindBar(pdfView: pdfView, isPresented: $showFind,
+                                        focusRequest: findFocusRequest)
+                                Divider()
+                            }
+                            PDFKitView(document: doc, displayMode: $displayMode, vm: vm) { pv in
+                                self.pdfView = pv
+                                AnnotationController(vm: vm).reconcile(pdfView: pv)
+                            }
                         }
                     } else {
                         ContentUnavailableView(vm.status, systemImage: "doc.richtext")
@@ -62,7 +71,10 @@ struct EmbeddedReader: View {
                     }
                     .help("Toggle the papers list")
                 }
-                ReaderToolbar(pdfView: $pdfView, showInspector: $showInspector, vm: vm)
+                ReaderToolbar(pdfView: $pdfView, showInspector: $showInspector, vm: vm) {
+                    showFind = true
+                    findFocusRequest += 1   // refocus the field if the bar is already open
+                }
             }
             .navigationTitle(vm.paper.title)
         }

@@ -7,7 +7,8 @@ struct ReaderToolbar: ToolbarContent {
     @Binding var pdfView: PDFView?
     @Binding var showInspector: Bool
     @ObservedObject var vm: ReaderViewModel
-    @State private var search = ""
+    /// Opens (or refocuses) the find bar — also bound to ⌘F.
+    let onFind: () -> Void
     @AppStorage("highlightColorHex") private var highlightColorHex = "#ffd966"
 
     private let highlightColors: [(name: String, hex: String)] = [
@@ -17,9 +18,9 @@ struct ReaderToolbar: ToolbarContent {
 
     var body: some ToolbarContent {
         ToolbarItemGroup {
-            TextField("Search", text: $search)
-                .frame(width: 160)
-                .onSubmit(runSearch)
+            Button { onFind() } label: { Image(systemName: "magnifyingglass") }
+                .keyboardShortcut("f", modifiers: .command)
+                .help("Find in document (⌘F)")
             Button { pdfView?.zoomOut(nil) } label: { Image(systemName: "minus.magnifyingglass") }
             Button { pdfView?.zoomIn(nil) } label: { Image(systemName: "plus.magnifyingglass") }
             Button("Fit") {
@@ -39,13 +40,6 @@ struct ReaderToolbar: ToolbarContent {
             Button { exportMarkdown() } label: { Image(systemName: "square.and.arrow.up") }
             Button { showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
         }
-    }
-
-    private func runSearch() {
-        guard let pv = pdfView, !search.isEmpty,
-              let sel = pv.document?.findString(search, withOptions: .caseInsensitive).first else { return }
-        pv.setCurrentSelection(sel, animate: true)
-        pv.go(to: sel)
     }
 
     private func highlightSelection() {
