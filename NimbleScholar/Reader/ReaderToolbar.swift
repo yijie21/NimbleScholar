@@ -9,13 +9,9 @@ struct ReaderToolbar: ToolbarContent {
     @ObservedObject var vm: ReaderViewModel
     /// Opens (or refocuses) the find bar — also bound to ⌘F.
     let onFind: () -> Void
-    @AppStorage("highlightColorHex") private var highlightColorHex = "#ffd966"
 
-    private let highlightColors: [(name: String, hex: String)] = [
-        ("Yellow", "#ffd966"), ("Green", "#a8e6a1"), ("Blue", "#9ec9ff"),
-        ("Pink", "#ffb3d1"), ("Orange", "#ffc08a"),
-    ]
-
+    // Lean on purpose: highlight/note/color live in the selection popover, the right-click
+    // menu, and Settings (highlight color) — not here.
     var body: some ToolbarContent {
         ToolbarItemGroup {
             Button { onFind() } label: { Image(systemName: "magnifyingglass") }
@@ -27,38 +23,14 @@ struct ReaderToolbar: ToolbarContent {
                 if let pv = pdfView { pv.autoScales = true; pv.scaleFactor = pv.scaleFactorForSizeToFit }
             }
             Button { highlightSelection() } label: { Image(systemName: "highlighter") }
-            Menu {
-                ForEach(highlightColors, id: \.hex) { c in
-                    Button {
-                        highlightColorHex = c.hex
-                    } label: {
-                        Label(c.name, systemImage: highlightColorHex == c.hex ? "checkmark.circle.fill" : "circle.fill")
-                    }
-                }
-            } label: { Image(systemName: "paintpalette") }
-            Button { addNote() } label: { Image(systemName: "note.text.badge.plus") }
-            Button { exportMarkdown() } label: { Image(systemName: "square.and.arrow.up") }
+                .help("Highlight the selected text")
             Button { showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
+                .help("Annotations & chat")
         }
     }
 
     private func highlightSelection() {
         guard let pv = pdfView, let sel = pv.currentSelection else { return }
         AnnotationController(vm: vm).highlight(selection: sel, in: pv)
-    }
-
-    private func addNote() {
-        guard let pv = pdfView, let sel = pv.currentSelection, !(sel.string ?? "").isEmpty,
-              let text = AnnotationController.promptNoteText() else { return }
-        AnnotationController(vm: vm).addNote(text: text, selection: sel, in: pv)
-    }
-
-    private func exportMarkdown() {
-        let md = MarkdownExporter.export(paper: vm.paper, annotations: vm.annotations)
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = "\(vm.paper.title.prefix(40)).md"
-        if panel.runModal() == .OK, let url = panel.url {
-            try? md.data(using: .utf8)?.write(to: url)
-        }
     }
 }

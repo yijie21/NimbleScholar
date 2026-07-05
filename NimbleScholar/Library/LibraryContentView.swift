@@ -179,15 +179,19 @@ struct LibraryContentView: View {
                 .hidden()
         )
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("View", selection: modeSelection) {
-                    ForEach(LibraryViewMode.allCases) { Label($0.label, systemImage: $0.symbol).tag($0) }
+            // Library-navigation controls are noise while reading a paper (reading forces
+            // the three-pane layout anyway) — show them only in browsing mode.
+            if vm.readingPaperID == nil {
+                ToolbarItem(placement: .principal) {
+                    Picker("View", selection: modeSelection) {
+                        ForEach(LibraryViewMode.allCases) { Label($0.label, systemImage: $0.symbol).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
-            }
-            ToolbarItem {
-                Picker("Sort", selection: $vm.sort) {
-                    ForEach(LibraryViewModel.SortMode.allCases) { Text($0.label).tag($0) }
+                ToolbarItem {
+                    Picker("Sort", selection: $vm.sort) {
+                        ForEach(LibraryViewModel.SortMode.allCases) { Text($0.label).tag($0) }
+                    }
                 }
             }
             ToolbarItem {
