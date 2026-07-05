@@ -72,7 +72,7 @@ struct EmbeddedReader: View {
                     }
                     .help("Toggle the papers list")
                 }
-                ReaderToolbar(pdfView: $pdfView, showInspector: $showInspector, vm: vm) {
+                ReaderToolbar(pdfView: $pdfView, showInspector: $showInspector) {
                     showFind = true
                     findFocusRequest += 1   // refocus the field if the bar is already open
                 }
