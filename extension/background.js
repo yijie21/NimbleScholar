@@ -104,6 +104,64 @@ async function collectPageMetadata(tabId) {
   }
 }
 
+// --- OpenReview -------------------------------------------------------------
+// The site (pages, API, PDFs) sits behind a Cloudflare browser check that server-side
+// fetches from the app fail — but THIS browser has already passed it. So for OpenReview
+// we read the forum page from here, with the browser's cookies, and hand the app
+// complete metadata it could never fetch itself.
+
+function openReviewID(url) {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)openreview\.net$/.test(u.hostname)) return null;
+    if (!/^\/(forum|pdf|attachment)$/.test(u.pathname)) return null;
+    return u.searchParams.get("id");
+  } catch {
+    return null;
+  }
+}
+
+function decodeEntities(s) {
+  return (s || "")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#0*39;/g, "'").replace(/&apos;/g, "'");
+}
+
+// Service workers have no DOMParser — pull <meta> tags out with a tolerant regex.
+function parseMetaTags(html) {
+  const out = {};
+  for (const tag of html.match(/<meta\s[^>]*>/gi) || []) {
+    const name = tag.match(/(?:name|property)\s*=\s*["']([^"']+)["']/i)?.[1]?.toLowerCase();
+    const content = tag.match(/content\s*=\s*["']([^"']*)["']/i)?.[1];
+    if (!name || content == null) continue;
+    (out[name] ||= []).push(decodeEntities(content));
+  }
+  return out;
+}
+
+async function fetchOpenReviewMetadata(id) {
+  try {
+    const res = await fetch(`https://openreview.net/forum?id=${encodeURIComponent(id)}`, {
+      credentials: "include",
+    });
+    if (!res.ok) return {};
+    const tags = parseMetaTags(await res.text());
+    const first = (name) => tags[name]?.[0] || "";
+    const authors =
+      (tags["citation_author"] || []).join(", ") ||
+      first("citation_authors").split(";").map((s) => s.trim()).filter(Boolean).join(", ");
+    return {
+      title: first("citation_title") || first("og:title").replace(/\s*\|\s*OpenReview\s*$/i, ""),
+      authors,
+      abstract: first("citation_abstract") || first("description") || first("og:description"),
+      pdf_url: first("citation_pdf_url") || `https://openreview.net/pdf?id=${id}`,
+      source: "openreview.net",
+    };
+  } catch {
+    return {};
+  }
+}
+
 function titleFromPdfURL(url) {
   try {
     const file = decodeURIComponent(url.split("?")[0].split("/").pop() || "");
@@ -117,15 +175,30 @@ async function captureCurrentTab(extra = {}) {
   const tab = await getActiveTab();
   const settings = await readSettings();
   const isPdf = /\.pdf($|\?)/i.test(tab.url);
-  const pageMetadata = isPdf ? {} : await collectPageMetadata(tab.id);
+  const orId = openReviewID(tab.url);
+  let pageMetadata = {};
+  if (orId && !/\/forum$/.test(new URL(tab.url).pathname)) {
+    // OpenReview PDF/attachment tab: the PDF viewer can't be injected — read the
+    // forum page from here instead (the app's own fetch would hit the browser check).
+    pageMetadata = await fetchOpenReviewMetadata(orId);
+  } else if (!isPdf) {
+    pageMetadata = await collectPageMetadata(tab.id);
+    // Forum tab captured before the SPA populated its meta tags → fetch it directly.
+    if (orId && !pageMetadata.title) pageMetadata = await fetchOpenReviewMetadata(orId);
+  }
   const payload = {
     ...pageMetadata,
     url: tab.url,
     // Papers fall back to the default tag when none were typed.
     tags: extra.tags && extra.tags.trim() ? extra.tags : settings.defaultTags,
   };
+  if (orId) {
+    // Canonical forum URL keeps duplicates merged across forum/pdf captures.
+    payload.url = `https://openreview.net/forum?id=${orId}`;
+    if (!payload.pdf_url) payload.pdf_url = `https://openreview.net/pdf?id=${orId}`;
+  }
   if (isPdf) {
-    payload.pdf_url = tab.url;
+    payload.pdf_url = payload.pdf_url || tab.url;
     if (!payload.title) payload.title = titleFromPdfURL(tab.url);
   }
 

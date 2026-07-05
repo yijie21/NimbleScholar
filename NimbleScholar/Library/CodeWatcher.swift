@@ -45,7 +45,7 @@ final class CodeWatcher {
                 // Re-check a known candidate repo.
                 switch await GitHubRepoChecker.check(p.codeURL, session: session) {
                 case .released:
-                    p.codeReady = true; _ = try? store.update(p)
+                    p.codeReady = true; _ = try? store.update(p, touch: false)
                     if reconciled { notifyReleased(p) }
                 case .notReleased, .error:
                     break
@@ -62,10 +62,10 @@ final class CodeWatcher {
                     let status = await GitHubRepoChecker.check(code, session: session)
                     if status == .released { p.codeReady = true }
                     if status == .rateLimited { rateLimited = true }
-                    _ = try? store.update(p)
+                    _ = try? store.update(p, touch: false)
                     if status == .released, reconciled { notifyReleased(p) }
                 } else if changed {
-                    _ = try? store.update(p)
+                    _ = try? store.update(p, touch: false)
                 }
             }
             if rateLimited { break }
@@ -90,7 +90,7 @@ final class CodeWatcher {
             let status = await GitHubRepoChecker.check(p.codeURL, session: session)
             if status == .notReleased {
                 p.codeReady = false          // empty/placeholder → back to watching
-                _ = try? store.update(p)
+                _ = try? store.update(p, touch: false)
             }
             ActivityCenter.shared.endItem(p.id)
             ActivityCenter.shared.stepBatch()

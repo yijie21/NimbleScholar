@@ -32,7 +32,7 @@ final class ReaderViewModel: ObservableObject {
             self.localURL = url
             // Persist the cached path so library thumbnails / future opens find it.
             if paper.pdfPath != url.path {
-                var p = paper; p.pdfPath = url.path; _ = try? store.update(p)
+                var p = paper; p.pdfPath = url.path; _ = try? store.update(p, touch: false)
             }
             // Parse the PDF off the main thread so it doesn't block the open animation.
             let doc = await Self.loadDocument(url)

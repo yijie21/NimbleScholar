@@ -13,6 +13,21 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertEqual(try store.tagCounts().count, 0)
     }
 
+    func testUpdateWithoutTouchKeepsUpdatedAt() throws {
+        let store = try makeStore()
+        var p = try store.create(Paper(title: "A Paper"))
+        p.updatedAt = 12_345          // simulate an old paper
+
+        // Background enrichment write: updated_at must NOT move (would reshuffle the list).
+        p.teaserURL = "https://x/fig.png"
+        let untouched = try store.update(p, touch: false)
+        XCTAssertEqual(untouched.updatedAt, 12_345)
+
+        // A real (user) update still bumps it.
+        let touched = try store.update(p)
+        XCTAssertGreaterThan(touched.updatedAt, 12_345)
+    }
+
     func testCreateSetTagsSearchAndDelete() throws {
         let store = try makeStore()
         var p = Paper(title: "Attention Is All You Need")

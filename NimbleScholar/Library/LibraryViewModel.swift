@@ -294,7 +294,7 @@ final class LibraryViewModel: ObservableObject {
         defer { ActivityCenter.shared.end(); ActivityCenter.shared.endItem(paper.id) }
         guard let url = try? await AppEnvironment.shared.downloader.ensureLocalPDF(for: paper) else { return nil }
         if paper.pdfPath != url.path {
-            var p = paper; p.pdfPath = url.path; _ = try? store.update(p)
+            var p = paper; p.pdfPath = url.path; _ = try? store.update(p, touch: false)
         }
         return url
     }
@@ -308,13 +308,21 @@ final class LibraryViewModel: ObservableObject {
     private var attempted = Set<Int64>()     // papers already auto-processed this session
     private var autoCompleteRunning = false
 
-    /// True when the paper still needs work: no local PDF, or no figure yet but a figure
-    /// source (arXiv HTML/ar5iv, or an HTML landing page) we can scrape.
+    /// True when the paper still needs work: unresolved title, no local PDF, or no figure
+    /// yet but a figure source (arXiv HTML/ar5iv, or an HTML landing page) we can scrape.
     private func needsCompletion(_ p: Paper) -> Bool {
+        if titleUnresolved(p) { return true }
         if !p.hasLocalPDF { return true }
         if !p.hasFigure, canFetchFigure(p) { return true }
         if !p.linksScanned, canScanLinks(p) { return true }
         return false
+    }
+
+    /// A URL (or nothing) saved as the title means capture couldn't reach any metadata
+    /// source at the time — e.g. OpenReview's API behind its browser check.
+    private func titleUnresolved(_ p: Paper) -> Bool {
+        let t = p.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty || t.hasPrefix("http://") || t.hasPrefix("https://")
     }
 
     /// We can look for project/code links once there's a PDF to read, an arXiv id, or a
@@ -354,7 +362,7 @@ final class LibraryViewModel: ObservableObject {
                 ActivityCenter.shared.beginItem(p.id, "Fetching figure…")
                 if let figs = await fetchFigure(for: p) {
                     var x = p; x.teaserURL = figs.teaser ?? ""; x.pipelineURL = figs.pipeline ?? ""
-                    _ = try? store.update(x)
+                    _ = try? store.update(x, touch: false)
                 }
                 ActivityCenter.shared.endItem(p.id)
                 ActivityCenter.shared.stepBatch()
@@ -423,12 +431,29 @@ final class LibraryViewModel: ObservableObject {
             guard let id = p.id else { continue }
             inflight.insert(id)
             var cur = p
+            // 0. Title: a URL saved as the title means capture couldn't reach any metadata
+            // source at the time (e.g. OpenReview's API refusing the app's network path).
+            // Retry the resolver now; the PDF-text fallback below covers a repeat failure.
+            if titleUnresolved(cur) {
+                ActivityCenter.shared.beginItem(id, "Fetching details…")
+                if let meta = try? await AppEnvironment.resolveMetadata(for: cur.url),
+                   !meta.title.isEmpty {
+                    cur.title = meta.title
+                    if cur.authors.isEmpty { cur.authors = meta.authors }
+                    if cur.year.isEmpty { cur.year = meta.year }
+                    if cur.abstract.isEmpty { cur.abstract = meta.abstract }
+                    if cur.doi.isEmpty { cur.doi = meta.doi }
+                    if cur.pdfURL.isEmpty { cur.pdfURL = meta.pdfURL }
+                    if cur.teaserURL.isEmpty { cur.teaserURL = meta.teaserURL }
+                    _ = try? store.update(cur, touch: false)
+                }
+            }
             // 1. Figure: arXiv HTML/ar5iv by id, else the paper's HTML landing page.
             if !cur.hasFigure, canFetchFigure(cur) {
                 ActivityCenter.shared.beginItem(id, "Fetching figure…")
                 if let figs = await fetchFigure(for: cur) {
                     cur.teaserURL = figs.teaser ?? ""; cur.pipelineURL = figs.pipeline ?? ""
-                    _ = try? store.update(cur)
+                    _ = try? store.update(cur, touch: false)
                 }
             }
             // 2. PDF (also gives a thumbnail when there's no figure).
@@ -436,7 +461,18 @@ final class LibraryViewModel: ObservableObject {
                 ActivityCenter.shared.beginItem(id, "Downloading PDF…")
                 if let url = try? await AppEnvironment.shared.downloader.ensureLocalPDF(for: cur) {
                     cur.pdfPath = url.path
-                    _ = try? store.update(cur)
+                    _ = try? store.update(cur, touch: false)
+                }
+            }
+            // 2b. Still no title after the resolver retry, but the PDF is here (downloaded
+            // above, or imported by hand) → pull the title out of the PDF itself.
+            if titleUnresolved(cur), cur.hasLocalPDF {
+                ActivityCenter.shared.beginItem(id, "Reading title from PDF…")
+                let path = cur.pdfPath
+                // Off the main actor: PDFKit text extraction is CPU-bound.
+                if let title = await Task.detached(operation: { PDFTitleExtractor.title(fromPDFAt: path) }).value {
+                    cur.title = title
+                    _ = try? store.update(cur, touch: false)
                 }
             }
             // 3. Project / code links (once per paper).
@@ -446,7 +482,7 @@ final class LibraryViewModel: ObservableObject {
                 if let project = links.projectURL { cur.projectURL = project }
                 if let code = links.codeURL { cur.codeURL = code }
                 cur.linksScanned = true
-                _ = try? store.update(cur)
+                _ = try? store.update(cur, touch: false)
             }
             ActivityCenter.shared.endItem(id)
             inflight.remove(id)

@@ -94,7 +94,7 @@ public final class CaptureHandler {
                       var paper = try? store.paper(id: pid) else { return }
                 paper.teaserURL = figs.teaser ?? ""
                 paper.pipelineURL = figs.pipeline ?? ""
-                _ = try? store.update(paper)
+                _ = try? store.update(paper, touch: false)
             }
         }
         return saved

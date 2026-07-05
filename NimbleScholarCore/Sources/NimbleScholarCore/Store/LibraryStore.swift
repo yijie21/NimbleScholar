@@ -299,9 +299,14 @@ public final class LibraryStore: @unchecked Sendable {
         return p
     }
 
+    /// Update a paper. `touch: false` keeps `updated_at` unchanged — use it for BACKGROUND
+    /// writes (figure/PDF/link enrichment, code watching) so the "Recently updated" sort
+    /// reflects user actions and new captures, not housekeeping: otherwise every enrichment
+    /// pass reshuffles the list and freshly captured papers sink below repaired old ones.
     @discardableResult
-    public func update(_ paper: Paper) throws -> Paper {
-        var p = paper; p.updatedAt = now()
+    public func update(_ paper: Paper, touch: Bool = true) throws -> Paper {
+        var p = paper
+        if touch { p.updatedAt = now() }
         try dbQueue.write { try p.update($0) }
         return p
     }
