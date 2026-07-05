@@ -13,10 +13,11 @@ enum LibraryScope: Hashable {
 @MainActor
 final class LibraryViewModel: ObservableObject {
     enum SortMode: String, CaseIterable, Identifiable {
-        case updated, year, title
+        case added, updated, year, title
         var id: String { rawValue }
         var label: String {
             switch self {
+            case .added: return "Recently added"
             case .updated: return "Recently updated"
             case .year: return "Newest year"
             case .title: return "Title A–Z"
@@ -32,7 +33,7 @@ final class LibraryViewModel: ObservableObject {
     @Published var tagsByPaper: [Int64: [String]] = [:]   // batched once per reload (no N+1)
     @Published var query = "" { didSet { if query != oldValue { scheduleSearchReload() } } }
     @Published var scope: LibraryScope = .all { didSet { readingPaperID = nil; reload() } }
-    @Published var sort: SortMode = .updated {
+    @Published var sort: SortMode = .added {
         didSet {
             UserDefaults.standard.set(sort.rawValue, forKey: "librarySort")
             papers = floatImportant(sorted(papers))
@@ -114,7 +115,9 @@ final class LibraryViewModel: ObservableObject {
     private func sorted(_ list: [Paper]) -> [Paper] {
         if scope == .recent { return list }   // already newest-first
         switch sort {
-        case .updated: return list.sorted { $0.updatedAt > $1.updatedAt }
+        // id breaks same-second ties (timestamps are whole seconds), newest capture first.
+        case .added:   return list.sorted { ($0.createdAt, $0.id ?? 0) > ($1.createdAt, $1.id ?? 0) }
+        case .updated: return list.sorted { ($0.updatedAt, $0.id ?? 0) > ($1.updatedAt, $1.id ?? 0) }
         case .year:    return list.sorted { $0.year > $1.year }
         case .title:   return list.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }

@@ -69,6 +69,7 @@ final class AppEnvironment: ObservableObject {
             ?? FileManager.default.temporaryDirectory
         self.downloader = PDFDownloader(
             session: session,
+            fallbackSession: AppEnvironment.directSession,
             cacheDir: support.appendingPathComponent("Nimble Scholar/storage/pdfs", isDirectory: true))
 
         startCaptureServer()
@@ -117,6 +118,15 @@ final class AppEnvironment: ObservableObject {
         )
     }
 
+    /// Session that never uses a proxy (not even the system one). OpenReview's browser
+    /// check blocks datacenter IPs — which is what a proxy/VPN exit usually is — but tends
+    /// to pass residential connections, so OpenReview requests fall back to going direct.
+    static let directSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.connectionProxyDictionary = [:]
+        return URLSession(configuration: config)
+    }()
+
     /// Build the shared download session, honoring the proxy configured in Settings.
     private static func makeNetworkSession() -> URLSession {
         let d = UserDefaults.standard
@@ -142,15 +152,20 @@ final class AppEnvironment: ObservableObject {
         if let id = OpenReviewService.extractID(from: url) {
             // The website HTML is behind a browser check, so the notes API is the only
             // usable source — never fall through to the generic parse (it would scrape
-            // the "Verifying your browser" interstitial as the title).
-            for api in OpenReviewService.apiURLs(forID: id) {
-                if let (data, _) = try? await session.data(from: api),
-                   let meta = OpenReviewService.parseNotes(data, id: id) {
-                    return meta
+            // the "Verifying your browser" interstitial as the title). Try the configured
+            // session first, then direct with no proxy: the check rejects datacenter IPs
+            // (typical proxy exits) but usually passes a residential connection.
+            for candidate in [session, AppEnvironment.directSession] {
+                for api in OpenReviewService.apiURLs(forID: id) {
+                    if let (data, _) = try? await candidate.data(from: api),
+                       let meta = OpenReviewService.parseNotes(data, id: id) {
+                        return meta
+                    }
                 }
             }
             throw NSError(domain: "NimbleScholar", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "The OpenReview API didn't return this paper",
+                NSLocalizedDescriptionKey: "The OpenReview API didn't return this paper "
+                    + "(its bot check may be blocking the app; try saving from the browser extension)",
             ])
         }
         guard let u = URL(string: url) else { return PaperMetadata() }

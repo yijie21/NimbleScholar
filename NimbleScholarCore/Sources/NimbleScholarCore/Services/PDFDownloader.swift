@@ -2,9 +2,12 @@ import Foundation
 
 public struct PDFDownloader {
     public let session: URLSession
+    /// Tried when `session` fails or returns non-PDF bytes (e.g. a bot-check page served
+    /// to the proxy's datacenter IP): a session that connects directly, without a proxy.
+    public let fallbackSession: URLSession?
     public let cacheDir: URL
-    public init(session: URLSession = .shared, cacheDir: URL) {
-        self.session = session; self.cacheDir = cacheDir
+    public init(session: URLSession = .shared, fallbackSession: URLSession? = nil, cacheDir: URL) {
+        self.session = session; self.fallbackSession = fallbackSession; self.cacheDir = cacheDir
     }
 
     public static func looksLikePDF(_ data: Data) -> Bool {
@@ -30,10 +33,21 @@ public struct PDFDownloader {
         let urlString = !paper.pdfURL.isEmpty ? paper.pdfURL
             : (ArxivService.normalizedPDFURL(absOrID: paper.url) ?? paper.url)
         guard let url = URL(string: urlString) else { throw URLError(.badURL) }
-        let (data, _) = try await session.data(from: url)
-        guard Self.looksLikePDF(data) else { throw URLError(.cannotParseResponse) }
+        let data = try await fetchPDFData(from: url)
         try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
         try data.write(to: dest)
         return dest
+    }
+
+    /// Fetch real PDF bytes: primary session first, then the no-proxy fallback.
+    private func fetchPDFData(from url: URL) async throws -> Data {
+        if let (data, _) = try? await session.data(from: url), Self.looksLikePDF(data) {
+            return data
+        }
+        if let fallback = fallbackSession {
+            let (data, _) = try await fallback.data(from: url)
+            if Self.looksLikePDF(data) { return data }
+        }
+        throw URLError(.cannotParseResponse)
     }
 }
