@@ -213,9 +213,26 @@ final class LibraryViewModel: ObservableObject {
     func saveSummary(_ text: String, for paper: Paper) {
         var p = paper; p.summary = text; _ = try? store.update(p); reload(resort: true)
     }
-    func delete(_ paper: Paper) {
-        if let id = paper.id { try? store.deletePaper(id: id); reload(resort: true) }
+
+    // MARK: - Deletion (always confirmed)
+
+    /// Papers awaiting the user's confirmation; non-empty drives the confirmation dialog.
+    @Published var pendingDelete: [Paper] = []
+
+    func requestDelete(_ papersToDelete: [Paper]) {
+        pendingDelete = papersToDelete.filter { $0.id != nil }
     }
+    func requestDeleteSelection() { requestDelete(selectedPapers()) }
+
+    func confirmPendingDelete() {
+        let ids = pendingDelete.compactMap { $0.id }
+        for id in ids { try? store.deletePaper(id: id) }
+        if let rid = readingPaperID, ids.contains(rid) { readingPaperID = nil }
+        multiSelection.subtract(ids)
+        pendingDelete = []
+        reload(resort: true)
+    }
+    func cancelPendingDelete() { pendingDelete = [] }
     func toggleRead(_ paper: Paper) {
         if let id = paper.id { try? store.setRead(paperID: id, read: !paper.isRead); reload(resort: true) }
     }
@@ -555,10 +572,6 @@ final class LibraryViewModel: ObservableObject {
 
     private func selectedPapers() -> [Paper] { papers.filter { $0.id.map(multiSelection.contains) ?? false } }
 
-    func bulkDelete() {
-        for p in selectedPapers() { if let id = p.id { try? store.deletePaper(id: id) } }
-        multiSelection.removeAll(); reload(resort: true)
-    }
     func bulkDownloadPDFs() async {
         for p in selectedPapers() { _ = await ensurePDF(for: p) }
     }

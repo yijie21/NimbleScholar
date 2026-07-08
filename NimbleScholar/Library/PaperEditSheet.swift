@@ -42,7 +42,7 @@ struct PaperEditSheet: View {
             .formStyle(.grouped)
             HStack {
                 if paper.id != nil {
-                    Button("Delete", role: .destructive) { vm.delete(paper); dismiss() }
+                    Button("Delete", role: .destructive) { vm.requestDelete([paper]); dismiss() }
                 }
                 Spacer()
                 Button("Cancel") { dismiss() }

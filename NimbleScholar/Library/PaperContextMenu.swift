@@ -41,7 +41,7 @@ struct PaperContextMenu: ViewModifier {
                 NSPasteboard.general.setString(BibTeXExporter.export([paper]), forType: .string)
             } label: { Label("Copy BibTeX", systemImage: "doc.on.doc") }
             Divider()
-            Button(role: .destructive) { vm.delete(paper) } label: { Label("Delete", systemImage: "trash") }
+            Button(role: .destructive) { vm.requestDelete([paper]) } label: { Label("Delete", systemImage: "trash") }
         }
     }
 }

@@ -43,7 +43,7 @@ struct ThreePaneView: View {
                         Text("\(vm.multiSelection.count) selected").font(.caption).foregroundStyle(.secondary)
                         Spacer()
                         Button("Download") { Task { await vm.bulkDownloadPDFs() } }
-                        Button("Delete", role: .destructive) { vm.bulkDelete() }
+                        Button("Delete", role: .destructive) { vm.requestDeleteSelection() }
                     }
                     .padding(8)
                     .background(.bar)

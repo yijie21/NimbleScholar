@@ -100,6 +100,24 @@ struct LibraryContentView: View {
             Divider()
             StatusBar()
         }
+        .confirmationDialog(
+            deleteDialogTitle,
+            isPresented: Binding(
+                get: { !vm.pendingDelete.isEmpty },
+                set: { if !$0 { vm.cancelPendingDelete() } }
+            )
+        ) {
+            Button("Delete", role: .destructive) { vm.confirmPendingDelete() }
+            Button("Cancel", role: .cancel) { vm.cancelPendingDelete() }
+        } message: {
+            Text("This cannot be undone.")
+        }
+    }
+
+    private var deleteDialogTitle: String {
+        vm.pendingDelete.count == 1
+            ? "Delete “\(vm.pendingDelete[0].title)”?"
+            : "Delete \(vm.pendingDelete.count) papers?"
     }
 
     @ViewBuilder private var splitView: some View {
@@ -172,7 +190,7 @@ struct LibraryContentView: View {
             for url in pdfs { vm.importPDF(at: url) }
             return !pdfs.isEmpty
         }
-        .onDeleteCommand { vm.bulkDelete() }
+        .onDeleteCommand { vm.requestDeleteSelection() }
         .background(
             Button("") { openSelectedReader() }
                 .keyboardShortcut("o", modifiers: [.command])

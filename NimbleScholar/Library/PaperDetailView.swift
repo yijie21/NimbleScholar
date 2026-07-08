@@ -32,7 +32,7 @@ struct PaperDetailView: View {
                     } label: { Label("Browser", systemImage: "safari") }
                     Spacer()
                     Button("Edit") { vm.editingPaper = paper }
-                    Button("Delete", role: .destructive) { vm.delete(paper) }
+                    Button("Delete", role: .destructive) { vm.requestDelete([paper]) }
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     if !paper.projectURL.isEmpty || hasReadyCode {
