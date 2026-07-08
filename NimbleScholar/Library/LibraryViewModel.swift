@@ -51,7 +51,9 @@ final class LibraryViewModel: ObservableObject {
             // While reading, single-clicking another paper switches the reader to it.
             guard readingPaperID != nil, multiSelection.count == 1,
                   let id = multiSelection.first, id != readingPaperID else { return }
-            readingPaperID = id
+            // Defer like openReader does: the click returns instantly; the heavy
+            // reader rebuild runs on a fresh frame.
+            DispatchQueue.main.async { self.readingPaperID = id }
         }
     }
     @Published var editingPaper: Paper? = nil
