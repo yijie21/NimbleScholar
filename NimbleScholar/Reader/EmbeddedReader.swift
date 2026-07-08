@@ -78,6 +78,11 @@ struct EmbeddedReader: View {
                 }
             }
             .navigationTitle(vm.paper.title)
+            .background(
+                Button("") { vm.flushSave(); onClose() }
+                    .keyboardShortcut("w", modifiers: .command)
+                    .hidden()
+            )
         }
         .task { await vm.load() }
         .onDisappear { vm.flushSave() }

@@ -27,6 +27,7 @@ struct NimbleScholarApp: App {
                 Button("Back Up Library…") { BackupManager.backUp() }
                 Button("Restore Library…") { BackupManager.restore() }
             }
+            PaperCommands()
         }
 
         Settings { SettingsView() }

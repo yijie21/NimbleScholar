@@ -17,12 +17,19 @@ struct ReaderToolbar: ToolbarContent {
                 .keyboardShortcut("f", modifiers: .command)
                 .help("Find in document (⌘F)")
             Button { pdfView?.zoomOut(nil) } label: { Image(systemName: "minus.magnifyingglass") }
+                .keyboardShortcut("-", modifiers: .command)
+                .help("Zoom out (⌘−)")
             Button { pdfView?.zoomIn(nil) } label: { Image(systemName: "plus.magnifyingglass") }
+                .keyboardShortcut("=", modifiers: .command)
+                .help("Zoom in (⌘=)")
             Button("Fit") {
                 if let pv = pdfView { pv.autoScales = true; pv.scaleFactor = pv.scaleFactorForSizeToFit }
             }
+            .keyboardShortcut("0", modifiers: .command)
+            .help("Fit to window (⌘0)")
             Button { showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
-                .help("Annotations & chat")
+                .keyboardShortcut("i", modifiers: [.command, .option])
+                .help("Annotations & chat (⌥⌘I)")
         }
     }
 }

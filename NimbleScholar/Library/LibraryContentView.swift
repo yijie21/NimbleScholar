@@ -78,12 +78,6 @@ struct LibraryContentView: View {
         )
     }
 
-    private func openSelectedReader() {
-        if let id = vm.currentPaperID, let paper = vm.papers.first(where: { $0.id == id }) {
-            vm.openReader(paper)
-        }
-    }
-
     var body: some View {
         // StatusBar is a dedicated bottom row (not a `.safeAreaInset`): the inset didn't
         // reliably reserve space inside the detail column's scroll view, so the translucent
@@ -117,6 +111,7 @@ struct LibraryContentView: View {
         } message: {
             Text("This cannot be undone.")
         }
+        .focusedSceneValue(\.libraryVM, vm)
     }
 
     private var deleteDialogTitle: String {
@@ -196,11 +191,6 @@ struct LibraryContentView: View {
             return !pdfs.isEmpty
         }
         .onDeleteCommand { vm.requestDeleteSelection() }
-        .background(
-            Button("") { openSelectedReader() }
-                .keyboardShortcut("o", modifiers: [.command])
-                .hidden()
-        )
         .toolbar {
             // Library-navigation controls are noise while reading a paper (reading forces
             // the three-pane layout anyway) — show them only in browsing mode.
