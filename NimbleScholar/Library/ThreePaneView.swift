@@ -32,11 +32,11 @@ struct ThreePaneView: View {
                     }
                     .tag(paper.id ?? -1)
                     .paperContextMenu(paper)
-                    // No plain tap gesture here on purpose: it would suppress the List's native
-                    // single-click selection. A *simultaneous* double-click gesture coexists with
-                    // it — single click selects (and switches the reader while reading, via the
-                    // selection didSet); double click opens the reader from browse mode.
-                    .simultaneousGesture(TapGesture(count: 2).onEnded { vm.openReader(paper) })
+                    // No tap gesture here on purpose — not even a simultaneousGesture: any gesture
+                    // on the row content eats the List's native single-click selection (confirmed
+                    // in practice; clicks stopped selecting entirely). Single click selects — showing
+                    // the metadata page in browse mode, switching the open paper while reading (via
+                    // the selection didSet). Open the reader via the Read button / ⌘O / context menu.
                 }
                 BulkActionBar()
             }
