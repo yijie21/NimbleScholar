@@ -32,9 +32,11 @@ struct ThreePaneView: View {
                     }
                     .tag(paper.id ?? -1)
                     .paperContextMenu(paper)
-                    // No tap gesture here on purpose: any tap gesture suppresses the List's native
-                    // single-click selection (or forces a double-click wait). Native selection keeps
-                    // single-click instant. Open the reader via ⌘O / the Read button / the context menu.
+                    // No plain tap gesture here on purpose: it would suppress the List's native
+                    // single-click selection. A *simultaneous* double-click gesture coexists with
+                    // it — single click selects (and switches the reader while reading, via the
+                    // selection didSet); double click opens the reader from browse mode.
+                    .simultaneousGesture(TapGesture(count: 2).onEnded { vm.openReader(paper) })
                 }
                 if vm.multiSelection.count > 1 {
                     HStack {
@@ -54,14 +56,15 @@ struct ThreePaneView: View {
             }
 
             Group {
-                if vm.multiSelection.count == 1, let id = vm.multiSelection.first,
-                   let paper = vm.papers.first(where: { $0.id == id }) {
-                    if vm.readingPaperID == id {
-                        EmbeddedReader(paperID: id) { vm.closeReader() }
-                            .transition(.opacity)
-                    } else {
-                        PaperDetailView(paper: paper).environmentObject(vm)
-                    }
+                if let rid = vm.readingPaperID {
+                    // Keyed by paper id so switching papers rebuilds the ReaderViewModel —
+                    // a plain @StateObject would keep showing the previous document.
+                    EmbeddedReader(paperID: rid) { vm.closeReader() }
+                        .id(rid)
+                        .transition(.opacity)
+                } else if vm.multiSelection.count == 1, let id = vm.multiSelection.first,
+                          let paper = vm.papers.first(where: { $0.id == id }) {
+                    PaperDetailView(paper: paper).environmentObject(vm)
                 } else {
                     ContentUnavailableView("Select a paper", systemImage: "doc.text")
                 }
