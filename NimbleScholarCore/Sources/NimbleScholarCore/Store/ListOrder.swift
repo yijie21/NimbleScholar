@@ -17,7 +17,7 @@ public enum ListOrder {
         var out: [Paper] = []
         out.reserveCapacity(current.count)
         for p in current {
-            guard let id = p.id, let updated = freshByID[id] else { return nil }
+            guard let id = p.id, let updated = freshByID.removeValue(forKey: id) else { return nil }
             out.append(updated)
         }
         return out

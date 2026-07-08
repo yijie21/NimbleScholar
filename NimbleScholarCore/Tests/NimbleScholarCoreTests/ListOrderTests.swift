@@ -37,4 +37,14 @@ final class ListOrderTests: XCTestCase {
     func testEmptyListsKeepOrder() {
         XCTAssertEqual(ListOrder.preservingOrder(current: [], fresh: [])?.count, 0)
     }
+
+    func testDuplicateIDInCurrentForcesResort() {
+        XCTAssertNil(ListOrder.preservingOrder(current: [paper(1), paper(1)],
+                                               fresh: [paper(1), paper(2)]))
+    }
+
+    func testDuplicateIDInFreshForcesResort() {
+        XCTAssertNil(ListOrder.preservingOrder(current: [paper(1), paper(2)],
+                                               fresh: [paper(1), paper(1)]))
+    }
 }
