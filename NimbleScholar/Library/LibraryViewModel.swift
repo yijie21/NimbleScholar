@@ -214,7 +214,13 @@ final class LibraryViewModel: ObservableObject {
     // MARK: - Paper mutations
 
     func saveSummary(_ text: String, for paper: Paper) {
-        var p = paper; p.summary = text
+        guard let id = paper.id else { return }
+        // Re-fetch before writing: callers may hold a stale snapshot (e.g. the detail
+        // field's pinned draft target), and a whole-row update from it would silently
+        // revert edits made elsewhere in the meantime. Only the summary changes here.
+        let fresh = (try? store.paper(id: id)) ?? nil
+        var p = fresh ?? paper
+        p.summary = text
         do { _ = try store.update(p) }
         catch { ActivityCenter.shared.reportError("Couldn't save summary — \(error.localizedDescription)") }
         reload(resort: true)
