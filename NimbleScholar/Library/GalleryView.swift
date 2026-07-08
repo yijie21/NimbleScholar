@@ -10,15 +10,20 @@ struct GalleryView: View {
         if vm.papers.isEmpty {
             EmptyLibraryView()
         } else {
-            ScrollView {
-                LazyVGrid(columns: columns, alignment: .center, spacing: 18) {
-                    ForEach(vm.papers) { paper in
-                        GalleryCard(paper: paper, selected: vm.multiSelection.contains(paper.id ?? -1))
-                            .equatable()
-                            .environmentObject(vm)
+            VStack(spacing: 0) {
+                ScrollView {
+                    LazyVGrid(columns: columns, alignment: .center, spacing: 18) {
+                        ForEach(vm.papers) { paper in
+                            GalleryCard(paper: paper,
+                                        selected: vm.multiSelection.contains(paper.id ?? -1),
+                                        unread: vm.isUnread(paper))
+                                .equatable()
+                                .environmentObject(vm)
+                        }
                     }
+                    .padding(20)
                 }
-                .padding(20)
+                BulkActionBar()
             }
         }
     }
@@ -30,12 +35,13 @@ private struct GalleryCard: View, Equatable {
     @EnvironmentObject var vm: LibraryViewModel
     let paper: Paper
     let selected: Bool
+    let unread: Bool
     @State private var hovering = false
 
     // Skip re-rendering unchanged cards on selection/reload churn (vm changes don't force a render
     // through `.equatable()` unless the paper value or selection actually changed).
     static func == (l: GalleryCard, r: GalleryCard) -> Bool {
-        l.paper == r.paper && l.selected == r.selected
+        l.paper == r.paper && l.selected == r.selected && l.unread == r.unread
     }
 
     var body: some View {
@@ -49,8 +55,11 @@ private struct GalleryCard: View, Equatable {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(alignment: .topTrailing) { PaperStatusBadge(paper: paper) }
                 .overlay(alignment: .topLeading) { ImportanceStar(paper: paper, onImage: true).font(.caption).padding(6) }
-            Text(paper.title).font(.subheadline).bold().lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                if unread { Circle().fill(.blue).frame(width: 7, height: 7) }
+                Text(paper.title).font(.subheadline).bold().lineLimit(2)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Text(paper.authors).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

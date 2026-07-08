@@ -246,7 +246,20 @@ final class LibraryViewModel: ObservableObject {
         if let id = paper.id { try? store.setImportant(paperID: id, important: !paper.isImportant); reload(resort: true) }
     }
 
-    func select(_ paper: Paper) { if let id = paper.id { multiSelection = [id] } }
+    /// Click-select honoring the standard modifiers: ⌘ toggles membership, ⇧ adds,
+    /// plain click replaces. (Gallery/rows cards route their taps here.)
+    func select(_ paper: Paper) {
+        guard let id = paper.id else { return }
+        let mods = NSEvent.modifierFlags
+        if mods.contains(.command) {
+            if multiSelection.contains(id) { multiSelection.remove(id) }
+            else { multiSelection.insert(id) }
+        } else if mods.contains(.shift) {
+            multiSelection.insert(id)
+        } else {
+            multiSelection = [id]
+        }
+    }
 
     func openReader(_ paper: Paper) {
         guard let id = paper.id else { return }

@@ -38,16 +38,7 @@ struct ThreePaneView: View {
                     // selection didSet); double click opens the reader from browse mode.
                     .simultaneousGesture(TapGesture(count: 2).onEnded { vm.openReader(paper) })
                 }
-                if vm.multiSelection.count > 1 {
-                    HStack {
-                        Text("\(vm.multiSelection.count) selected").font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Download") { Task { await vm.bulkDownloadPDFs() } }
-                        Button("Delete", role: .destructive) { vm.requestDeleteSelection() }
-                    }
-                    .padding(8)
-                    .background(.bar)
-                }
+                BulkActionBar()
             }
             // Fixed so the detail content can't make the list jitter; narrows while
             // reading to give the PDF more room. (Animated by the parent's single
@@ -72,6 +63,25 @@ struct ThreePaneView: View {
             // Local, cheap fade ONLY for the detail content swap (not the whole split view).
             .animation(.easeOut(duration: 0.15), value: vm.readingPaperID)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+/// Selection-count bar with bulk actions; renders nothing unless 2+ papers are selected.
+/// Shared by the three-pane list, gallery, and rows.
+struct BulkActionBar: View {
+    @EnvironmentObject var vm: LibraryViewModel
+
+    var body: some View {
+        if vm.multiSelection.count > 1 {
+            HStack {
+                Text("\(vm.multiSelection.count) selected").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("Download") { Task { await vm.bulkDownloadPDFs() } }
+                Button("Delete", role: .destructive) { vm.requestDeleteSelection() }
+            }
+            .padding(8)
+            .background(.bar)
         }
     }
 }

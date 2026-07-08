@@ -13,17 +13,21 @@ struct RowsView: View {
     }
 
     private var content: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                ForEach(vm.papers) { paper in
-                    RowCard(paper: paper,
-                            selected: vm.multiSelection.contains(paper.id ?? -1),
-                            tags: vm.tags(for: paper))
-                        .equatable()
-                        .environmentObject(vm)
+        VStack(spacing: 0) {
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(vm.papers) { paper in
+                        RowCard(paper: paper,
+                                selected: vm.multiSelection.contains(paper.id ?? -1),
+                                unread: vm.isUnread(paper),
+                                tags: vm.tags(for: paper))
+                            .equatable()
+                            .environmentObject(vm)
+                    }
                 }
+                .padding(20)
             }
-            .padding(20)
+            BulkActionBar()
         }
     }
 }
@@ -34,11 +38,12 @@ private struct RowCard: View, Equatable {
     @EnvironmentObject var vm: LibraryViewModel
     let paper: Paper
     let selected: Bool
+    let unread: Bool
     let tags: [String]   // in the equality key so the row re-renders when its tags change
     @State private var hovering = false
 
     static func == (l: RowCard, r: RowCard) -> Bool {
-        l.paper == r.paper && l.selected == r.selected && l.tags == r.tags
+        l.paper == r.paper && l.selected == r.selected && l.unread == r.unread && l.tags == r.tags
     }
 
     var body: some View {
@@ -50,7 +55,10 @@ private struct RowCard: View, Equatable {
                 .overlay(alignment: .topTrailing) { PaperStatusBadge(paper: paper) }
                 .overlay(alignment: .topLeading) { ImportanceStar(paper: paper, onImage: true).font(.caption).padding(6) }
             VStack(alignment: .leading, spacing: 6) {
-                Text(paper.title).font(.headline)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    if unread { Circle().fill(.blue).frame(width: 7, height: 7) }
+                    Text(paper.title).font(.headline)
+                }
                 Text([paper.authors, paper.venue, paper.year].filter { !$0.isEmpty }.joined(separator: " · "))
                     .font(.caption).foregroundStyle(.secondary)
                 InlineSummaryField(paper: paper)
