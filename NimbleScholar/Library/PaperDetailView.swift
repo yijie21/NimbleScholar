@@ -100,11 +100,15 @@ struct PaperDetailView: View {
 }
 
 /// Editable one-sentence summary in the detail panel. Reloads its text when the selected
-/// paper changes; saves on Return or when focus leaves the field.
+/// paper changes; saves on Return or when focus leaves the field. Commits are pinned to
+/// `editing` — the paper the draft was typed for — so a selection change can never write
+/// the old draft onto the newly selected paper (blur and paper-swap ordering is not
+/// guaranteed by SwiftUI).
 private struct DetailSummaryField: View {
     @EnvironmentObject var vm: LibraryViewModel
     let paper: Paper
     @State private var text = ""
+    @State private var editing: Paper?
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -117,13 +121,20 @@ private struct DetailSummaryField: View {
                 .onSubmit { commit() }
                 .onChange(of: focused) { _, nowFocused in if !nowFocused { commit() } }
         }
-        .onAppear { text = paper.summary }
-        .onChange(of: paper.id) { _, _ in text = paper.summary }
+        .onAppear { editing = paper; text = paper.summary }
+        .onChange(of: paper.id) { _, _ in
+            commit()   // save any draft to the paper it was typed for
+            editing = paper
+            text = paper.summary
+        }
     }
 
     private func commit() {
-        guard text != paper.summary else { return }
-        vm.saveSummary(text, for: paper)
+        guard var target = editing, text != target.summary else { return }
+        vm.saveSummary(text, for: target)
+        // Keep the guard accurate so a follow-up blur/switch can't double-save.
+        target.summary = text
+        editing = target
     }
 }
 
