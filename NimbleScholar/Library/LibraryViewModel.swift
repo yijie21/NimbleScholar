@@ -32,20 +32,37 @@ final class LibraryViewModel: ObservableObject {
     @Published var tagCounts: [TagCount] = []
     @Published var tagsByPaper: [Int64: [String]] = [:]   // batched once per reload (no N+1)
     @Published var query = "" { didSet { if query != oldValue { scheduleSearchReload() } } }
-    @Published var scope: LibraryScope = .all { didSet { readingPaperID = nil; reload(resort: true) } }
+    @Published var scope: LibraryScope = .all {
+        didSet {
+            // Reading survives a scope change: the rail re-filters the side list (revealed
+            // so the user sees the tag's papers) while the current PDF stays open.
+            if readingPaperID != nil { showPaperList = true }
+            reload(resort: true)
+        }
+    }
     @Published var sort: SortMode = .added {
         didSet {
             UserDefaults.standard.set(sort.rawValue, forKey: "librarySort")
             papers = floatImportant(sorted(papers))
         }
     }
-    @Published var multiSelection: Set<Int64> = []   // the one selection (3-pane multi + current)
+    @Published var multiSelection: Set<Int64> = [] {   // the one selection (3-pane multi + current)
+        didSet {
+            // While reading, single-clicking another paper switches the reader to it.
+            guard readingPaperID != nil, multiSelection.count == 1,
+                  let id = multiSelection.first, id != readingPaperID else { return }
+            readingPaperID = id
+        }
+    }
     @Published var editingPaper: Paper? = nil
 
     /// The single "current paper" (exactly one selected). Drives the detail pane, ⌘O, openReader.
     var currentPaperID: Int64? { multiSelection.count == 1 ? multiSelection.first : nil }
     @Published var readingPaperID: Int64? = nil   // non-nil → in-window reading mode
-    @Published var showPaperList = false           // while reading, whether the left list is revealed
+    /// While reading, whether the left paper list is revealed (remembered across sessions).
+    @Published var showPaperList: Bool = UserDefaults.standard.bool(forKey: "showPaperList") {
+        didSet { UserDefaults.standard.set(showPaperList, forKey: "showPaperList") }
+    }
 
     private let store = AppEnvironment.shared.store
     private var observation: ObservationToken?
@@ -204,12 +221,27 @@ final class LibraryViewModel: ObservableObject {
     func openReader(_ paper: Paper) {
         guard let id = paper.id else { return }
         multiSelection = [id]          // selects immediately (cheap)
-        showPaperList = false          // start reading with the list folded for a wide PDF
         // Defer the reader swap one runloop so the click returns instantly; the heavy
         // EmbeddedReader build then runs on a fresh frame instead of blocking the tap.
         DispatchQueue.main.async { self.readingPaperID = id }
     }
     func closeReader() { readingPaperID = nil }
+
+    /// Open the reader on the currently selected paper (menu command / ⌘O).
+    func openSelectedInReader() {
+        if let id = currentPaperID, let paper = papers.first(where: { $0.id == id }) {
+            openReader(paper)
+        }
+    }
+
+    /// While reading, jump to the next (+1) / previous (-1) paper in the visible list, wrapping.
+    func stepPaper(_ delta: Int) {
+        guard readingPaperID != nil, !papers.isEmpty else { return }
+        let idx = papers.firstIndex(where: { $0.id == readingPaperID }) ?? 0
+        let n = papers.count
+        let next = ((idx + delta) % n + n) % n
+        openReader(papers[next])
+    }
 
     /// A paper counts as "unread" while it still carries the to-read tag.
     func isUnread(_ paper: Paper) -> Bool { tags(for: paper).contains(Self.toReadTag) }
