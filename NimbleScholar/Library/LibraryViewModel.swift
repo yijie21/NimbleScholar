@@ -188,12 +188,15 @@ final class LibraryViewModel: ObservableObject {
     func addTag(_ tag: String, to paper: Paper) {
         guard let id = paper.id else { return }
         let current = (try? store.tags(forPaper: id)) ?? []
-        try? store.setTags(paperID: id, tags: current + [tag]); reload(resort: true)
+        do { try store.setTags(paperID: id, tags: current + [tag]) }
+        catch { ActivityCenter.shared.reportError("Couldn't add tag — \(error.localizedDescription)") }
+        reload(resort: true)
     }
     func removeTag(_ tag: String, from paper: Paper) {
         guard let id = paper.id else { return }
         let current = ((try? store.tags(forPaper: id)) ?? []).filter { $0 != tag }
-        try? store.setTags(paperID: id, tags: current)
+        do { try store.setTags(paperID: id, tags: current) }
+        catch { ActivityCenter.shared.reportError("Couldn't remove tag — \(error.localizedDescription)") }
         reload(resort: true)
     }
     func renameTag(_ old: String, to new: String) {
@@ -211,7 +214,10 @@ final class LibraryViewModel: ObservableObject {
     // MARK: - Paper mutations
 
     func saveSummary(_ text: String, for paper: Paper) {
-        var p = paper; p.summary = text; _ = try? store.update(p); reload(resort: true)
+        var p = paper; p.summary = text
+        do { _ = try store.update(p) }
+        catch { ActivityCenter.shared.reportError("Couldn't save summary — \(error.localizedDescription)") }
+        reload(resort: true)
     }
 
     // MARK: - Deletion (always confirmed)
@@ -314,7 +320,8 @@ final class LibraryViewModel: ObservableObject {
         }
     }
     func save(_ paper: Paper) {
-        _ = try? (paper.id == nil ? store.create(paper) : store.update(paper))
+        do { _ = try (paper.id == nil ? store.create(paper) : store.update(paper)) }
+        catch { ActivityCenter.shared.reportError("Couldn't save paper — \(error.localizedDescription)") }
         reload(resort: true)
     }
 
@@ -357,7 +364,8 @@ final class LibraryViewModel: ObservableObject {
         var p = paper
         p.pdfPath = dest.path
         if p.source.isEmpty { p.source = "local" }
-        _ = try? store.update(p)
+        do { _ = try store.update(p) }
+        catch { ActivityCenter.shared.reportError("Couldn't attach PDF — \(error.localizedDescription)") }
         reload(resort: true)
     }
 

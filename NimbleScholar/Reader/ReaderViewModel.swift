@@ -1,6 +1,7 @@
 import SwiftUI
 import PDFKit
 import NimbleScholarCore
+import AppKit
 
 /// Drives one reader window: loads (downloading if needed) the paper's PDF, tracks its annotation
 /// index, marks the paper read on open, remembers the last page, and debounces whole-file saves so
@@ -22,6 +23,15 @@ final class ReaderViewModel: ObservableObject {
         } else {
             self.paper = Paper(title: "Unknown paper")
         }
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.flushSave() }
+        }
+    }
+
+    deinit {
+        if let o = terminationObserver { NotificationCenter.default.removeObserver(o) }
     }
 
     func load() async {
@@ -62,6 +72,7 @@ final class ReaderViewModel: ObservableObject {
     // MARK: - Debounced PDF persistence
     // Writing the whole PDF on every annotation stalls the UI; coalesce writes instead.
     private var saveWork: DispatchWorkItem?
+    private var terminationObserver: NSObjectProtocol?
 
     func scheduleSave() {
         saveWork?.cancel()
@@ -77,7 +88,9 @@ final class ReaderViewModel: ObservableObject {
 
     private func writeNow() {
         guard let url = localURL, let doc = document else { return }
-        doc.write(to: url)
+        if !doc.write(to: url) {
+            ActivityCenter.shared.reportError("Couldn't save annotations for “\(paper.title)” — the PDF may be locked or the disk full.")
+        }
     }
 
     // MARK: - Reading position

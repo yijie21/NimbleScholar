@@ -8,7 +8,12 @@ import NimbleScholarCore
     let panel = NSSavePanel()
     panel.nameFieldStringValue = "papers.bib"
     if panel.runModal() == .OK, let url = panel.url {
-        try? BibTeXExporter.export(papers).data(using: .utf8)?.write(to: url)
+        do {
+            guard let data = BibTeXExporter.export(papers).data(using: .utf8) else { return }
+            try data.write(to: url)
+        } catch {
+            ActivityCenter.shared.reportError("BibTeX export failed — \(error.localizedDescription)")
+        }
     }
 }
 

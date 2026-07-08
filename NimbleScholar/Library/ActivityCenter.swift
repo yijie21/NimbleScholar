@@ -14,6 +14,23 @@ final class ActivityCenter: ObservableObject {
     /// Per-paper work labels (e.g. "Downloading PDF…"), so each library item can show its own state.
     @Published private(set) var itemLabels: [Int64: String] = [:]
 
+    /// One-line failure message shown in the status bar (auto-clears; ✕ dismisses).
+    @Published private(set) var errorMessage: String?
+    private var errorClear: Task<Void, Never>?
+
+    func reportError(_ message: String) {
+        errorMessage = message
+        errorClear?.cancel()
+        errorClear = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            if !Task.isCancelled { self?.errorMessage = nil }
+        }
+    }
+    func clearError() {
+        errorClear?.cancel()
+        errorMessage = nil
+    }
+
     var isActive: Bool { ops > 0 || batchTotal > 0 }
 
     func begin(_ label: String) { ops += 1; detail = label }
@@ -43,7 +60,13 @@ struct StatusBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            if activity.batchTotal > 0 {
+            if let err = activity.errorMessage {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                Text(err).lineLimit(1).foregroundStyle(.primary)
+                Button { activity.clearError() } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain).foregroundStyle(.secondary)
+                    .help("Dismiss")
+            } else if activity.batchTotal > 0 {
                 ProgressView(value: Double(activity.batchDone), total: Double(max(activity.batchTotal, 1)))
                     .frame(width: 140)
                 Text("\(activity.batchLabel) — \(activity.batchDone)/\(activity.batchTotal)")
