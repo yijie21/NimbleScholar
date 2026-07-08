@@ -32,7 +32,7 @@ final class LibraryViewModel: ObservableObject {
     @Published var tagCounts: [TagCount] = []
     @Published var tagsByPaper: [Int64: [String]] = [:]   // batched once per reload (no N+1)
     @Published var query = "" { didSet { if query != oldValue { scheduleSearchReload() } } }
-    @Published var scope: LibraryScope = .all { didSet { readingPaperID = nil; reload() } }
+    @Published var scope: LibraryScope = .all { didSet { readingPaperID = nil; reload(resort: true) } }
     @Published var sort: SortMode = .added {
         didSet {
             UserDefaults.standard.set(sort.rawValue, forKey: "librarySort")
@@ -51,6 +51,7 @@ final class LibraryViewModel: ObservableObject {
     private var observation: ObservationToken?
     private var searchDebounce: Task<Void, Never>?
     private var reloadCoalesce: Task<Void, Never>?
+    private var pendingResort = false
 
     /// Debounce search so typing doesn't run a DB query (FTS + tag scans) on every keystroke.
     private func scheduleSearchReload() {
@@ -58,7 +59,7 @@ final class LibraryViewModel: ObservableObject {
         searchDebounce = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 220_000_000)
             if Task.isCancelled { return }
-            self?.reload()
+            self?.reload(resort: true)
         }
     }
 
@@ -81,7 +82,12 @@ final class LibraryViewModel: ObservableObject {
 
     /// Coalesce reloads within one frame: a mutation's explicit reload and the DB observation's
     /// reload (which fires just after the same write) collapse into a single DB fetch instead of two.
-    func reload() {
+    /// `resort: true` marks a user action — the list fully re-sorts. Background reloads
+    /// (`resort: false`) keep the current order when the same papers are still visible, so
+    /// enrichment writes never reshuffle the list mid-scroll. The flag ORs across coalesced
+    /// calls so a user resort can't be swallowed by a trailing observation reload.
+    func reload(resort: Bool = false) {
+        pendingResort = pendingResort || resort
         reloadCoalesce?.cancel()
         reloadCoalesce = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 25_000_000)
@@ -91,6 +97,8 @@ final class LibraryViewModel: ObservableObject {
     }
 
     private func performReload() {
+        let resort = pendingResort
+        pendingResort = false
         let result: [Paper]
         switch scope {
         case .all:           result = (try? store.searchPapers(query: query, tag: nil)) ?? []
@@ -101,8 +109,13 @@ final class LibraryViewModel: ObservableObject {
         case .recent:        result = ((try? store.searchPapers(query: query, tag: nil)) ?? [])
                                  .sorted { $0.createdAt > $1.createdAt }
         }
-        let ordered = (scope == .recent) ? Array(result.prefix(30)) : sorted(result)
-        papers = floatImportant(ordered)
+        // Background refreshes of the same papers keep the on-screen order; anything
+        // else (user action, papers added/removed) goes through the full sort.
+        if !resort, let merged = ListOrder.preservingOrder(current: papers, fresh: result) {
+            papers = merged
+        } else {
+            papers = floatImportant(sorted(result))
+        }
         // Drop any selection that's no longer visible (e.g. after a scope change).
         let visible = Set(papers.compactMap(\.id))
         if !multiSelection.isSubset(of: visible) { multiSelection = multiSelection.intersection(visible) }
@@ -151,39 +164,39 @@ final class LibraryViewModel: ObservableObject {
     func addTag(_ tag: String, to paper: Paper) {
         guard let id = paper.id else { return }
         let current = (try? store.tags(forPaper: id)) ?? []
-        try? store.setTags(paperID: id, tags: current + [tag]); reload()
+        try? store.setTags(paperID: id, tags: current + [tag]); reload(resort: true)
     }
     func removeTag(_ tag: String, from paper: Paper) {
         guard let id = paper.id else { return }
         let current = ((try? store.tags(forPaper: id)) ?? []).filter { $0 != tag }
         try? store.setTags(paperID: id, tags: current)
-        reload()
+        reload(resort: true)
     }
     func renameTag(_ old: String, to new: String) {
         try? store.renameTag(old, to: new)
         // Filter on the normalized name the store actually saved, not the raw text (else the sidebar
         // scope can stop matching any row).
         if case .tag(let t) = scope, t == old { scope = .tag(TagNormalizer.normalize(new).first ?? old) }
-        else { reload() }
+        else { reload(resort: true) }
     }
     func deleteTag(_ name: String) {
         try? store.deleteTag(name)
-        if case .tag(let t) = scope, t == name { scope = .all } else { reload() }
+        if case .tag(let t) = scope, t == name { scope = .all } else { reload(resort: true) }
     }
 
     // MARK: - Paper mutations
 
     func saveSummary(_ text: String, for paper: Paper) {
-        var p = paper; p.summary = text; _ = try? store.update(p); reload()
+        var p = paper; p.summary = text; _ = try? store.update(p); reload(resort: true)
     }
     func delete(_ paper: Paper) {
-        if let id = paper.id { try? store.deletePaper(id: id); reload() }
+        if let id = paper.id { try? store.deletePaper(id: id); reload(resort: true) }
     }
     func toggleRead(_ paper: Paper) {
-        if let id = paper.id { try? store.setRead(paperID: id, read: !paper.isRead); reload() }
+        if let id = paper.id { try? store.setRead(paperID: id, read: !paper.isRead); reload(resort: true) }
     }
     func toggleImportant(_ paper: Paper) {
-        if let id = paper.id { try? store.setImportant(paperID: id, important: !paper.isImportant); reload() }
+        if let id = paper.id { try? store.setImportant(paperID: id, important: !paper.isImportant); reload(resort: true) }
     }
 
     func select(_ paper: Paper) { if let id = paper.id { multiSelection = [id] } }
@@ -205,7 +218,7 @@ final class LibraryViewModel: ObservableObject {
     func markRead(_ paper: Paper) {
         guard let id = paper.id else { return }
         try? store.removeTag(Self.toReadTag, fromPaper: id)
-        reload()
+        reload(resort: true)
     }
 
     /// Toggle the to-read tag (context-menu Mark as Read/Unread).
@@ -236,12 +249,12 @@ final class LibraryViewModel: ObservableObject {
                 p.teaserURL = figs.teaser ?? ""; p.pipelineURL = figs.pipeline ?? ""
                 _ = try? store.update(p)
             }
-            await MainActor.run { reload() }
+            await MainActor.run { reload(resort: true) }
         }
     }
     func save(_ paper: Paper) {
         _ = try? (paper.id == nil ? store.create(paper) : store.update(paper))
-        reload()
+        reload(resort: true)
     }
 
     /// Copy a PDF into the library cache, returning its stable destination path. Names the copy
@@ -267,7 +280,7 @@ final class LibraryViewModel: ObservableObject {
 
     func importPDF(at source: URL) {
         _ = Self.importPDF(at: source, store: store, cache: AppEnvironment.shared.downloader.cacheDir)
-        reload()
+        reload(resort: true)
     }
 
     /// Copy a PDF into the cache and return its stored path, WITHOUT touching the DB — for the edit
@@ -284,7 +297,7 @@ final class LibraryViewModel: ObservableObject {
         p.pdfPath = dest.path
         if p.source.isEmpty { p.source = "local" }
         _ = try? store.update(p)
-        reload()
+        reload(resort: true)
     }
 
     // MARK: - Bulk actions
@@ -500,7 +513,7 @@ final class LibraryViewModel: ObservableObject {
 
     func bulkDelete() {
         for p in selectedPapers() { if let id = p.id { try? store.deletePaper(id: id) } }
-        multiSelection.removeAll(); reload()
+        multiSelection.removeAll(); reload(resort: true)
     }
     func bulkDownloadPDFs() async {
         for p in selectedPapers() { _ = await ensurePDF(for: p) }
