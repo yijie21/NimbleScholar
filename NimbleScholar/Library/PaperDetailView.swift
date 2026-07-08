@@ -20,6 +20,10 @@ struct PaperDetailView: View {
                 }
                 Text([paper.authors, paper.venue, paper.year].filter { !$0.isEmpty }.joined(separator: " · "))
                     .foregroundStyle(.secondary)
+                if let cue = lastReadCue {
+                    Label(cue, systemImage: "bookmark")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 DetailSummaryField(paper: paper)
                 HStack {
                     Button { vm.openReader(paper) } label: { Label("Read", systemImage: "book") }
@@ -83,6 +87,15 @@ struct PaperDetailView: View {
     /// No confirmed code yet, but there's a source we keep re-checking.
     private var isWatchingCode: Bool {
         !hasReadyCode && (!paper.url.isEmpty || !paper.projectURL.isEmpty || !paper.codeURL.isEmpty)
+    }
+
+    /// "Last read: p. X of Y" from the reader's saved position (0 = never opened / page 1).
+    private var lastReadCue: String? {
+        guard let id = paper.id else { return nil }
+        let page = UserDefaults.standard.integer(forKey: "readingPage.\(id)")
+        guard page > 0 else { return nil }
+        let count = UserDefaults.standard.integer(forKey: "readingPageCount.\(id)")
+        return count > 0 ? "Last read: p. \(page + 1) of \(count)" : "Last read: p. \(page + 1)"
     }
 }
 

@@ -15,6 +15,7 @@ struct FindBar: View {
     @State private var query = ""
     @State private var matches: [PDFSelection] = []
     @State private var current = 0
+    @State private var capped = false
     @FocusState private var focused: Bool
     /// Match whole words only (persisted across sessions).
     @AppStorage("findWholeWord") private var wholeWord = false
@@ -72,19 +73,22 @@ struct FindBar: View {
     }
 
     private var counterText: String {
-        matches.isEmpty ? "Not found" : "\(current + 1) of \(matches.count)"
+        if matches.isEmpty { return "Not found" }
+        return "\(current + 1) of \(matches.count)\(capped ? "+" : "")"
     }
 
     private func runSearch() {
         guard let pv = pdfView, let doc = pv.document, !query.isEmpty else {
             matches = []
             current = 0
+            capped = false
             clearHighlights()
             return
         }
         var found = doc.findString(query, withOptions: .caseInsensitive)
         if wholeWord { found = found.filter(Self.isWholeWord) }
-        if found.count > Self.maxMatches { found = Array(found.prefix(Self.maxMatches)) }
+        capped = found.count > Self.maxMatches
+        if capped { found = Array(found.prefix(Self.maxMatches)) }
         matches = found
         current = 0
         if found.isEmpty {

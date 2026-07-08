@@ -42,6 +42,8 @@ struct PDFKitView: NSViewRepresentable {
         // Persist position as the user pages through. Capture only the Sendable key
         // string; reach the view via the notification object inside MainActor isolation.
         let key = "readingPage.\(vm.paper.id ?? -1)"
+        // The detail view shows "Last read: p. X of Y" without opening the PDF.
+        UserDefaults.standard.set(document.pageCount, forKey: "readingPageCount.\(vm.paper.id ?? -1)")
         context.coordinator.observer = NotificationCenter.default.addObserver(
             forName: .PDFViewPageChanged, object: v, queue: .main
         ) { note in
