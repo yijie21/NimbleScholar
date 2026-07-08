@@ -90,19 +90,27 @@ private struct RowCard: View, Equatable {
     }
 }
 
-/// One-sentence summary, editable inline, saved on commit.
+/// One-sentence summary, editable inline — saved on Return or when focus leaves the field.
 struct InlineSummaryField: View {
     @EnvironmentObject var vm: LibraryViewModel
     let paper: Paper
     @State private var text: String = ""
+    @FocusState private var focused: Bool
 
     var body: some View {
         TextField("One-sentence summary…", text: $text, axis: .vertical)
             .textFieldStyle(.plain)
             .font(.callout)
             .lineLimit(1...3)
+            .focused($focused)
             .onAppear { text = paper.summary }
-            .onSubmit { vm.saveSummary(text, for: paper) }
+            .onSubmit { commit() }
+            .onChange(of: focused) { _, nowFocused in if !nowFocused { commit() } }
+    }
+
+    private func commit() {
+        guard text != paper.summary else { return }   // no-op saves would churn updatedAt
+        vm.saveSummary(text, for: paper)
     }
 }
 

@@ -87,11 +87,12 @@ struct PaperDetailView: View {
 }
 
 /// Editable one-sentence summary in the detail panel. Reloads its text when the selected
-/// paper changes; saves when you press Return (or commit a newline-wrapped line).
+/// paper changes; saves on Return or when focus leaves the field.
 private struct DetailSummaryField: View {
     @EnvironmentObject var vm: LibraryViewModel
     let paper: Paper
     @State private var text = ""
+    @FocusState private var focused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -99,10 +100,17 @@ private struct DetailSummaryField: View {
             TextField("One-sentence summary…", text: $text, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1...4)
-                .onSubmit { vm.saveSummary(text, for: paper) }
+                .focused($focused)
+                .onSubmit { commit() }
+                .onChange(of: focused) { _, nowFocused in if !nowFocused { commit() } }
         }
         .onAppear { text = paper.summary }
         .onChange(of: paper.id) { _, _ in text = paper.summary }
+    }
+
+    private func commit() {
+        guard text != paper.summary else { return }
+        vm.saveSummary(text, for: paper)
     }
 }
 

@@ -32,6 +32,9 @@ struct TagInputField: View {
                     .frame(maxWidth: fieldWidth)
                     .focused($focused)
                     .onSubmit { if !newTag.isEmpty { commit(newTag) } }
+                    .onChange(of: focused) { _, nowFocused in
+                        if !nowFocused, !newTag.isEmpty { commit(newTag) }
+                    }
                 if !all.isEmpty {
                     Menu {
                         ForEach(all, id: \.self) { t in

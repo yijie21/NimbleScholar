@@ -5,8 +5,13 @@ struct PaperEditSheet: View {
     @EnvironmentObject var vm: LibraryViewModel
     @Environment(\.dismiss) private var dismiss
     @State var paper: Paper
+    @State private var original: Paper
+    @State private var confirmDiscard = false
 
-    init(paper: Paper) { _paper = State(initialValue: paper) }
+    init(paper: Paper) {
+        _paper = State(initialValue: paper)
+        _original = State(initialValue: paper)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,7 +50,10 @@ struct PaperEditSheet: View {
                     Button("Delete", role: .destructive) { vm.requestDelete([paper]); dismiss() }
                 }
                 Spacer()
-                Button("Cancel") { dismiss() }
+                Button("Cancel") {
+                    if paper != original { confirmDiscard = true } else { dismiss() }
+                }
+                .keyboardShortcut(.cancelAction)
                 Button("Save") {
                     paper.codeReady = !paper.codeURL.isEmpty
                     vm.save(paper)
@@ -55,5 +63,9 @@ struct PaperEditSheet: View {
             .padding()
         }
         .frame(width: 560, height: 580)
+        .confirmationDialog("Discard unsaved changes?", isPresented: $confirmDiscard) {
+            Button("Discard Changes", role: .destructive) { dismiss() }
+            Button("Keep Editing", role: .cancel) {}
+        }
     }
 }
