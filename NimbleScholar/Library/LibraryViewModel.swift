@@ -230,7 +230,12 @@ final class LibraryViewModel: ObservableObject {
         multiSelection = [id]          // selects immediately (cheap)
         // Defer the reader swap one runloop so the click returns instantly; the heavy
         // EmbeddedReader build then runs on a fresh frame instead of blocking the tap.
-        DispatchQueue.main.async { self.readingPaperID = id }
+        // Re-validate at fire time: if the selection moved on before this ran, the
+        // newer interaction's own (guarded) switch governs — don't clobber it.
+        DispatchQueue.main.async {
+            guard self.multiSelection == [id] else { return }
+            self.readingPaperID = id
+        }
     }
     func closeReader() { readingPaperID = nil }
 
