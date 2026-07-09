@@ -9,6 +9,9 @@ struct TagSidebarRows<Scope: Hashable>: View {
     let scope: (String) -> Scope
     let onRename: (String) -> Void
     let onDelete: (String) -> Void
+    /// When set, the tag's context menu offers a Markdown export of its papers. The links
+    /// sidebar leaves this nil (there's nothing paper-shaped to export there).
+    var onExport: ((String) -> Void)? = nil
 
     var body: some View {
         ForEach(tagCounts, id: \.name) { tc in
@@ -21,6 +24,9 @@ struct TagSidebarRows<Scope: Hashable>: View {
             .tag(scope(tc.name))
             .contextMenu {
                 Button("Rename…") { onRename(tc.name) }
+                if let onExport {
+                    Button("Export to Markdown…") { onExport(tc.name) }
+                }
                 Button("Delete Tag", role: .destructive) { onDelete(tc.name) }
             }
         }

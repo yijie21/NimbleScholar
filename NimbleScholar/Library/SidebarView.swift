@@ -19,7 +19,8 @@ struct SidebarView: View {
                 TagSidebarRows(tagCounts: vm.tagCounts,
                                scope: { LibraryScope.tag($0) },
                                onRename: { renameText = $0; renaming = $0 },
-                               onDelete: { vm.deleteTag($0) })
+                               onDelete: { vm.deleteTag($0) },
+                               onExport: { exportTagMarkdown($0) })
             }
         }
         .listStyle(.sidebar)

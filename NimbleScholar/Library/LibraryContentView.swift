@@ -17,6 +17,26 @@ import NimbleScholarCore
     }
 }
 
+/// Export every paper carrying `tag` as a compact Markdown reading list — one file to hand to
+/// an AI model for a literature investigation. Invoked from a tag's sidebar context menu.
+@MainActor func exportTagMarkdown(_ tag: String) {
+    let papers = (try? AppEnvironment.shared.store.searchPapers(query: nil, tag: tag)) ?? []
+    let panel = NSSavePanel()
+    // A tag can contain characters illegal in filenames (e.g. "/"); keep the name safe.
+    let safeName = tag.replacingOccurrences(of: "/", with: "-")
+        .replacingOccurrences(of: ":", with: "-")
+    panel.nameFieldStringValue = "\(safeName.isEmpty ? "papers" : safeName).md"
+    if panel.runModal() == .OK, let url = panel.url {
+        do {
+            let markdown = MarkdownExporter.export(tag: tag, papers: papers)
+            guard let data = markdown.data(using: .utf8) else { return }
+            try data.write(to: url)
+        } catch {
+            ActivityCenter.shared.reportError("Markdown export failed — \(error.localizedDescription)")
+        }
+    }
+}
+
 enum LibraryViewMode: String, CaseIterable, Identifiable {
     case threePane, gallery, rows, mindmap
     var id: String { rawValue }
