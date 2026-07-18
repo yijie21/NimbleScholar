@@ -46,7 +46,7 @@ private struct GeneralSettings: View {
                     TextField("Proxy host", text: $proxyHost).autocorrectionDisabled()
                     TextField("Proxy port", value: $proxyPort, format: .number)
                 }
-                Text("Used for paper PDFs, figures, and metadata (e.g. your local proxy for faster access). Restart the app to apply.")
+                Text("Used for paper PDFs, figures, and metadata (e.g. your local proxy for faster access). If the proxy isn't reachable, downloads fall back to a direct connection. Restart the app to apply.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Software updates") {

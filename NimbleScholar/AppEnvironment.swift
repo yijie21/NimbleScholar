@@ -1,3 +1,4 @@
+import CFNetwork
 import Foundation
 import NimbleScholarCore
 
@@ -5,7 +6,8 @@ import NimbleScholarCore
 /// correctly before the user opens Settings. The download proxy is ON by default: the
 /// app's URLSession only honors macOS *System* proxy settings (not shell env vars), so
 /// on networks that require a local proxy it must be enabled to reach arXiv. Set
-/// `proxyPort` to your local proxy's port.
+/// `proxyPort` to your local proxy's port. When the proxy isn't reachable (VPN app not
+/// running), requests fall back to a direct connection instead of failing.
 enum AppDefaults {
     static let proxyEnabled = true
     static let proxyHost = "127.0.0.1"
@@ -24,7 +26,8 @@ final class AppEnvironment: ObservableObject {
     let downloader: PDFDownloader
     let figures: ArxivFigureService
     /// URLSession used for ALL downloads (PDFs, figures, metadata). Routes through the
-    /// user's configured proxy when enabled in Settings (restart to apply changes).
+    /// user's configured proxy when enabled in Settings (restart to apply changes),
+    /// falling back to a direct connection when the proxy isn't reachable.
     let networkSession: URLSession
     var captureServer: CaptureServer?
     /// Non-nil if on-disk store setup failed; shown as a banner + logged. Indicates
@@ -128,25 +131,52 @@ final class AppEnvironment: ObservableObject {
     }()
 
     /// Build the shared download session, honoring the proxy configured in Settings.
+    /// The proxy is applied as a PAC script ("PROXY host:port; DIRECT") rather than
+    /// plain HTTPProxy keys: PAC gives the network stack a fallback, so when the proxy
+    /// port isn't answering (VPN app closed) requests degrade to a direct connection
+    /// instead of every download and capture failing.
     private static func makeNetworkSession() -> URLSession {
         let d = UserDefaults.standard
         let config = URLSessionConfiguration.default
         let host = d.string(forKey: "proxyHost") ?? ""
         let port = d.integer(forKey: "proxyPort")
         if d.bool(forKey: "proxyEnabled"), !host.isEmpty, port > 0 {
-            config.connectionProxyDictionary = [
-                "HTTPEnable": 1, "HTTPProxy": host, "HTTPPort": port,
-                "HTTPSEnable": 1, "HTTPSProxy": host, "HTTPSPort": port,
-            ]
+            if let pac = ProxyPAC.script(host: host, port: port) {
+                config.connectionProxyDictionary = [
+                    kCFNetworkProxiesProxyAutoConfigEnable as String: 1,
+                    kCFNetworkProxiesProxyAutoConfigJavaScript as String: pac,
+                ]
+            } else {
+                // Host failed PAC sanitization — keep the old no-fallback wiring
+                // rather than silently dropping the user's proxy.
+                config.connectionProxyDictionary = [
+                    "HTTPEnable": 1, "HTTPProxy": host, "HTTPPort": port,
+                    "HTTPSEnable": 1, "HTTPSProxy": host, "HTTPSPort": port,
+                ]
+            }
         }
         return URLSession(configuration: config)
+    }
+
+    /// GET via the configured (possibly proxied) session; when that fails at the
+    /// transport level (proxy not running, network change), retry once over a direct
+    /// connection. Mirrors PDFDownloader's primary → fallback pattern so a dead proxy
+    /// can't sink a capture even if the PAC fallback didn't kick in.
+    private static func dataWithDirectFallback(from url: URL) async throws -> Data {
+        do {
+            let (data, _) = try await AppEnvironment.shared.networkSession.data(from: url)
+            return data
+        } catch {
+            let (data, _) = try await directSession.data(from: url)
+            return data
+        }
     }
 
     /// Resolve metadata for a URL: arXiv API → OpenReview notes API → generic <meta> parse.
     static func resolveMetadata(for url: String) async throws -> PaperMetadata {
         let session = AppEnvironment.shared.networkSession
         if let id = ArxivService.extractID(from: url) {
-            let (data, _) = try await session.data(from: ArxivService.apiURL(forID: id))
+            let data = try await dataWithDirectFallback(from: ArxivService.apiURL(forID: id))
             return try MetadataService.parseArxivAtom(data)
         }
         if let id = OpenReviewService.extractID(from: url) {
@@ -169,7 +199,7 @@ final class AppEnvironment: ObservableObject {
             ])
         }
         guard let u = URL(string: url) else { return PaperMetadata() }
-        let (data, _) = try await session.data(from: u)
+        let data = try await dataWithDirectFallback(from: u)
         return try MetadataService.parseGenericMeta(data)
     }
 

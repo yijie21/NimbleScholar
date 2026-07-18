@@ -30,6 +30,7 @@ UI, and the boundary keeps business logic out of views.
 | `Core/Services/MetadataService.swift` | Parse arXiv Atom XML + generic `<meta>` HTML |
 | `Core/Services/FigureChooser.swift` / `ArxivFigureService.swift` | Scrape teaser/pipeline figures: arXiv HTML → ar5iv fallback, or any HTML landing page (`<figure>` + `og:image`) |
 | `Core/Services/PDFDownloader.swift` | Resolve + download + cache a PDF |
+| `Core/Services/ProxyPAC.swift` | PAC script for the download proxy: "PROXY host:port; DIRECT", so a dead proxy (VPN off) falls back to a direct connection |
 | `Core/Services/BibTeXExporter.swift` / `MarkdownExporter.swift` | Export formats |
 | `Core/Capture/CaptureHandler.swift` | Turn a payload into a saved/updated paper (with dedupe + figures) |
 | `Core/Capture/CaptureServer.swift` | FlyingFox loopback server: `/api/capture`, `/api/ping` |
